@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rltk = "0.8.7"
-specs = "0.20.0"
+rltk = { version = "0.8.0" }
+specs = { version = "0.16.1" }
 specs-derive = "0.4.1"

@@ -1,4 +1,4 @@
-use std::{fmt, ops::{Add, AddAssign, Div, Mul, Sub, SubAssign}, path::Display};
+use std::{fmt, ops::{Add, AddAssign, Div, Mul, Sub, SubAssign}};
 
 use specs::prelude::*;
 use specs_derive::Component;
@@ -107,9 +107,3 @@ impl PartialEq for Vector3i {
         self.x == other.x && self.y == other.y && self.z == other .z
     }
 }
-
-pub const ORTHO_DIRECTIONS: [Vector3i; 6] = [
-    Vector3i::UP, Vector3i::DOWN,
-    Vector3i::TOP, Vector3i::BOTTOM,
-    Vector3i::LEFT, Vector3i::RIGHT
-];

@@ -112,7 +112,7 @@ pub fn get_viewport_position(ecs: &mut World) -> Vector3i {
         let mut viewport_position = &Vector3i::new_equi(0);
     
         for (position, camera) in (&positions, &cameras).join() {
-            if (camera.is_active) {
+            if camera.is_active {
                 viewport_position = position;
             }
         }

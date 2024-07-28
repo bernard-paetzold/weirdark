@@ -1,10 +1,9 @@
-use rltk::RGB;
 use specs::prelude::*;
 use specs_derive::Component;
 
-use crate::{vectors::Vector3i, Renderable};
+use crate::vectors::Vector3i;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct Camera {
     pub is_active: bool,
 }

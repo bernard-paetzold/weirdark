@@ -52,9 +52,9 @@ impl GameState for State {
 
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
-    let mut context = RltkBuilder::simple(TERMINAL_WIDTH, TERMINAL_HEIGHT)
+    let context = RltkBuilder::simple(TERMINAL_WIDTH, TERMINAL_HEIGHT)
     .unwrap()
-    .with_title("Roguelike Tutorial")
+    .with_title("Weirdark")
     .with_font("vga8x16.png", 8, 16)
     .with_sparse_console(80, 30, "vga8x16.png")
     .with_vsync(false)
@@ -70,10 +70,10 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Camera>();
 
     //Create player
-    let player_start_position = Vector3i::new_equi(0);
+    let player_start_position =Vector3i::new(0, 0, MAP_SIZE - 2);
 
     game_state.ecs.create_entity()
-    .with(Vector3i::new(0, 0, MAP_SIZE - 1))
+    .with(player_start_position)
     .with(Renderable::new(
         rltk::to_cp437('@'),
         rltk::to_cp437('@'),

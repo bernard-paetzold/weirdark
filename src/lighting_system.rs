@@ -2,7 +2,7 @@ use std::{borrow::BorrowMut, cmp, collections::{HashMap, HashSet}, time::Instant
 
 use specs::{prelude::*, shred::FetchMut, storage::MaskedStorage, world::EntitiesRes};
 
-use crate::{vectors::Vector3i, Illuminant, Map, Photometry, Tile, Viewshed, MAP_SIZE};
+use crate::{player, vectors::Vector3i, Illuminant, Map, Photometry, Player, Tile, Viewshed, MAP_SIZE};
 
 pub const LIGHT_FALLOFF: f32 = 0.05;
 
@@ -14,10 +14,11 @@ impl<'a> System<'a> for LightingSystem {
                         WriteStorage<'a, Illuminant>,
                         WriteStorage<'a, Photometry>,
                         ReadStorage<'a, Viewshed>,
-                        WriteStorage<'a, Vector3i>);
+                        WriteStorage<'a, Vector3i>,
+                        ReadStorage<'a, Player>);
 
     fn run(&mut self, data : Self::SystemData) {
-        let (mut map, entities, mut illuminants, mut photometria, viewsheds, positions) = data;
+        let (mut map, entities, mut illuminants, mut photometria, viewsheds, positions, players) = data;
         let map_tiles = &mut map.tiles;
 
         if !(&mut illuminants, &viewsheds, &positions).join().filter(|x| x.0.dirty).next().is_none() {
@@ -27,7 +28,7 @@ impl<'a> System<'a> for LightingSystem {
             }
         
 
-            for (illuminant, viewshed, position) in (&mut illuminants, &viewsheds, &positions).join() {
+            for (entity, illuminant, viewshed, position) in (&entities, &mut illuminants, &viewsheds, &positions).join() {
                 //if illuminant.dirty {
                     //let now = Instant::now();
                     illuminant.dirty = false;
@@ -36,6 +37,13 @@ impl<'a> System<'a> for LightingSystem {
                         match map_tiles.get_mut(tile_position) {
                             Some(tile) => {
                                 tile.light_level = tile.light_level + (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32).max(0.0);
+                                
+                                //TODO: Change this to be in a better location
+                                for (_player, player_viewshed) in (&players, &viewsheds).join() {
+                                    if player_viewshed.visible_tiles.contains(tile_position) && tile.light_level > 1.0 - viewshed.dark_vision {
+                                        tile.discovered = true;
+                                    }
+                                }
                             },
                             _ => {},
                         }        

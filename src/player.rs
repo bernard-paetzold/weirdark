@@ -1,7 +1,7 @@
 use rltk::{Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use specs_derive::Component;
-use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed};
+use crate::{entities, vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed};
 
 
 #[derive(Component, Debug)]
@@ -11,37 +11,46 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     let mut positions = ecs.write_storage::<Vector3i>();
     let mut players = ecs.write_storage::<Player>();
     let mut viewsheds = ecs.write_storage::<Viewshed>();
+    let entities = ecs.entities();
     let mut photometria = ecs.write_storage::<Photometry>();
     let mut illuminants = ecs.write_storage::<Illuminant>();
 
-    for (_player, position, viewshed, photometry, illuminant) in (&mut players, &mut positions, &mut viewsheds, &mut photometria, &mut illuminants).join() {
+    for (_player, position, entity) in (&mut players, &mut positions, &entities).join() {
         let map = ecs.fetch::<Map>();
 
         let tile = map.tiles.get(&(*position + delta));
 
+        let mut movement_possible = false;
+
         match tile {
             Some(tile) => {
+                //TODO: Add exceptions here for if a player might need to move through solid tiles
                 if tile.passable {
-                    //TODO: Add exceptions here for if a player might need to move through solid tiles
-                    *position += delta;
-                    let new_position = *position;
-                    viewshed.dirty = true;
-                    photometry.dirty = true;
-                    illuminant.dirty = true;
-
-                    return Some(new_position)
+                    movement_possible = true;
                 }
             },
             _ => {
-                //TODO: This allows players to move where there is no tile
-                *position += delta;
-                    let new_position = *position;
-                    viewshed.dirty = true;
-                    photometry.dirty = true;
-                    illuminant.dirty = true;
-
-                    return Some(new_position)
+                movement_possible = true;
             }
+        }
+
+        if movement_possible {
+            *position += delta;
+            let new_position = *position;
+
+            if let Some(viewshed) = viewsheds.get_mut(entity) {
+                viewshed.dirty = true;
+            }
+
+            if let Some(photometry) = photometria.get_mut(entity) {
+                photometry.dirty = true;
+            }
+
+            if let Some(illuminant) = illuminants.get_mut(entity) {
+                illuminant.dirty = true;
+            }
+
+            return Some(new_position)
         }
     }
     None

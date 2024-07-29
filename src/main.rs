@@ -64,7 +64,7 @@ fn main() -> rltk::BError {
     .with_title("Weirdark")
     .with_font("vga8x16.png", 8, 16)
     .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "vga8x16.png")
-    .with_vsync(false)
+    .with_vsync(true)
     .with_title("weirdark")
     .build()?;
 

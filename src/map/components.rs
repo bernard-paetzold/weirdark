@@ -15,6 +15,7 @@ pub struct Tile {
     pub background: RGBA,
     pub light_level: f32,
     pub light_color: RGBA,
+    pub discovered: bool,
 }
 
 impl Tile {
@@ -29,6 +30,7 @@ impl Tile {
             background,
             light_level: 0.0,
             light_color: RGB::named(rltk::WHITE).to_rgba(1.0),
+            discovered: false,
         }
     }
 }

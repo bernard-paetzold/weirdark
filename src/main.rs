@@ -63,7 +63,7 @@ fn main() -> rltk::BError {
     .unwrap()
     .with_title("Weirdark")
     .with_font("vga8x16.png", 8, 16)
-    .with_sparse_console(80, 30, "vga8x16.png")
+    .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "vga8x16.png")
     .with_vsync(false)
     .with_title("weirdark")
     .build()?;
@@ -87,11 +87,12 @@ fn main() -> rltk::BError {
         rltk::to_cp437('@'),
         rltk::to_cp437('@'),
         RGB::named(rltk::YELLOW).to_rgba(1.0),
-        RGB::named(rltk::BLACK).to_rgba(1.0),
+        RGB::named(rltk::BLACK).to_rgba(0.0),
     ))
     .with(Player {})
-    .with(Viewshed::new(20))
+    .with(Viewshed::new(20, 1.0))
     .with(Photometry::new())
+    .with(Illuminant::new(1.0, 5, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0))
     .build();
 
     add_camera(player_start_position, &mut game_state.ecs, true);
@@ -100,14 +101,26 @@ fn main() -> rltk::BError {
     game_state.ecs.create_entity()
     .with(Vector3i::new(7, 0, MAP_SIZE - 2))
     .with(Renderable::new(
-        rltk::to_cp437('@'),
-        rltk::to_cp437('@'),
-        RGB::named(rltk::GREEN).to_rgba(1.0),
+        rltk::to_cp437('☼'),
+        rltk::to_cp437('☼'),
+        RGB::named(rltk::YELLOW).to_rgba(1.0),
+        RGB::named(rltk::BLACK).to_rgba(0.0),
+    ))
+    .with(Viewshed::new(60, 1.0))
+    .with(Photometry::new())
+    .with(Illuminant::new(1.5, 12, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0))
+    .build();
+
+    game_state.ecs.create_entity()
+    .with(Vector3i::new(20, 10, MAP_SIZE - 2))
+    .with(Renderable::new(
+        rltk::to_cp437('☼'),
+        rltk::to_cp437('☼'),
+        RGB::named(rltk::YELLOW).to_rgba(1.0),
         RGB::named(rltk::BLACK).to_rgba(1.0),
     ))
-    .with(Viewshed::new(60))
+    .with(Viewshed::new(60, 1.0))
     .with(Photometry::new())
-    .with(Illuminant::new(1.0, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0))
     .build();
 
     let map = initialise_map(Vector3i::new_equi(MAP_SIZE));

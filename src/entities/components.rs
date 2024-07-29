@@ -9,15 +9,17 @@ use crate::vectors::Vector3i;
 #[derive(Component)]
 pub struct Viewshed {
     pub visible_tiles: HashSet<Vector3i>,
-    pub view_distance: i32,
+    pub view_distance: usize,
+    pub dark_vision: f32,
     pub dirty: bool,
 }
 
 impl Viewshed {
-    pub fn new(view_distance: i32) -> Viewshed {
+    pub fn new(view_distance: usize, dark_vision: f32) -> Viewshed {
         Viewshed {
             visible_tiles: HashSet::new(),
             view_distance,
+            dark_vision,
             dirty: true,
         }
     }
@@ -26,15 +28,17 @@ impl Viewshed {
 #[derive(Component)]
 pub struct Illuminant {
     pub intensity: f32,
+    pub range: usize,
     pub color: RGBA,
     pub beam_angle: f32,
     pub dirty: bool,
 }
 
 impl Illuminant {
-    pub fn new(intensity: f32, color: RGBA, beam_angle: f32) -> Illuminant {
+    pub fn new(intensity: f32, range: usize, color: RGBA, beam_angle: f32) -> Illuminant {
         Illuminant {
             intensity,
+            range,
             color,
             beam_angle,
             dirty: true,

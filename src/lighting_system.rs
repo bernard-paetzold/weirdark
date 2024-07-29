@@ -1,10 +1,10 @@
-use std::{collections::{HashMap, HashSet}, time::Instant};
+use std::{borrow::BorrowMut, cmp, collections::{HashMap, HashSet}, time::Instant};
 
 use specs::{prelude::*, shred::FetchMut, storage::MaskedStorage, world::EntitiesRes};
 
 use crate::{vectors::Vector3i, Illuminant, Map, Photometry, Tile, Viewshed, MAP_SIZE};
 
-pub const LIGHT_FALLOFF: f32 = 0.02;
+pub const LIGHT_FALLOFF: f32 = 0.05;
 
 pub struct LightingSystem {}
 
@@ -20,21 +20,29 @@ impl<'a> System<'a> for LightingSystem {
         let (mut map, entities, mut illuminants, mut photometria, viewsheds, positions) = data;
         let map_tiles = &mut map.tiles;
 
-        for (illuminant, viewshed, position) in (&mut illuminants, &viewsheds, &positions).join() {
-            if illuminant.dirty {
-                let now = Instant::now();
-                illuminant.dirty = false;
+        if !(&mut illuminants, &viewsheds, &positions).join().filter(|x| x.0.dirty).next().is_none() {
+            //TODO: Improve this so only tiles in affected areas are reset
+            for tile in map_tiles.iter_mut() {
+                tile.1.light_level = 0.0;  
+            }
+        
 
-                for tile_position in viewshed.visible_tiles.iter() {
-                    match map_tiles.get_mut(tile_position) {
-                        Some(tile) => {
-                            tile.light_level = illuminant.intensity - position.distance_to(*tile_position) as f32 * LIGHT_FALLOFF;
-                        },
-                        _ => {},
-                    }        
-                }
-                let elapsed = now.elapsed();
-                println!("Lighting: {:.2?}", elapsed);
+            for (illuminant, viewshed, position) in (&mut illuminants, &viewsheds, &positions).join() {
+                //if illuminant.dirty {
+                    //let now = Instant::now();
+                    illuminant.dirty = false;
+
+                    for tile_position in viewshed.visible_tiles.iter() {
+                        match map_tiles.get_mut(tile_position) {
+                            Some(tile) => {
+                                tile.light_level = tile.light_level + (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32).max(0.0);
+                            },
+                            _ => {},
+                        }        
+                    }
+                    //let elapsed = now.elapsed();
+                    //println!("Lighting: {:.2?}", elapsed);
+                //}
             }
         }
 
@@ -43,7 +51,6 @@ impl<'a> System<'a> for LightingSystem {
         for (photometry, position) in (&mut photometria, &positions).join() {
             if photometry.dirty {
                 photometry.dirty = false;
-                println!("{}", position);
 
                 match map_tiles.get_mut(position) {
                     Some(tile) => {

@@ -1,7 +1,7 @@
 use rltk::{Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use specs_derive::Component;
-use crate::{vectors::Vector3i, Camera, Map, Photometry, State, Viewshed};
+use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed};
 
 
 #[derive(Component, Debug)]
@@ -12,8 +12,9 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     let mut players = ecs.write_storage::<Player>();
     let mut viewsheds = ecs.write_storage::<Viewshed>();
     let mut photometria = ecs.write_storage::<Photometry>();
+    let mut illuminants = ecs.write_storage::<Illuminant>();
 
-    for (_player, position, viewshed, photometry) in (&mut players, &mut positions, &mut viewsheds, &mut photometria).join() {
+    for (_player, position, viewshed, photometry, illuminant) in (&mut players, &mut positions, &mut viewsheds, &mut photometria, &mut illuminants).join() {
         let map = ecs.fetch::<Map>();
 
         let tile = map.tiles.get(&(*position + delta));
@@ -26,6 +27,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
                     let new_position = *position;
                     viewshed.dirty = true;
                     photometry.dirty = true;
+                    illuminant.dirty = true;
 
                     return Some(new_position)
                 }
@@ -36,6 +38,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
                     let new_position = *position;
                     viewshed.dirty = true;
                     photometry.dirty = true;
+                    illuminant.dirty = true;
 
                     return Some(new_position)
             }

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use rltk::Rltk;
+use rltk::{Rltk, RGB, RGBA};
 use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::MaskedStorage};
 
 use crate::{vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
@@ -27,24 +27,54 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
 
     let map = ecs.fetch::<Map>();
 
-    for (_player, viewshed) in (&mut players, &viewsheds).join() {
-        for tile_position in viewshed.visible_tiles.iter() {
-            let tile = map.tiles.get(tile_position);
+    for (_player, viewshed, position) in (&mut players, &viewsheds, &positions).join() {
+        for x in (position.x - 1) - (TERMINAL_WIDTH / 2)..position.x + (TERMINAL_WIDTH / 2) {
+            for y in (position.y - 1) - (TERMINAL_HEIGHT / 2)..position.y + (TERMINAL_WIDTH / 2) {
+                for z in position.z - 2..viewport_position.z + 1 {
+                    let tile_position = &Vector3i::new(x, y, z);
+                    let tile = map.tiles.get(tile_position);
 
                     match tile {
                         Some(tile) => {
-                            if viewshed.visible_tiles.contains(&tile.position) {  
+                            if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 1.0 - viewshed.dark_vision {                                
                                 if tile_position.z == viewport_position.z {
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), tile.foreground * tile.light_level, tile.background * tile.light_level, tile.side_glyph);
+                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                                            tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                                            desaturate_color(tile.foreground, tile.light_level), 
+                                            desaturate_color(tile.background, tile.light_level), 
+                                            tile.side_glyph);
                                 }
                                 else if viewport_position.z - tile_position.z == 1 {
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), tile.foreground * tile.light_level, tile.background * tile.light_level, tile.top_glyph);
+                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                                    desaturate_color(tile.foreground, tile.light_level), 
+                                    desaturate_color(tile.background, tile.light_level), 
+                                    tile.top_glyph);
+                                } 
+                            }
+                            else if tile.discovered {
+                                if tile_position.z == viewport_position.z {
+                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                                    tile.foreground.to_greyscale(), 
+                                    tile.background.to_greyscale(), 
+                                    tile.side_glyph);
+                                }
+                                else if viewport_position.z - tile_position.z == 1 {
+                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                                    tile.foreground.to_greyscale(), 
+                                    tile.background.to_greyscale(),
+                                     tile.top_glyph);
                                 } 
                             }
                         },
                         _ => {}
                     }
+                }
+            }
         }
+        
         draw_entities(ctx, &positions, &renderables, &photometria, viewport_position, &viewshed.visible_tiles);
     }
 
@@ -57,11 +87,11 @@ fn draw_entities(ctx : &mut Rltk, positions: &Storage<Vector3i, FetchMut<MaskedS
     for (position, renderable, photometry) in (positions, renderables, photometria).join().filter(|&x| visible_tiles.contains(x.0)) {
         if !rendered_entities.contains_key(position) && !rendered_entities.contains_key(&(*position + Vector3i::new(0, 0, 1))) {
             if position.z == viewport_position.z {
-                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), renderable.foreground * photometry.light_level, renderable.background * photometry.light_level, renderable.side_glyph);
+                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), desaturate_color(renderable.foreground, photometry.light_level), desaturate_color(renderable.background, photometry.light_level),renderable.side_glyph);
                 rendered_entities.insert(position, renderable);
             }
             else if viewport_position.z - position.z == 1 {
-                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), renderable.foreground * photometry.light_level, renderable.background * photometry.light_level, renderable.top_glyph);
+                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), desaturate_color(renderable.foreground, photometry.light_level), desaturate_color(renderable.background, photometry.light_level), renderable.top_glyph);
                 rendered_entities.insert(position, renderable);
             }
         }
@@ -80,4 +110,10 @@ pub fn get_viewport_position(ecs: &mut World) -> Vector3i {
             }
         }
         *viewport_position
+}
+
+fn desaturate_color(color: RGBA, amount: f32) -> RGBA {
+    let amount = amount.clamp(0.0, 1.0);
+
+    color.lerp(color.to_greyscale(), 1.0 - amount)
 }

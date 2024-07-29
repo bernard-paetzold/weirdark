@@ -8,7 +8,9 @@ pub struct Map {
 
 impl Map {
     fn new() -> Map {
-        Map { tiles: HashMap::new() }
+        Map { 
+            tiles: HashMap::new() 
+        }
     }
 }
 

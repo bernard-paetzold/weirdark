@@ -35,10 +35,10 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                         Some(tile) => {
                             if viewshed.visible_tiles.contains(&tile.position) {  
                                 if tile_position.z == viewport_position.z {
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), tile.foreground.to_rgba(tile.light_level), tile.background.to_rgba(tile.light_level), tile.side_glyph);
+                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), tile.foreground * tile.light_level, tile.background * tile.light_level, tile.side_glyph);
                                 }
                                 else if viewport_position.z - tile_position.z == 1 {
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), tile.foreground.to_rgba(tile.light_level), tile.background.to_rgba(tile.light_level), tile.top_glyph);
+                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), tile.foreground * tile.light_level, tile.background * tile.light_level, tile.top_glyph);
                                 } 
                             }
                         },
@@ -57,11 +57,11 @@ fn draw_entities(ctx : &mut Rltk, positions: &Storage<Vector3i, FetchMut<MaskedS
     for (position, renderable, photometry) in (positions, renderables, photometria).join().filter(|&x| visible_tiles.contains(x.0)) {
         if !rendered_entities.contains_key(position) && !rendered_entities.contains_key(&(*position + Vector3i::new(0, 0, 1))) {
             if position.z == viewport_position.z {
-                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), renderable.foreground.to_rgba(photometry.light_level), renderable.background.to_rgba(photometry.light_level), renderable.side_glyph);
+                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), renderable.foreground * photometry.light_level, renderable.background * photometry.light_level, renderable.side_glyph);
                 rendered_entities.insert(position, renderable);
             }
             else if viewport_position.z - position.z == 1 {
-                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), renderable.foreground.to_rgba(photometry.light_level), renderable.background.to_rgba(photometry.light_level), renderable.top_glyph);
+                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), renderable.foreground * photometry.light_level, renderable.background * photometry.light_level, renderable.top_glyph);
                 rendered_entities.insert(position, renderable);
             }
         }
@@ -79,6 +79,5 @@ pub fn get_viewport_position(ecs: &mut World) -> Vector3i {
                 viewport_position = position;
             }
         }
-
         *viewport_position
 }

@@ -1,4 +1,4 @@
-use rltk::RGB;
+use rltk::{RGB, RGBA};
 use specs::prelude::*;
 use specs_derive::Component;
 
@@ -6,12 +6,12 @@ use specs_derive::Component;
 pub struct Renderable {
     pub top_glyph: rltk::FontCharType,
     pub side_glyph: rltk::FontCharType,
-    pub foreground: RGB,
-    pub background: RGB,
+    pub foreground: RGBA,
+    pub background: RGBA,
 }
 
 impl Renderable {
-    pub fn new(top_glyph: rltk::FontCharType, side_glyph: rltk::FontCharType, foreground: RGB, background: RGB) -> Renderable {
+    pub fn new(top_glyph: rltk::FontCharType, side_glyph: rltk::FontCharType, foreground: RGBA, background: RGBA) -> Renderable {
         Renderable {
             top_glyph,
             side_glyph,

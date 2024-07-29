@@ -1,7 +1,7 @@
 use rltk::{Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use specs_derive::Component;
-use crate::{vectors::Vector3i, Camera, Map, State, Viewshed};
+use crate::{vectors::Vector3i, Camera, Map, Photometry, State, Viewshed};
 
 
 #[derive(Component, Debug)]
@@ -11,8 +11,9 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     let mut positions = ecs.write_storage::<Vector3i>();
     let mut players = ecs.write_storage::<Player>();
     let mut viewsheds = ecs.write_storage::<Viewshed>();
+    let mut photometria = ecs.write_storage::<Photometry>();
 
-    for (_player, position, viewshed) in (&mut players, &mut positions, &mut viewsheds).join() {
+    for (_player, position, viewshed, photometry) in (&mut players, &mut positions, &mut viewsheds, &mut photometria).join() {
         let map = ecs.fetch::<Map>();
 
         let tile = map.tiles.get(&(*position + delta));
@@ -23,8 +24,8 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
                     //TODO: Add exceptions here for if a player might need to move through solid tiles
                     *position += delta;
                     let new_position = *position;
-                    println!("Player position: {}", position);
                     viewshed.dirty = true;
+                    photometry.dirty = true;
 
                     return Some(new_position)
                 }
@@ -33,8 +34,8 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
                 //TODO: This allows players to move where there is no tile
                 *position += delta;
                     let new_position = *position;
-                    println!("Player position: {}", position);
                     viewshed.dirty = true;
+                    photometry.dirty = true;
 
                     return Some(new_position)
             }

@@ -1,6 +1,6 @@
 use crate::vectors::Vector3i;
 
-use rltk::{RGB, WHITE};
+use rltk::{RGB, RGBA};
 use specs::prelude::*;
 use specs_derive::Component;
 
@@ -11,15 +11,14 @@ pub struct Tile {
     pub opaque: bool,
     pub top_glyph: rltk::FontCharType,
     pub side_glyph: rltk::FontCharType,
-    pub foreground: RGB,
-    pub background: RGB,
+    pub foreground: RGBA,
+    pub background: RGBA,
     pub light_level: f32,
-    pub light_color: RGB,
+    pub light_color: RGBA,
 }
 
-//TODO: Once lighting is calculated set initial light level to 0.0
 impl Tile {
-    pub fn new(position: Vector3i, passable: bool, opaque: bool, top_glyph: rltk::FontCharType, side_glyph: rltk::FontCharType, foreground: RGB, background: RGB) -> Tile {
+    pub fn new(position: Vector3i, passable: bool, opaque: bool, top_glyph: rltk::FontCharType, side_glyph: rltk::FontCharType, foreground: RGBA, background: RGBA) -> Tile {
         Tile {
             position,
             passable,
@@ -28,8 +27,8 @@ impl Tile {
             side_glyph,
             foreground,
             background,
-            light_level: 1.0,
-            light_color: RGB::named(rltk::WHITE),
+            light_level: 0.0,
+            light_color: RGB::named(rltk::WHITE).to_rgba(1.0),
         }
     }
 }

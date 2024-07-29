@@ -86,8 +86,8 @@ fn main() -> rltk::BError {
     .with(Renderable::new(
         rltk::to_cp437('@'),
         rltk::to_cp437('@'),
-        RGB::named(rltk::YELLOW),
-        RGB::named(rltk::BLACK),
+        RGB::named(rltk::YELLOW).to_rgba(1.0),
+        RGB::named(rltk::BLACK).to_rgba(1.0),
     ))
     .with(Player {})
     .with(Viewshed::new(20))
@@ -102,12 +102,12 @@ fn main() -> rltk::BError {
     .with(Renderable::new(
         rltk::to_cp437('@'),
         rltk::to_cp437('@'),
-        RGB::named(rltk::GREEN),
-        RGB::named(rltk::BLACK),
+        RGB::named(rltk::GREEN).to_rgba(1.0),
+        RGB::named(rltk::BLACK).to_rgba(1.0),
     ))
-    .with(Viewshed::new(20))
+    .with(Viewshed::new(60))
     .with(Photometry::new())
-    .with(Illuminant::new(0.1, RGB::named(rltk::ANTIQUEWHITE), PI * 2.0))
+    .with(Illuminant::new(1.0, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0))
     .build();
 
     let map = initialise_map(Vector3i::new_equi(MAP_SIZE));

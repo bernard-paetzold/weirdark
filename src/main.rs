@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use rltk::{Rltk, GameState};
 use specs::prelude::*;
 
@@ -24,7 +26,10 @@ mod camera;
 mod entities;
 mod graphics;
 mod visibility_system;
+mod lighting_system;
+
 use visibility_system::VisibilitySystem;
+use lighting_system::LightingSystem;
 
 
 pub struct State {
@@ -34,7 +39,9 @@ pub struct State {
 impl State {
     fn run_systems(&mut self) {
         let mut visibility_system = VisibilitySystem {};
+        let mut lighting_system = LightingSystem {};
         visibility_system.run_now(&self.ecs);
+        lighting_system.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -68,6 +75,8 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Player>();
     game_state.ecs.register::<Viewshed>();
     game_state.ecs.register::<Camera>();
+    game_state.ecs.register::<Illuminant>();
+    game_state.ecs.register::<Photometry>();
 
     //Create player
     let player_start_position =Vector3i::new(0, 0, MAP_SIZE - 2);
@@ -82,19 +91,23 @@ fn main() -> rltk::BError {
     ))
     .with(Player {})
     .with(Viewshed::new(20))
+    .with(Photometry::new())
     .build();
 
     add_camera(player_start_position, &mut game_state.ecs, true);
 
 
     game_state.ecs.create_entity()
-    .with(Vector3i::new(50, 51, MAP_SIZE - 1))
+    .with(Vector3i::new(7, 0, MAP_SIZE - 2))
     .with(Renderable::new(
         rltk::to_cp437('@'),
         rltk::to_cp437('@'),
         RGB::named(rltk::GREEN),
         RGB::named(rltk::BLACK),
     ))
+    .with(Viewshed::new(20))
+    .with(Photometry::new())
+    .with(Illuminant::new(0.1, RGB::named(rltk::ANTIQUEWHITE), PI * 2.0))
     .build();
 
     let map = initialise_map(Vector3i::new_equi(MAP_SIZE));

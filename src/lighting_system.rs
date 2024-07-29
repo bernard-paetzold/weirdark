@@ -2,54 +2,70 @@ use std::{collections::{HashMap, HashSet}, time::Instant};
 
 use specs::{prelude::*, shred::FetchMut, storage::MaskedStorage, world::EntitiesRes};
 
-use crate::{vectors::Vector3i, Map, Tile, Viewshed, MAP_SIZE};
+use crate::{vectors::Vector3i, Illuminant, Map, Photometry, Tile, Viewshed, MAP_SIZE};
 
-pub struct VisibilitySystem {}
+pub const LIFT_FALLOFF: f32 = 0.1;
 
-impl<'a> System<'a> for VisibilitySystem {
+pub struct LightingSystem {}
+
+impl<'a> System<'a> for LightingSystem {
     type SystemData = (WriteExpect<'a, Map>,
                         Entities<'a>,
-                        WriteStorage<'a, Viewshed>,
+                        WriteStorage<'a, Illuminant>,
+                        ReadStorage<'a, Photometry>,
                         WriteStorage<'a, Vector3i>);
 
     fn run(&mut self, data : Self::SystemData) {
-        let (map, _entities, mut viewshed, positions) = data;
-        let map_tiles = &map.tiles;
+        let (mut map, entities, mut illuminants, mut photometry, positions) = data;
+        let map_tiles = &mut map.tiles;
 
-        for (viewshed, position) in (&mut viewshed, &positions).join() {
-            if viewshed.dirty {
+        for (illuminant, position) in (&mut illuminants, &positions).join() {
+            if illuminant.dirty {
                 let now = Instant::now();
-                viewshed.dirty = false;
-                viewshed.visible_tiles.clear();
+                illuminant.dirty = false;
 
-                let mut unchecked_tiles = HashSet::<Vector3i>::new();
+                let mut unmodified_tiles = HashSet::<Vector3i>::new();
+                
+                let illuminant_range: i32 = (illuminant.intensity / LIFT_FALLOFF).round() as i32;
 
-                //Add all tiles within view range to a hashset
-                for x in (position.x - viewshed.view_distance)..(position.x + viewshed.view_distance) {
-                    for y in (position.y - viewshed.view_distance)..(position.y + viewshed.view_distance) {
+                //Add all tiles within light range to a hashset
+                for x in (position.x - illuminant_range)..(position.x + illuminant_range) {
+                    for y in (position.y - illuminant_range)..(position.y + illuminant_range) {
                         let target = Vector3i::new(x, y, position.z);
 
-                        if position.distance_to(target) < viewshed.view_distance
+                        if position.distance_to(target) < illuminant_range
                         && target.x >= -MAP_SIZE && target.x < MAP_SIZE 
                         && target.y >= -MAP_SIZE && target.y < MAP_SIZE 
                         && target.z >= -MAP_SIZE && target.z < MAP_SIZE {
-                            unchecked_tiles.insert(target);
+                            unmodified_tiles.insert(target);
                         }   
                     }
                 }
 
                 //Run each tile within view through a los function
-                viewshed.visible_tiles = los(map_tiles, unchecked_tiles, &mut HashSet::new(), *position).clone();
+                let lit_tiles = los(map_tiles, unmodified_tiles, &mut HashSet::new(), *position).clone();
+
+                for tile_position in lit_tiles.iter() {
+                    match map_tiles.get_mut(tile_position) {
+                        Some(tile) => {
+                            tile.light_level = position.distance_to(*tile_position) as f32 * LIFT_FALLOFF;
+                            println!("Light level: {}", tile.light_level);
+                        },
+                        _ => {},
+                    }
+
+                    
+                }
 
                 let elapsed = now.elapsed();
-                println!("LOS: {:.2?}", elapsed);
+                println!("Lighting: {:.2?}", elapsed);
             }
         }
     }
 
 }
 
-fn los<'a> (map_tiles: &'a HashMap<Vector3i, Tile>, mut unchecked_tiles: HashSet<Vector3i>, visible_tiles: &'a mut HashSet<Vector3i>, source: Vector3i) -> &'a HashSet<Vector3i> {
+fn los<'a> (map_tiles: &'a HashMap<Vector3i, Tile>, mut unchecked_tiles: HashSet<Vector3i>, lit_tiles: &'a mut HashSet<Vector3i>, source: Vector3i) -> &'a HashSet<Vector3i> {
     if let Some(target) = unchecked_tiles.iter().next().cloned() {
         unchecked_tiles.remove(&target);
         let mut ray = bresenhams_line(source, target.clone());
@@ -58,7 +74,7 @@ fn los<'a> (map_tiles: &'a HashMap<Vector3i, Tile>, mut unchecked_tiles: HashSet
         while let Some(tile_position) = ray.pop() {
             if !ray_blocked {
                 //Add tile to visible tiles and check if it blocks the ray
-                visible_tiles.insert(tile_position);
+                lit_tiles.insert(tile_position);
 
                 let tile = map_tiles.get(&tile_position);
 
@@ -69,16 +85,16 @@ fn los<'a> (map_tiles: &'a HashMap<Vector3i, Tile>, mut unchecked_tiles: HashSet
                     _ => {
                         //If there is no tile or the tile is not opaque show the tile below that
                         //TODO: Change this to allow further z level view distance
-                        visible_tiles.insert(tile_position + Vector3i::new(0,0,-1));
+                        lit_tiles.insert(tile_position + Vector3i::new(0,0,-1));
                     }
                 }
             }
             //Remove the checked tile
             unchecked_tiles.remove(&tile_position);  
         }
-        los(map_tiles, unchecked_tiles, visible_tiles, source);
+        los(map_tiles, unchecked_tiles, lit_tiles, source);
     }
-    visible_tiles                       
+    lit_tiles                       
 }
 
 fn bresenhams_line(target: Vector3i, source: Vector3i) -> Vec<Vector3i> {

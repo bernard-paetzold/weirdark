@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use rltk::RGB;
 use crate::{vectors::Vector3i, Tile};
 
-use rand::prelude::*;
-
 pub struct Map {
     pub tiles: HashMap<Vector3i, Tile>,
 }
@@ -18,8 +16,6 @@ pub mod components;
 
 pub fn initialise_map(map_size: Vector3i) -> Map {
     let mut map = Map::new();
-    let mut rng = rand::thread_rng();
-
     for x in -map_size.x..map_size.x {
         for y in -map_size.y..map_size.y {
             for z in 0..map_size.z - 1 {

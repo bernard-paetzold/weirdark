@@ -35,6 +35,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
         }
 
         if movement_possible {
+            //println!("{}", position);
             *position += delta;
             let new_position = *position;
 
@@ -116,7 +117,6 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) {
                     illuminant.dirty = true;
                     viewshed.dirty = true;
                     photometry.dirty = true;
-
                 }
             },
             _ => {}

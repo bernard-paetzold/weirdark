@@ -31,7 +31,7 @@ pub fn initialise_map(map_size: Vector3i) -> Map {
                     RGB::named(rltk::GRAY).to_rgba(1.0),
                     RGB::named(rltk::BLACK).to_rgba(1.0)));
                 }
-                /*else if (x == 5 || x == 15) && y % 3 == 0 {
+                else if (x == 5 || x == 15) && y % 5 == 0 {
                     map.tiles.insert(Vector3i::new(x,y,z),
                     Tile::new(Vector3i::new(x, y, z), 
                     false,
@@ -40,7 +40,7 @@ pub fn initialise_map(map_size: Vector3i) -> Map {
                     rltk::to_cp437('0'),
                     RGB::named(rltk::WHITE).to_rgba(1.0),
                     RGB::named(rltk::BLACK).to_rgba(1.0)));
-                }*/
+                }
                 /*else {
                     map.tiles.insert(Vector3i::new(x,y,z),
                     Tile::new(Vector3i::new(x, y, z), 

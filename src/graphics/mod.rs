@@ -35,8 +35,7 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                 for z in position.z - 2..viewport_position.z + 1 {
                     let tile_position = &Vector3i::new(x, y, z);
                     let tile = map.tiles.get(tile_position);
-
-                    match tile {
+                    match tile {          
                         Some(tile) => {
                             if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 1.0 - viewshed.dark_vision { 
                                 let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);                               
@@ -83,10 +82,8 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                 }
             }
         }
-        
         draw_entities(ctx, &positions, &renderables, &photometria, viewport_position, &viewshed.visible_tiles);
     }
-
 }
 
 fn draw_entities(ctx : &mut Rltk, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, renderables: &Storage<Renderable, Fetch<MaskedStorage<Renderable>>>, photometria: &Storage<Photometry, Fetch<MaskedStorage<Photometry>>>, viewport_position: Vector3i, visible_tiles: &HashSet<Vector3i>) {
@@ -95,7 +92,7 @@ fn draw_entities(ctx : &mut Rltk, positions: &Storage<Vector3i, FetchMut<MaskedS
 
     for (position, renderable, photometry) in (positions, renderables, photometria).join().filter(|&x| visible_tiles.contains(x.0)) {
         if !rendered_entities.contains_key(position) && !rendered_entities.contains_key(&(*position + Vector3i::new(0, 0, 1))) {
-            let mut foreground_color = calculate_lit_color(renderable.foreground, photometry.light_color, photometry.light_level);
+            let mut foreground_color = renderable.foreground;//calculate_lit_color(renderable.foreground, photometry.light_color, photometry.light_level);
             let background_color = renderable.background;
             foreground_color.a = photometry.light_level;
 

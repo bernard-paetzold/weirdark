@@ -1,13 +1,14 @@
 use rltk::RGB;
 use specs::prelude::*;
 
-use crate::{colors::mix_colors, vectors::Vector3i, Illuminant, Map, Photometry, Player, Viewshed};
+use crate::{colors::mix_colors, entities, vectors::Vector3i, Illuminant, Map, Photometry, Player, Viewshed};
 
 
 pub struct LightingSystem {}
 
 impl<'a> System<'a> for LightingSystem {
     type SystemData = (WriteExpect<'a, Map>,
+                        Entities<'a>,
                         WriteStorage<'a, Illuminant>,
                         WriteStorage<'a, Photometry>,
                         ReadStorage<'a, Viewshed>,
@@ -15,7 +16,7 @@ impl<'a> System<'a> for LightingSystem {
                         ReadStorage<'a, Player>);
 
     fn run(&mut self, data : Self::SystemData) {
-        let (mut map, mut illuminants, mut photometria, viewsheds, positions, players) = data;
+        let (mut map, entities, mut illuminants, mut photometria, viewsheds, positions, players) = data;
         let map_tiles = &mut map.tiles;
 
         if !(&mut illuminants, &viewsheds, &positions).join().filter(|x| x.0.dirty).next().is_none() {
@@ -28,9 +29,8 @@ impl<'a> System<'a> for LightingSystem {
 
             for (illuminant, viewshed, position) in (&mut illuminants, &viewsheds, &positions).join() {
                 if illuminant.on {
-                    //let now = Instant::now();
                     illuminant.dirty = false;
-
+                    
                     for tile_position in viewshed.visible_tiles.iter() {
                         match map_tiles.get_mut(tile_position) {
                             Some(tile) => {
@@ -50,15 +50,13 @@ impl<'a> System<'a> for LightingSystem {
                             _ => {},
                         }        
                     }
-                    //let elapsed = now.elapsed();
-                    //println!("Lighting: {:.2?}", elapsed);
                 }
             }
         }
 
         //Update dirty photometry
         //TODO: Improve this system so it does not rely on a player being in or on a tile
-        for (photometry, position) in (&mut photometria, &positions).join() {
+        for (entity, photometry, position) in (&entities, &mut photometria, &positions).join() {
             if photometry.dirty {
                 photometry.dirty = false;
 
@@ -72,7 +70,12 @@ impl<'a> System<'a> for LightingSystem {
                             Some(tile) => {
                                 photometry.light_level = tile.light_level;
                             },
-                            _ => {},
+                            _ => {
+                                if let Some(illuminant) = illuminants.get(entity) {
+                                    photometry.light_color = illuminant.color;
+                                    photometry.light_level = illuminant.intensity;
+                                }
+                            },
                         }
                     },
                 }    

@@ -16,7 +16,7 @@ use crate::entities::components::*;
 
 const TERMINAL_WIDTH: i32 = 200;
 const TERMINAL_HEIGHT: i32 = 100;
-const MAP_SIZE: i32 = 20;
+const MAP_SIZE: i32 = 50;
 
 
 mod states;
@@ -60,7 +60,7 @@ impl GameState for State {
         graphics::draw_game_screen(ctx, &mut self.ecs);
 
         let elapsed = now.elapsed();
-        println!("Frame: {:.2?}", elapsed);
+        //println!("Frame: {:.2?}", elapsed);
     }
 }
 
@@ -71,7 +71,7 @@ fn main() -> rltk::BError {
     .with_title("Weirdark")
     .with_font("vga8x16.png", 8, 16)
     .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "vga8x16.png")
-    .with_vsync(true)
+    .with_vsync(false)
     .with_title("weirdark")
     .build()?;
 
@@ -86,7 +86,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Photometry>();
 
     //Create player
-    let player_start_position =Vector3i::new(0, 0, MAP_SIZE - 2);
+    let player_start_position =Vector3i::new(2, 1, MAP_SIZE - 2);
 
     game_state.ecs.create_entity()
     .with(player_start_position)
@@ -99,14 +99,14 @@ fn main() -> rltk::BError {
     .with(Player {})
     .with(Viewshed::new(20, 0.9))
     .with(Photometry::new())
-    .with(Illuminant::new(1.0, 5, RGB::named(rltk::BLUE).to_rgba(1.0), PI * 2.0, false))
+    .with(Illuminant::new(1.0, 15, RGB::named(rltk::BLUE).to_rgba(1.0), PI * 2.0, true))
     .build();
 
     add_camera(player_start_position, &mut game_state.ecs, true);
 
 
     game_state.ecs.create_entity()
-    .with(Vector3i::new(15, 0, MAP_SIZE - 2))
+    .with(Vector3i::new(20, 0, MAP_SIZE - 2))
     .with(Renderable::new(
         rltk::to_cp437('☼'),
         rltk::to_cp437('☼'),
@@ -118,7 +118,7 @@ fn main() -> rltk::BError {
     .with(Illuminant::new(1.5, 20, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0, true))
     .build();
 
-    game_state.ecs.create_entity()
+    /*game_state.ecs.create_entity()
     .with(Vector3i::new(25, 0, MAP_SIZE - 2))
     .with(Renderable::new(
         rltk::to_cp437('☼'),
@@ -142,7 +142,7 @@ fn main() -> rltk::BError {
     .with(Viewshed::new(60, 1.0))
     .with(Photometry::new())
     //.with(Illuminant::new(1.5, 20, RGB::named(rltk::RED).to_rgba(1.0), PI * 2.0))
-    .build();
+    .build();*/
 
     let map = initialise_map(Vector3i::new_equi(MAP_SIZE));
     game_state.ecs.insert(map);

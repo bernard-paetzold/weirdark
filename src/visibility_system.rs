@@ -1,27 +1,29 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, time::Instant};
 
+use rltk::RGB;
 use specs::prelude::*;
 
-use crate::{vectors::Vector3i, Map, Player, Tile, Viewshed, MAP_SIZE};
+use crate::{map, vectors::Vector3i, Map, Player, Tile, Viewshed, MAP_SIZE};
 
 pub struct VisibilitySystem {}
 
 impl<'a> System<'a> for VisibilitySystem {
-    type SystemData = (WriteExpect<'a, Map>,
-                        Entities<'a>,
-                        WriteStorage<'a, Viewshed>,
-                        WriteStorage<'a, Vector3i>,
-                        ReadStorage<'a, Player>);
+    type SystemData = (
+        WriteExpect<'a, Map>,
+        Entities<'a>,
+        WriteStorage<'a, Viewshed>,
+        WriteStorage<'a, Vector3i>,
+        ReadStorage<'a, Player>,
+    );
 
-    fn run(&mut self, data : Self::SystemData) {
+    fn run(&mut self, data: Self::SystemData) {
         let (mut map, entities, mut viewshed, positions, player) = data;
         let map_tiles = &mut map.tiles;
 
         for (entity, viewshed, position) in (&entities, &mut viewshed, &positions).join() {
             let mut is_player = false;
-            
+
             if viewshed.dirty {
-                //let now = Instant::now();
                 viewshed.dirty = false;
                 viewshed.visible_tiles.clear();
 
@@ -30,90 +32,174 @@ impl<'a> System<'a> for VisibilitySystem {
                 match player {
                     Some(_) => {
                         is_player = true;
-                    },
+                    }
                     _ => {}
                 }
+                let now = Instant::now();
 
-                let mut unchecked_tiles = HashSet::<Vector3i>::new();
-
-                //Add all tiles within view range to a hashset
-                for x in (position.x - viewshed.view_distance as i32)..(position.x + viewshed.view_distance as i32) {
-                    for y in (position.y - viewshed.view_distance as i32)..(position.y + viewshed.view_distance as i32) {
-                        let target = Vector3i::new(x, y, position.z);
-
-                        if position.distance_to(target) < viewshed.view_distance as i32
-                        && target.x >= -MAP_SIZE && target.x < MAP_SIZE 
-                        && target.y >= -MAP_SIZE && target.y < MAP_SIZE 
-                        && target.z >= -MAP_SIZE && target.z < MAP_SIZE {
-                            unchecked_tiles.insert(target);
-                        }   
-                    }
-                }
-
-                //Run each tile within view through a los function
-                viewshed.visible_tiles = los(map_tiles, unchecked_tiles, &mut HashSet::new(), *position, is_player, viewshed.dark_vision).clone();
-
-                //let elapsed = now.elapsed();
+                viewshed.visible_tiles = los(
+                    map_tiles,
+                    &mut HashSet::new(),
+                    *position,
+                    viewshed
+                )
+                .clone();
+                
+                let elapsed = now.elapsed();
                 //println!("LOS: {:.2?}", elapsed);
             }
         }
     }
-
 }
 
-fn los<'a> (map_tiles: &'a mut HashMap<Vector3i, Tile>, mut unchecked_tiles: HashSet<Vector3i>, visible_tiles: &'a mut HashSet<Vector3i>, source: Vector3i, is_player: bool, dark_vision: f32) -> &'a HashSet<Vector3i> {
-    if let Some(target) = unchecked_tiles.iter().next().cloned() {
-        unchecked_tiles.remove(&target);
-        let mut ray = bresenhams_line(source, target.clone());
-        let mut ray_blocked = false;
+fn los<'a>(
+    map_tiles: &'a mut HashMap<Vector3i, Tile>,
+    visible_tiles: &'a mut HashSet<Vector3i>,
+    source: Vector3i, 
+    viewshed: &mut Viewshed) -> &'a HashSet<Vector3i> {
 
-        while let Some(tile_position) = ray.pop() {
-            if !ray_blocked {
-                //Add tile to visible tiles and check if it blocks the ray
-                visible_tiles.insert(tile_position);
+    let octants = [
+        (1, 0, 0, 1),    // 0 - East
+        (0, 1, 1, 0),    // 1 - South
+        (0, -1, 1, 0),   // 2 - North
+        (-1, 0, 0, 1),   // 3 - West
+        (1, 0, 0, -1),   // 4 - Northeast
+        (0, -1, -1, 0),  // 5 - Northwest
+        (-1, 0, 0, -1),  // 6 - Southwest
+        (0, 1, -1, 0),   // 7 - Southeast
+    ];
 
-                let tile = map_tiles.get_mut(&tile_position);
+    for &(xx, xy, yx, yy) in octants.iter() {
+        light_cast(
+            map_tiles,
+            0,           // starting row
+            1.0,         // start_slope
+            0.0,         // end_slope
+            xx, xy, yx, yy,
+            viewshed.view_distance,
+            source,
+            visible_tiles
+        );
+    }
+    //Insert source tile
+    visible_tiles.insert(source + Vector3i::new(0, 0, -1));
+    visible_tiles
+}
+
+fn light_cast<'a>(
+    map_tiles: &'a mut HashMap<Vector3i, Tile>,
+    row: usize,
+    mut start_slope: f32,
+    end_slope: f32,
+    xx: i32,
+    xy: i32,
+    yx: i32,
+    yy: i32,
+    radius: usize,
+    start_position: Vector3i,
+    visible_tiles: &'a mut HashSet<Vector3i>,
+) -> &'a mut HashSet<Vector3i> {
+
+    if start_slope < end_slope {
+        return visible_tiles;
+    }
+
+    let mut blocked = false;
+    for distance in row..=radius {
+        if blocked {
+            break;
+        }
+
+        let delta_y = -(distance as i32);
+        for delta_x in -(distance as i32)..=0 {
+            let current_x = start_position.x + delta_x * xx + delta_y * xy;
+            let current_y = start_position.y + delta_x * yx + delta_y * yy;
+            let current_position = Vector3i::new(current_x, current_y, start_position.z);
+
+            let left_slope = (delta_x as f32 - 1.0) / (delta_y as f32 + 0.5);
+            let right_slope = (delta_x as f32 + 0.5) / (delta_y as f32 - 0.5);
+
+            if start_slope < right_slope {
+                continue;
+            } else if end_slope > left_slope {
+                break;
+            }
+
+            // Check if it's within viewshed
+            if current_position.distance_to(start_position) as f32 <= radius as f32 {
+                let tile = map_tiles.get(&current_position);
 
                 match tile {
-                    Some(tile) => {
-                        if tile.opaque {
-                            ray_blocked = true;
-                        }
+                    Some(_) => {
+                        visible_tiles.insert(current_position);
                     }
                     _ => {
                         //If there is no tile or the tile is not opaque show the tile below that
-                        let tile_below = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,-1)));
+                        let tile_below = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,-1)));
 
                         match tile_below {
                             Some(_) => {
-                                visible_tiles.insert(tile_position + Vector3i::new(0,0,-1));
+                                visible_tiles.insert(current_position + Vector3i::new(0,0,-1));
                             }
                             _ => {
-                                //TODO: Change this to allow further z level view distance   
+                                //TODO: Change this to allow further z level view distance
                             }
                         }
 
                         //Also check tile above
-                        let tile_above = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,1)));
+                        let tile_above = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,1)));
 
                         match tile_above {
                             Some(_) => {
-                                visible_tiles.insert(tile_position + Vector3i::new(0,0,1));
+                                visible_tiles.insert(current_position + Vector3i::new(0,0,1));
                             }
                             _ => {
-                                //TODO: Change this to allow further z level view distance   
+                                //TODO: Change this to allow further z level view distance
                             }
                         }
-}
+                    }
                 }
             }
-            //Remove the checked tile
-            unchecked_tiles.remove(&tile_position);  
+
+            if blocked {
+                if let Some(tile) = map_tiles.get_mut(&current_position) {
+                    if tile.opaque {
+                        start_slope = right_slope;
+                        continue;
+                    } else {
+                        blocked = false;
+                    }
+                }
+                else {
+                    blocked = false;             
+                }
+            } else {
+                if let Some(tile) = map_tiles.get_mut(&current_position) {
+                    if tile.opaque {
+                        blocked = true;
+
+                        light_cast(
+                            map_tiles,
+                            distance as usize + 1,
+                            start_slope,
+                            left_slope,
+                            xx,
+                            xy,
+                            yx,
+                            yy,
+                            radius,
+                            start_position,
+                            visible_tiles,
+                        );
+                        start_slope = right_slope;
+                    }
+                }
+            }
         }
-        los(map_tiles, unchecked_tiles, visible_tiles, source, is_player, dark_vision);
     }
-    visible_tiles                       
+    visible_tiles
 }
+
 
 fn bresenhams_line(target: Vector3i, source: Vector3i) -> Vec<Vector3i> {
     let mut tiles_positions = Vec::new();
@@ -173,3 +259,55 @@ fn bresenhams_line(target: Vector3i, source: Vector3i) -> Vec<Vector3i> {
     tiles_positions.push(target);
     tiles_positions
 }
+
+/*if let Some(target) = unchecked_tiles.iter().next().cloned() {
+        unchecked_tiles.remove(&target);
+        let mut ray = bresenhams_line(source, target.clone());
+        let mut ray_blocked = false;
+
+        while let Some(tile_position) = ray.pop() {
+            if !ray_blocked {
+                //Add tile to visible tiles and check if it blocks the ray
+                visible_tiles.insert(tile_position);
+
+                let tile = map_tiles.get_mut(&tile_position);
+
+                match tile {
+                    Some(tile) => {
+                        if tile.opaque {
+                            ray_blocked = true;
+                        }
+                    }
+                    _ => {
+                        //If there is no tile or the tile is not opaque show the tile below that
+                        let tile_below = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,-1)));
+
+                        match tile_below {
+                            Some(_) => {
+                                visible_tiles.insert(tile_position + Vector3i::new(0,0,-1));
+                            }
+                            _ => {
+                                //TODO: Change this to allow further z level view distance
+                            }
+                        }
+
+                        //Also check tile above
+                        let tile_above = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,1)));
+
+                        match tile_above {
+                            Some(_) => {
+                                visible_tiles.insert(tile_position + Vector3i::new(0,0,1));
+                            }
+                            _ => {
+                                //TODO: Change this to allow further z level view distance
+                            }
+                        }
+}
+                }
+            }
+            //Remove the checked tile
+            unchecked_tiles.remove(&tile_position);
+        }
+        los(map_tiles, unchecked_tiles, visible_tiles, source, is_player, dark_vision);
+    }
+    visible_tiles */

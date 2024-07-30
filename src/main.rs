@@ -99,7 +99,7 @@ fn main() -> rltk::BError {
     .with(Player {})
     .with(Viewshed::new(20, 0.9))
     .with(Photometry::new())
-    .with(Illuminant::new(1.0, 15, RGB::named(rltk::BLUE).to_rgba(1.0), PI * 2.0, true))
+    .with(Illuminant::new(1.0, 5, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, true))
     .build();
 
     add_camera(player_start_position, &mut game_state.ecs, true);

@@ -81,8 +81,10 @@ fn los<'a>(
             visible_tiles
         );
     }
-    //Insert source tile
+    //Insert source tiles
+    visible_tiles.insert(source);
     visible_tiles.insert(source + Vector3i::new(0, 0, -1));
+    visible_tiles.insert(source + Vector3i::new(0, 0, 1));
     visible_tiles
 }
 
@@ -133,30 +135,30 @@ fn light_cast<'a>(
                     Some(_) => {
                         visible_tiles.insert(current_position);
                     }
+                    _ => {}
+                }
+
+                //If there is no tile or the tile is not opaque show the tile below that
+                let tile_below = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,-1)));
+
+                match tile_below {
+                    Some(_) => {
+                        visible_tiles.insert(current_position + Vector3i::new(0,0,-1));
+                    }
                     _ => {
-                        //If there is no tile or the tile is not opaque show the tile below that
-                        let tile_below = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,-1)));
+                        //TODO: Change this to allow further z level view distance
+                    }
+                }
 
-                        match tile_below {
-                            Some(_) => {
-                                visible_tiles.insert(current_position + Vector3i::new(0,0,-1));
-                            }
-                            _ => {
-                                //TODO: Change this to allow further z level view distance
-                            }
-                        }
+                //Also check tile above
+                let tile_above = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,1)));
 
-                        //Also check tile above
-                        let tile_above = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,1)));
-
-                        match tile_above {
-                            Some(_) => {
-                                visible_tiles.insert(current_position + Vector3i::new(0,0,1));
-                            }
-                            _ => {
-                                //TODO: Change this to allow further z level view distance
-                            }
-                        }
+                match tile_above {
+                    Some(_) => {
+                        visible_tiles.insert(current_position + Vector3i::new(0,0,1));
+                    }
+                    _ => {
+                        //TODO: Change this to allow further z level view distance
                     }
                 }
             }

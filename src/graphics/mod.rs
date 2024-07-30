@@ -90,12 +90,11 @@ fn draw_entities(ctx : &mut Rltk, positions: &Storage<Vector3i, FetchMut<MaskedS
 
     let mut rendered_entities = HashMap::new();
 
-    for (position, renderable, photometry) in (positions, renderables, photometria).join().filter(|&x| visible_tiles.contains(x.0)) {
+    for (position, renderable, photometry) in (positions, renderables, photometria).join().filter(|&x| visible_tiles.contains(x.0) || visible_tiles.contains(&(*x.0 + Vector3i::new(0, 0, -1)))) {
         if !rendered_entities.contains_key(position) && !rendered_entities.contains_key(&(*position + Vector3i::new(0, 0, 1))) {
-            let mut foreground_color = renderable.foreground;//calculate_lit_color(renderable.foreground, photometry.light_color, photometry.light_level);
+            let mut foreground_color = calculate_lit_color(renderable.foreground, photometry.light_color, photometry.light_level);
             let background_color = renderable.background;
             foreground_color.a = photometry.light_level;
-
 
             if position.z == viewport_position.z {
                 ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), foreground_color, background_color,  renderable.side_glyph);

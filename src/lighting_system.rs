@@ -70,12 +70,7 @@ impl<'a> System<'a> for LightingSystem {
                             Some(tile) => {
                                 photometry.light_level = tile.light_level;
                             },
-                            _ => {
-                                if let Some(illuminant) = illuminants.get(entity) {
-                                    photometry.light_color = illuminant.color;
-                                    photometry.light_level = illuminant.intensity;
-                                }
-                            },
+                            _ => {},
                         }
                     },
                 }    

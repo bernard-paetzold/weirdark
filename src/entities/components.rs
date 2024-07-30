@@ -31,16 +31,18 @@ pub struct Illuminant {
     pub range: usize,
     pub color: RGBA,
     pub beam_angle: f32,
+    pub on: bool,
     pub dirty: bool,
 }
 
 impl Illuminant {
-    pub fn new(intensity: f32, range: usize, color: RGBA, beam_angle: f32) -> Illuminant {
+    pub fn new(intensity: f32, range: usize, color: RGBA, beam_angle: f32, on: bool) -> Illuminant {
         Illuminant {
             intensity,
             range,
             color,
             beam_angle,
+            on,
             dirty: true,
         }
     } 

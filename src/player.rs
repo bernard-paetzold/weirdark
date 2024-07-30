@@ -1,7 +1,7 @@
 use rltk::{Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use specs_derive::Component;
-use crate::{entities, vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed};
+use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed};
 
 
 #[derive(Component, Debug)]
@@ -105,6 +105,20 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) {
             VirtualKeyCode::W => delta_camera = Vector3i::new(0, -1, 0),
             VirtualKeyCode::S => delta_camera = Vector3i::new(0, 1, 0),
             VirtualKeyCode::R => reset_camera = true,
+            VirtualKeyCode::L => {
+                let mut illuminants = game_state.ecs.write_storage::<Illuminant>();
+                let players = game_state.ecs.read_storage::<Player>();
+                let mut viewsheds = game_state.ecs.write_storage::<Viewshed>();
+                let mut photometria = game_state.ecs.write_storage::<Photometry>();
+
+                for (_player, illuminant, viewshed, photometry) in (&players, &mut illuminants, &mut viewsheds, &mut photometria).join() {
+                    illuminant.on = !illuminant.on;
+                    illuminant.dirty = true;
+                    viewshed.dirty = true;
+                    photometry.dirty = true;
+
+                }
+            },
             _ => {}
         },
     }

@@ -1,17 +1,13 @@
-use std::{borrow::BorrowMut, cmp, collections::{HashMap, HashSet}, time::Instant};
-
 use rltk::RGB;
-use specs::{prelude::*, shred::FetchMut, storage::MaskedStorage, world::EntitiesRes};
+use specs::prelude::*;
 
-use crate::{colors::mix_colors, player, vectors::Vector3i, Illuminant, Map, Photometry, Player, Tile, Viewshed, MAP_SIZE};
+use crate::{colors::mix_colors, vectors::Vector3i, Illuminant, Map, Photometry, Player, Viewshed};
 
-pub const LIGHT_FALLOFF: f32 = 0.05;
 
 pub struct LightingSystem {}
 
 impl<'a> System<'a> for LightingSystem {
     type SystemData = (WriteExpect<'a, Map>,
-                        Entities<'a>,
                         WriteStorage<'a, Illuminant>,
                         WriteStorage<'a, Photometry>,
                         ReadStorage<'a, Viewshed>,
@@ -19,7 +15,7 @@ impl<'a> System<'a> for LightingSystem {
                         ReadStorage<'a, Player>);
 
     fn run(&mut self, data : Self::SystemData) {
-        let (mut map, entities, mut illuminants, mut photometria, viewsheds, positions, players) = data;
+        let (mut map, mut illuminants, mut photometria, viewsheds, positions, players) = data;
         let map_tiles = &mut map.tiles;
 
         if !(&mut illuminants, &viewsheds, &positions).join().filter(|x| x.0.dirty).next().is_none() {
@@ -30,21 +26,23 @@ impl<'a> System<'a> for LightingSystem {
             }
         
 
-            for (entity, illuminant, viewshed, position) in (&entities, &mut illuminants, &viewsheds, &positions).join() {
-                //if illuminant.dirty {
+            for (illuminant, viewshed, position) in (&mut illuminants, &viewsheds, &positions).join() {
+                if illuminant.on {
                     //let now = Instant::now();
                     illuminant.dirty = false;
 
                     for tile_position in viewshed.visible_tiles.iter() {
                         match map_tiles.get_mut(tile_position) {
                             Some(tile) => {
-                                let illumination = (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32).max(0.0); 
-                                tile.light_level = tile.light_level + illumination;
-                                tile.light_color = mix_colors(tile.light_color, illuminant.color, illumination);
+                                //let illumination = (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32).max(0.0); 
+                                let illumination = (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32 * illuminant.intensity).max(0.0); 
+
+                                tile.light_color = mix_colors(tile.light_color, illuminant.color, get_illumination_ratio(tile.light_level, illumination));
+                                tile.light_level = tile.light_level.max(illumination);
 
                                 //TODO: Change this to be in a better location
                                 for (_player, player_viewshed) in (&players, &viewsheds).join() {
-                                    if player_viewshed.visible_tiles.contains(tile_position) && tile.light_level > 1.0 - viewshed.dark_vision {
+                                    if player_viewshed.visible_tiles.contains(tile_position) && tile.light_level >= 1.0 - player_viewshed.dark_vision {
                                         tile.discovered = true;
                                     }
                                 }
@@ -54,7 +52,7 @@ impl<'a> System<'a> for LightingSystem {
                     }
                     //let elapsed = now.elapsed();
                     //println!("Lighting: {:.2?}", elapsed);
-                //}
+                }
             }
         }
 
@@ -66,6 +64,7 @@ impl<'a> System<'a> for LightingSystem {
 
                 match map_tiles.get_mut(position) {
                     Some(tile) => {
+                        photometry.light_color = mix_colors(photometry.light_color, tile.light_color, tile.light_level);
                         photometry.light_level = tile.light_level;
                     },
                     _ => {
@@ -73,9 +72,7 @@ impl<'a> System<'a> for LightingSystem {
                             Some(tile) => {
                                 photometry.light_level = tile.light_level;
                             },
-                            _ => {
-                                photometry.light_level = 0.0;
-                            },
+                            _ => {},
                         }
                     },
                 }    
@@ -83,4 +80,12 @@ impl<'a> System<'a> for LightingSystem {
         }
     }
 
+}
+
+fn get_illumination_ratio(intensity_one: f32, intensity_two: f32) -> f32 {
+    if intensity_one == 0.0 && intensity_two == 0.0 {
+        return 0.5
+    }
+    
+    intensity_two / (intensity_one + intensity_two)
 }

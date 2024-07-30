@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use rltk::{Rltk, RGB, RGBA};
+use rltk::{Rltk, RGBA};
 use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::MaskedStorage};
 
-use crate::{colors::mix_colors, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
+use crate::{colors::{dim_color, mix_colors}, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 
 pub mod components;
 
@@ -19,6 +19,8 @@ pub fn draw_game_screen(ctx : &mut Rltk, ecs: &mut World) {
 }
 
 fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {   
+    let discovered_tile_dimming = 0.1;
+
     let positions = ecs.write_storage::<Vector3i>();
     let viewsheds = ecs.write_storage::<Viewshed>();
     let mut players = ecs.write_storage::<Player>();
@@ -36,10 +38,9 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
 
                     match tile {
                         Some(tile) => {
-                            if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 1.0 - viewshed.dark_vision {                                
+                            if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 1.0 - viewshed.dark_vision { 
+                                let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);                               
                                 if tile_position.z == viewport_position.z {
-                                    let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);
-
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                             tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
                                            foreground_color, 
@@ -48,8 +49,6 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                                             tile.side_glyph);
                                 }
                                 else if viewport_position.z - tile_position.z == 1 {
-                                    let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);
-
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
                                     foreground_color,
@@ -60,18 +59,21 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                                 } 
                             }
                             else if tile.discovered {
+                                let foreground = dim_discovered_tile_color(tile.foreground, discovered_tile_dimming).to_greyscale();
+                                let background = dim_discovered_tile_color(tile.background, discovered_tile_dimming).to_greyscale();
+
                                 if tile_position.z == viewport_position.z {
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                    tile.foreground.to_greyscale(), 
-                                    tile.background.to_greyscale(), 
+                                    foreground, 
+                                    background, 
                                     tile.side_glyph);
                                 }
                                 else if viewport_position.z - tile_position.z == 1 {
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                    tile.foreground.to_greyscale(), 
-                                    tile.background.to_greyscale(),
+                                    foreground, 
+                                    background,
                                      tile.top_glyph);
                                 } 
                             }
@@ -93,12 +95,17 @@ fn draw_entities(ctx : &mut Rltk, positions: &Storage<Vector3i, FetchMut<MaskedS
 
     for (position, renderable, photometry) in (positions, renderables, photometria).join().filter(|&x| visible_tiles.contains(x.0)) {
         if !rendered_entities.contains_key(position) && !rendered_entities.contains_key(&(*position + Vector3i::new(0, 0, 1))) {
+            let mut foreground_color = calculate_lit_color(renderable.foreground, photometry.light_color, photometry.light_level);
+            let background_color = renderable.background;
+            foreground_color.a = photometry.light_level;
+
+
             if position.z == viewport_position.z {
-                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), desaturate_color(renderable.foreground, photometry.light_level), desaturate_color(renderable.background, photometry.light_level),renderable.side_glyph);
+                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), foreground_color, background_color,  renderable.side_glyph);
                 rendered_entities.insert(position, renderable);
             }
             else if viewport_position.z - position.z == 1 {
-                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), desaturate_color(renderable.foreground, photometry.light_level), desaturate_color(renderable.background, photometry.light_level), renderable.top_glyph);
+                ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), foreground_color, background_color,  renderable.top_glyph);
                 rendered_entities.insert(position, renderable);
             }
         }
@@ -119,17 +126,18 @@ pub fn get_viewport_position(ecs: &mut World) -> Vector3i {
         *viewport_position
 }
 
-fn desaturate_color(color: RGBA, amount: f32) -> RGBA {
-    let amount = amount.clamp(0.0, 1.0);
-
-    color.lerp(color.to_greyscale(), 1.0 - amount)
+fn calculate_lit_color(surface_color: RGBA, light_color: RGBA, intensity: f32) -> RGBA {
+    mix_colors(dim_color(surface_color, intensity), dim_color(light_color, intensity), intensity - (1.0 - light_color.to_rgb().to_hsv().s))
 }
 
-fn calculate_lit_color(surface_color: RGBA, light_color: RGBA, intensity: f32) -> RGBA {
-    //Calculates the color a lit surface should be, taking into account the relative saturation of the surface and light colors
-    desaturate_color(
-        mix_colors(surface_color, 
-            light_color, 
-            intensity - (surface_color.to_rgb().to_hsv().s - light_color.to_rgb().to_hsv().s)), 
-        intensity)
+pub fn dim_discovered_tile_color(color: RGBA, factor: f32) -> RGBA {
+    let alpha = color.a;
+
+    let mut color = color.to_rgb().to_hsv();
+
+    while color.v > factor {
+        color.v = color.v * factor;
+    }
+
+    return color.to_rgba(alpha);
 }

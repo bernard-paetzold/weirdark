@@ -20,27 +20,27 @@ pub fn initialise_map(map_size: Vector3i) -> Map {
     let mut map = Map::new();
     for x in -map_size.x..map_size.x {
         for y in -map_size.y..map_size.y {
-            for z in 0..map_size.z - 1 {
+            for z in map_size.z - 4..map_size.z - 1 {
                 if z < map_size.z - 2 {
                     map.tiles.insert(Vector3i::new(x,y,z),
                     Tile::new(Vector3i::new(x, y, z), 
                     false,
                     true,
-                    rltk::to_cp437('░'), 
+                    rltk::to_cp437('▓'), 
                     rltk::to_cp437('█'),
-                    RGB::named(rltk::DARKRED).to_rgba(1.0),
+                    RGB::named(rltk::GRAY).to_rgba(1.0),
                     RGB::named(rltk::BLACK).to_rgba(1.0)));
                 }
-                else if (x == 5 || x == 15) && y % 3 == 0 {
+                /*else if (x == 5 || x == 15) && y % 3 == 0 {
                     map.tiles.insert(Vector3i::new(x,y,z),
                     Tile::new(Vector3i::new(x, y, z), 
                     false,
                     true,
                     rltk::to_cp437('O'), 
                     rltk::to_cp437('0'),
-                    RGB::named(rltk::GOLD).to_rgba(1.0),
+                    RGB::named(rltk::WHITE).to_rgba(1.0),
                     RGB::named(rltk::BLACK).to_rgba(1.0)));
-                }
+                }*/
                 /*else {
                     map.tiles.insert(Vector3i::new(x,y,z),
                     Tile::new(Vector3i::new(x, y, z), 

@@ -1,4 +1,4 @@
-use rltk::{RGB, RGBA};
+use rltk::RGBA;
 use specs::prelude::*;
 use specs_derive::Component;
 

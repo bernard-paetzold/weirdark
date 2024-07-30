@@ -1,8 +1,8 @@
-use std::{collections::{HashMap, HashSet}, time::Instant};
+use std::collections::{HashMap, HashSet};
 
-use specs::{prelude::*, shred::FetchMut, storage::{GenericReadStorage, MaskedStorage}, world::EntitiesRes};
+use specs::prelude::*;
 
-use crate::{player, vectors::Vector3i, Map, Player, Tile, Viewshed, MAP_SIZE};
+use crate::{vectors::Vector3i, Map, Player, Tile, Viewshed, MAP_SIZE};
 
 pub struct VisibilitySystem {}
 
@@ -21,7 +21,7 @@ impl<'a> System<'a> for VisibilitySystem {
             let mut is_player = false;
             
             if viewshed.dirty {
-                let now = Instant::now();
+                //let now = Instant::now();
                 viewshed.dirty = false;
                 viewshed.visible_tiles.clear();
 
@@ -53,8 +53,8 @@ impl<'a> System<'a> for VisibilitySystem {
                 //Run each tile within view through a los function
                 viewshed.visible_tiles = los(map_tiles, unchecked_tiles, &mut HashSet::new(), *position, is_player, viewshed.dark_vision).clone();
 
-                let elapsed = now.elapsed();
-                println!("LOS: {:.2?}", elapsed);
+                //let elapsed = now.elapsed();
+                //println!("LOS: {:.2?}", elapsed);
             }
         }
     }
@@ -82,17 +82,29 @@ fn los<'a> (map_tiles: &'a mut HashMap<Vector3i, Tile>, mut unchecked_tiles: Has
                     }
                     _ => {
                         //If there is no tile or the tile is not opaque show the tile below that
-                        let tile = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,-1)));
+                        let tile_below = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,-1)));
 
-                        match tile {
-                            Some(tile) => {
+                        match tile_below {
+                            Some(_) => {
                                 visible_tiles.insert(tile_position + Vector3i::new(0,0,-1));
                             }
                             _ => {
                                 //TODO: Change this to allow further z level view distance   
                             }
                         }
-                    }
+
+                        //Also check tile above
+                        let tile_above = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,1)));
+
+                        match tile_above {
+                            Some(_) => {
+                                visible_tiles.insert(tile_position + Vector3i::new(0,0,1));
+                            }
+                            _ => {
+                                //TODO: Change this to allow further z level view distance   
+                            }
+                        }
+}
                 }
             }
             //Remove the checked tile

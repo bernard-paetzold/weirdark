@@ -38,7 +38,7 @@ pub fn initialise_map(map_size: Vector3i) -> Map {
                     true,
                     rltk::to_cp437('O'), 
                     rltk::to_cp437('0'),
-                    RGB::named(rltk::WHITE).to_rgba(1.0),
+                    RGB::named(rltk::GOLD).to_rgba(1.0),
                     RGB::named(rltk::BLACK).to_rgba(1.0)));
                 }
                 /*else {

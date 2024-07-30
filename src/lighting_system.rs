@@ -1,8 +1,9 @@
 use std::{borrow::BorrowMut, cmp, collections::{HashMap, HashSet}, time::Instant};
 
+use rltk::RGB;
 use specs::{prelude::*, shred::FetchMut, storage::MaskedStorage, world::EntitiesRes};
 
-use crate::{player, vectors::Vector3i, Illuminant, Map, Photometry, Player, Tile, Viewshed, MAP_SIZE};
+use crate::{colors::mix_colors, player, vectors::Vector3i, Illuminant, Map, Photometry, Player, Tile, Viewshed, MAP_SIZE};
 
 pub const LIGHT_FALLOFF: f32 = 0.05;
 
@@ -25,6 +26,7 @@ impl<'a> System<'a> for LightingSystem {
             //TODO: Improve this so only tiles in affected areas are reset
             for tile in map_tiles.iter_mut() {
                 tile.1.light_level = 0.0;  
+                tile.1.light_color = RGB::named(rltk::WHITE).to_rgba(1.0);
             }
         
 
@@ -36,8 +38,10 @@ impl<'a> System<'a> for LightingSystem {
                     for tile_position in viewshed.visible_tiles.iter() {
                         match map_tiles.get_mut(tile_position) {
                             Some(tile) => {
-                                tile.light_level = tile.light_level + (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32).max(0.0);
-                                
+                                let illumination = (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32).max(0.0); 
+                                tile.light_level = tile.light_level + illumination;
+                                tile.light_color = mix_colors(tile.light_color, illuminant.color, illumination);
+
                                 //TODO: Change this to be in a better location
                                 for (_player, player_viewshed) in (&players, &viewsheds).join() {
                                     if player_viewshed.visible_tiles.contains(tile_position) && tile.light_level > 1.0 - viewshed.dark_vision {

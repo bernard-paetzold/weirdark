@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use rltk::{Rltk, RGB, RGBA};
 use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::MaskedStorage};
 
-use crate::{vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
+use crate::{colors::mix_colors, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 
 pub mod components;
 
@@ -38,17 +38,24 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                         Some(tile) => {
                             if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 1.0 - viewshed.dark_vision {                                
                                 if tile_position.z == viewport_position.z {
+                                    let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);
+
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                             tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                            desaturate_color(tile.foreground, tile.light_level), 
-                                            desaturate_color(tile.background, tile.light_level), 
+                                           foreground_color, 
+                                           // desaturate_color(mix_colors(tile.background, tile.light_color, tile.light_level), tile.light_level), 
+                                           tile.background,
                                             tile.side_glyph);
                                 }
                                 else if viewport_position.z - tile_position.z == 1 {
+                                    let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);
+
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                    desaturate_color(tile.foreground, tile.light_level), 
-                                    desaturate_color(tile.background, tile.light_level), 
+                                    foreground_color,
+                                    //mix_colors(tile.foreground, tile.light_color, tile.light_level) 
+                                   // desaturate_color(mix_colors(tile.background, tile.light_color, tile.light_level), tile.light_level), 
+                                    tile.background,
                                     tile.top_glyph);
                                 } 
                             }
@@ -116,4 +123,13 @@ fn desaturate_color(color: RGBA, amount: f32) -> RGBA {
     let amount = amount.clamp(0.0, 1.0);
 
     color.lerp(color.to_greyscale(), 1.0 - amount)
+}
+
+fn calculate_lit_color(surface_color: RGBA, light_color: RGBA, intensity: f32) -> RGBA {
+    //Calculates the color a lit surface should be, taking into account the relative saturation of the surface and light colors
+    desaturate_color(
+        mix_colors(surface_color, 
+            light_color, 
+            intensity - (surface_color.to_rgb().to_hsv().s - light_color.to_rgb().to_hsv().s)), 
+        intensity)
 }

@@ -27,6 +27,7 @@ mod entities;
 mod graphics;
 mod visibility_system;
 mod lighting_system;
+mod colors;
 
 use visibility_system::VisibilitySystem;
 use lighting_system::LightingSystem;
@@ -92,7 +93,7 @@ fn main() -> rltk::BError {
     .with(Player {})
     .with(Viewshed::new(20, 1.0))
     .with(Photometry::new())
-    .with(Illuminant::new(1.0, 5, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0))
+    .with(Illuminant::new(1.0, 5, RGB::named(rltk::GREEN).to_rgba(1.0), PI * 2.0))
     .build();
 
     add_camera(player_start_position, &mut game_state.ecs, true);
@@ -108,11 +109,11 @@ fn main() -> rltk::BError {
     ))
     .with(Viewshed::new(60, 1.0))
     .with(Photometry::new())
-    .with(Illuminant::new(1.5, 12, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0))
+    .with(Illuminant::new(1.5, 12, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0))
     .build();
 
     game_state.ecs.create_entity()
-    .with(Vector3i::new(20, 10, MAP_SIZE - 2))
+    .with(Vector3i::new(30, 0, MAP_SIZE - 2))
     .with(Renderable::new(
         rltk::to_cp437('☼'),
         rltk::to_cp437('☼'),
@@ -121,6 +122,7 @@ fn main() -> rltk::BError {
     ))
     .with(Viewshed::new(60, 1.0))
     .with(Photometry::new())
+    //.with(Illuminant::new(1.5, 12, RGB::named(rltk::GREEN).to_rgba(1.0), PI * 2.0))
     .build();
 
     let map = initialise_map(Vector3i::new_equi(MAP_SIZE));

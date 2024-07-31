@@ -9,17 +9,25 @@ pub mod components;
 
 pub fn draw_game_screen(ctx : &mut Rltk, ecs: &mut World) {
     //Rendering
+    ctx.set_active_console(1);
+    ctx.cls();
+    ctx.set_active_console(0);
     ctx.cls();
 
 
     let viewport_position = get_viewport_position(ecs);
 
+    let now = std::time::Instant::now();
+
     draw_tiles(ctx, ecs, viewport_position);
+
+    let elapsed = now.elapsed();
+    println!("Drawing: {:.2?}", elapsed);
     
 }
 
 fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {   
-    let discovered_tile_dimming = 0.1;
+    let discovered_tile_dimming = 0.4;
 
     let positions = ecs.write_storage::<Vector3i>();
     let viewsheds = ecs.write_storage::<Viewshed>();
@@ -35,25 +43,26 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                 for z in position.z - 2..viewport_position.z + 1 {
                     let tile_position = &Vector3i::new(x, y, z);
                     let tile = map.tiles.get(tile_position);
+
                     match tile {          
                         Some(tile) => {
                             if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 1.0 - viewshed.dark_vision { 
                                 let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);                               
                                 if tile_position.z == viewport_position.z {
+                                    ctx.set_active_console(1);
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                             tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
                                            foreground_color, 
-                                           // desaturate_color(mix_colors(tile.background, tile.light_color, tile.light_level), tile.light_level), 
+
                                            tile.background,
                                             tile.side_glyph);
                                 }
                                 else if viewport_position.z - tile_position.z == 1 {
+                                    ctx.set_active_console(0);
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
                                     foreground_color,
-                                    //mix_colors(tile.foreground, tile.light_color, tile.light_level) 
-                                   // desaturate_color(mix_colors(tile.background, tile.light_color, tile.light_level), tile.light_level), 
-                                    tile.background,
+                                  tile.background,
                                     tile.top_glyph);
                                 } 
                             }
@@ -62,6 +71,7 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                                 let background = dim_discovered_tile_color(tile.background, discovered_tile_dimming).to_greyscale();
 
                                 if tile_position.z == viewport_position.z {
+                                    ctx.set_active_console(1);
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
                                     foreground, 
@@ -69,6 +79,7 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
                                     tile.side_glyph);
                                 }
                                 else if viewport_position.z - tile_position.z == 1 {
+                                    ctx.set_active_console(0);
                                     ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
                                     foreground, 
@@ -97,10 +108,12 @@ fn draw_entities(ctx : &mut Rltk, positions: &Storage<Vector3i, FetchMut<MaskedS
             foreground_color.a = photometry.light_level;
 
             if position.z == viewport_position.z {
+                ctx.set_active_console(1);
                 ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), foreground_color, background_color,  renderable.side_glyph);
                 rendered_entities.insert(position, renderable);
             }
             else if viewport_position.z - position.z == 1 {
+                ctx.set_active_console(0);
                 ctx.set(position.x - viewport_position.x + (TERMINAL_WIDTH / 2), position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), foreground_color, background_color,  renderable.top_glyph);
                 rendered_entities.insert(position, renderable);
             }
@@ -131,7 +144,7 @@ pub fn dim_discovered_tile_color(color: RGBA, factor: f32) -> RGBA {
 
     let mut color = color.to_rgb().to_hsv();
 
-    while color.v > factor {
+    if color.v > factor {
         color.v = color.v * factor;
     }
 

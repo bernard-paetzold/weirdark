@@ -1,5 +1,4 @@
 use std::f32::consts::PI;
-use std::time::Instant;
 
 use rltk::{Rltk, GameState};
 use specs::prelude::*;
@@ -51,16 +50,11 @@ impl State {
 
 impl GameState for State {
     fn tick(&mut self, ctx : &mut Rltk) {
-        let now = Instant::now();
-        
         self.run_systems();
         player_input(self, ctx);
 
         //Rendering
         graphics::draw_game_screen(ctx, &mut self.ecs);
-
-        let elapsed = now.elapsed();
-        //println!("Frame: {:.2?}", elapsed);
     }
 }
 
@@ -70,7 +64,8 @@ fn main() -> rltk::BError {
     .unwrap()
     .with_title("Weirdark")
     .with_font("vga8x16.png", 8, 16)
-    .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "vga8x16.png")
+    //.with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "vga8x16.png")
+    .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
     .with_vsync(false)
     .with_title("weirdark")
     .build()?;
@@ -97,7 +92,7 @@ fn main() -> rltk::BError {
         RGB::named(rltk::WHITE).to_rgba(0.0),
     ))
     .with(Player {})
-    .with(Viewshed::new(20, 0.9))
+    .with(Viewshed::new(20, 3, 0.9))
     .with(Photometry::new())
     .with(Illuminant::new(1.0, 5, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, true))
     .build();
@@ -106,14 +101,14 @@ fn main() -> rltk::BError {
 
 
     game_state.ecs.create_entity()
-    .with(Vector3i::new(20, 0, MAP_SIZE - 2))
+    .with(Vector3i::new(20, 0, MAP_SIZE - 1))
     .with(Renderable::new(
         rltk::to_cp437('☼'),
         rltk::to_cp437('☼'),
         RGB::named(rltk::YELLOW).to_rgba(1.0),
         RGB::named(rltk::BLACK).to_rgba(0.0),
     ))
-    .with(Viewshed::new(60, 1.0))
+    .with(Viewshed::new(60, 3, 1.0))
     .with(Photometry::new())
     .with(Illuminant::new(1.5, 20, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0, true))
     .build();

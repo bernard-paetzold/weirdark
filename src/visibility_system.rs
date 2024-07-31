@@ -1,9 +1,8 @@
 use std::{collections::{HashMap, HashSet}, time::Instant};
 
-use rltk::RGB;
 use specs::prelude::*;
 
-use crate::{map, vectors::Vector3i, Map, Player, Tile, Viewshed, MAP_SIZE};
+use crate::{vectors::Vector3i, Map, Player, Tile, Viewshed};
 
 pub struct VisibilitySystem {}
 
@@ -21,32 +20,17 @@ impl<'a> System<'a> for VisibilitySystem {
         let map_tiles = &mut map.tiles;
 
         for (entity, viewshed, position) in (&entities, &mut viewshed, &positions).join() {
-            let mut is_player = false;
-
             if viewshed.dirty {
                 viewshed.dirty = false;
                 viewshed.visible_tiles.clear();
 
-                let player = player.get(entity);
-
-                match player {
-                    Some(_) => {
-                        is_player = true;
-                    }
-                    _ => {}
-                }
                 let now = Instant::now();
 
-                viewshed.visible_tiles = los(
-                    map_tiles,
-                    &mut HashSet::new(),
-                    *position,
-                    viewshed
-                )
-                .clone();
-                
+                viewshed.visible_tiles =
+                    los(map_tiles, &mut HashSet::new(), *position, viewshed).clone();
+
                 let elapsed = now.elapsed();
-                //println!("LOS: {:.2?}", elapsed);
+                println!("LOS: {:.2?}", elapsed);
             }
         }
     }
@@ -55,36 +39,80 @@ impl<'a> System<'a> for VisibilitySystem {
 fn los<'a>(
     map_tiles: &'a mut HashMap<Vector3i, Tile>,
     visible_tiles: &'a mut HashSet<Vector3i>,
-    source: Vector3i, 
-    viewshed: &mut Viewshed) -> &'a HashSet<Vector3i> {
-
+    source: Vector3i,
+    viewshed: &mut Viewshed,
+) -> &'a HashSet<Vector3i> {
     let octants = [
-        (1, 0, 0, 1),    // 0 - East
-        (0, 1, 1, 0),    // 1 - South
-        (0, -1, 1, 0),   // 2 - North
-        (-1, 0, 0, 1),   // 3 - West
-        (1, 0, 0, -1),   // 4 - Northeast
-        (0, -1, -1, 0),  // 5 - Northwest
-        (-1, 0, 0, -1),  // 6 - Southwest
-        (0, 1, -1, 0),   // 7 - Southeast
+        (1, 0, 0, 1),   // 0 - East
+        (0, 1, 1, 0),   // 1 - South
+        (0, -1, 1, 0),  // 2 - North
+        (-1, 0, 0, 1),  // 3 - West
+        (1, 0, 0, -1),  // 4 - Northeast
+        (0, -1, -1, 0), // 5 - Northwest
+        (-1, 0, 0, -1), // 6 - Southwest
+        (0, 1, -1, 0),  // 7 - Southeast
     ];
 
     for &(xx, xy, yx, yy) in octants.iter() {
         light_cast(
             map_tiles,
-            0,           // starting row
-            1.0,         // start_slope
-            0.0,         // end_slope
-            xx, xy, yx, yy,
+            0,
+            1.0,
+            0.0,
+            xx,
+            xy,
+            yx,
+            yy,
             viewshed.view_distance,
             source,
-            visible_tiles
+            visible_tiles,
+            viewshed.z_range,
         );
     }
     //Insert source tiles
-    visible_tiles.insert(source);
-    visible_tiles.insert(source + Vector3i::new(0, 0, -1));
-    visible_tiles.insert(source + Vector3i::new(0, 0, 1));
+    let mut down_z_blocked = false;
+    let mut up_z_blocked = false;
+    let mut current_z_offset = 0;
+
+    while current_z_offset < viewshed.z_range && !(down_z_blocked || up_z_blocked) {
+        if !down_z_blocked {
+            //If there is no tile or the tile is not opaque show the tile below that
+            let tile_below = map_tiles
+                .get_mut(&(source + Vector3i::new(0, 0, -(current_z_offset as i32))));
+
+            match tile_below {
+                Some(tile) => {
+                    visible_tiles
+                        .insert(source + Vector3i::new(0, 0, -(current_z_offset as i32)));
+
+                    if tile.opaque {
+                        down_z_blocked = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if !up_z_blocked {
+            //Also check tile above
+            let tile_above = map_tiles
+                .get_mut(&(source + Vector3i::new(0, 0, current_z_offset as i32)));
+
+            match tile_above {
+                Some(tile) => {
+                    visible_tiles
+                        .insert(source + Vector3i::new(0, 0, current_z_offset as i32));
+
+                    if tile.opaque {
+                        up_z_blocked = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        current_z_offset += 1;
+    }
+
     visible_tiles
 }
 
@@ -100,8 +128,8 @@ fn light_cast<'a>(
     radius: usize,
     start_position: Vector3i,
     visible_tiles: &'a mut HashSet<Vector3i>,
+    viewshed_z_range: usize,
 ) -> &'a mut HashSet<Vector3i> {
-
     if start_slope < end_slope {
         return visible_tiles;
     }
@@ -138,27 +166,51 @@ fn light_cast<'a>(
                     _ => {}
                 }
 
-                //If there is no tile or the tile is not opaque show the tile below that
-                let tile_below = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,-1)));
+                let mut down_z_blocked = false;
+                let mut up_z_blocked = false;
+                let mut current_z_offset = 0;
 
-                match tile_below {
-                    Some(_) => {
-                        visible_tiles.insert(current_position + Vector3i::new(0,0,-1));
-                    }
-                    _ => {
-                        //TODO: Change this to allow further z level view distance
-                    }
-                }
+                while current_z_offset < viewshed_z_range && !(down_z_blocked || up_z_blocked) {
+                    if !down_z_blocked {
+                        //If there is no tile or the tile is not opaque show the tile below that
+                        let tile_below = map_tiles.get_mut(
+                            &(current_position + Vector3i::new(0, 0, -(current_z_offset as i32))),
+                        );
 
-                //Also check tile above
-                let tile_above = map_tiles.get_mut(&(current_position + Vector3i::new(0,0,1)));
+                        match tile_below {
+                            Some(tile) => {
+                                visible_tiles.insert(
+                                    current_position
+                                        + Vector3i::new(0, 0, -(current_z_offset as i32)),
+                                );
 
-                match tile_above {
-                    Some(_) => {
-                        visible_tiles.insert(current_position + Vector3i::new(0,0,1));
+                                if tile.opaque {
+                                    down_z_blocked = true;
+                                }
+                            }
+                            _ => {}
+                        }
                     }
-                    _ => {
-                        //TODO: Change this to allow further z level view distance
+
+                    if !up_z_blocked {
+                        //Also check tile above
+                        let tile_above = map_tiles.get_mut(
+                            &(current_position + Vector3i::new(0, 0, current_z_offset as i32)),
+                        );
+
+                        match tile_above {
+                            Some(tile) => {
+                                visible_tiles.insert(
+                                    current_position + Vector3i::new(0, 0, current_z_offset as i32),
+                                );
+
+                                if tile.opaque {
+                                    up_z_blocked = true;
+                                }
+                            }
+                            _ => {}
+                        }
+                        current_z_offset += 1;
                     }
                 }
             }
@@ -171,9 +223,8 @@ fn light_cast<'a>(
                     } else {
                         blocked = false;
                     }
-                }
-                else {
-                    blocked = false;             
+                } else {
+                    blocked = false;
                 }
             } else {
                 if let Some(tile) = map_tiles.get_mut(&current_position) {
@@ -192,6 +243,7 @@ fn light_cast<'a>(
                             radius,
                             start_position,
                             visible_tiles,
+                            viewshed_z_range,
                         );
                         start_slope = right_slope;
                     }
@@ -201,115 +253,3 @@ fn light_cast<'a>(
     }
     visible_tiles
 }
-
-
-fn bresenhams_line(target: Vector3i, source: Vector3i) -> Vec<Vector3i> {
-    let mut tiles_positions = Vec::new();
-    let mut x = source.x;
-    let mut y = source.y;
-    let x2 = target.x;
-    let y2 = target.y;
-    let w = x2 - x;
-    let h = y2 - y;
-    let mut dx1 = 0;
-    let mut dy1 = 0;
-    let mut dx2 = 0;
-    let mut dy2 = 0;
-
-    if w < 0 {
-        dx1 = -1;
-        dx2 = -1;
-    } else if w > 0 {
-        dx1 = 1;
-        dx2 = 1;
-    }
-
-    if h < 0 {
-        dy1 = -1;
-    } else if h > 0 {
-        dy1 = 1;
-    }
-
-    let mut longest = w.abs();
-    let mut shortest = h.abs();
-
-    if longest <= shortest {
-        std::mem::swap(&mut longest, &mut shortest);
-        if h < 0 {
-            dy2 = -1;
-        } else if h > 0 {
-            dy2 = 1;
-        }
-        dx2 = 0;
-    }
-
-    let mut numerator = longest >> 1;
-    for _ in 0..longest {
-        tiles_positions.push(Vector3i::new(x, y, source.z));
-        numerator += shortest;
-        if numerator >= longest {
-            numerator -= longest;
-            x += dx1;
-            y += dy1;
-        } else {
-            x += dx2;
-            y += dy2;
-        }
-    }
-
-    //Add the target tile to the line
-    tiles_positions.push(target);
-    tiles_positions
-}
-
-/*if let Some(target) = unchecked_tiles.iter().next().cloned() {
-        unchecked_tiles.remove(&target);
-        let mut ray = bresenhams_line(source, target.clone());
-        let mut ray_blocked = false;
-
-        while let Some(tile_position) = ray.pop() {
-            if !ray_blocked {
-                //Add tile to visible tiles and check if it blocks the ray
-                visible_tiles.insert(tile_position);
-
-                let tile = map_tiles.get_mut(&tile_position);
-
-                match tile {
-                    Some(tile) => {
-                        if tile.opaque {
-                            ray_blocked = true;
-                        }
-                    }
-                    _ => {
-                        //If there is no tile or the tile is not opaque show the tile below that
-                        let tile_below = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,-1)));
-
-                        match tile_below {
-                            Some(_) => {
-                                visible_tiles.insert(tile_position + Vector3i::new(0,0,-1));
-                            }
-                            _ => {
-                                //TODO: Change this to allow further z level view distance
-                            }
-                        }
-
-                        //Also check tile above
-                        let tile_above = map_tiles.get_mut(&(tile_position + Vector3i::new(0,0,1)));
-
-                        match tile_above {
-                            Some(_) => {
-                                visible_tiles.insert(tile_position + Vector3i::new(0,0,1));
-                            }
-                            _ => {
-                                //TODO: Change this to allow further z level view distance
-                            }
-                        }
-}
-                }
-            }
-            //Remove the checked tile
-            unchecked_tiles.remove(&tile_position);
-        }
-        los(map_tiles, unchecked_tiles, visible_tiles, source, is_player, dark_vision);
-    }
-    visible_tiles */

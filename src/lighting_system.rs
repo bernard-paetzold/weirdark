@@ -1,88 +1,114 @@
+use std::collections::HashSet;
+
 use rltk::RGB;
-use specs::prelude::*;
+use specs::{prelude::*, world};
 
-use crate::{colors::mix_colors, vectors::Vector3i, Illuminant, Map, Photometry, Player, Viewshed};
-
+use crate::{
+    colors::mix_colors, get_player_entity, player, vectors::Vector3i, Illuminant, Map, Photometry,
+    Player, Viewshed,
+};
 
 pub struct LightingSystem {}
 
 impl<'a> System<'a> for LightingSystem {
-    type SystemData = (WriteExpect<'a, Map>,
-                        WriteStorage<'a, Illuminant>,
-                        WriteStorage<'a, Photometry>,
-                        ReadStorage<'a, Viewshed>,
-                        WriteStorage<'a, Vector3i>,
-                        ReadStorage<'a, Player>);
+    type SystemData = (
+        WriteExpect<'a, Map>,
+        WriteStorage<'a, Illuminant>,
+        WriteStorage<'a, Photometry>,
+        WriteStorage<'a, Viewshed>,
+        WriteStorage<'a, Vector3i>,
+        ReadStorage<'a, Player>,
+        Entities<'a>,
+    );
 
-    fn run(&mut self, data : Self::SystemData) {
-        let (mut map, mut illuminants, mut photometria, viewsheds, positions, players) = data;
+    fn run(&mut self, data: Self::SystemData) {
+        let (
+            mut map,
+            mut illuminants,
+            mut photometria,
+            mut viewsheds,
+            positions,
+            players,
+            entities,
+        ) = data;
         let map_tiles = &mut map.tiles;
+        let mut discovered_tiles = HashSet::new();
 
-        if !(&mut illuminants, &viewsheds, &positions).join().filter(|x| x.0.dirty).next().is_none() {
-            //TODO: Improve this so only tiles in affected areas are reset
-            for tile in map_tiles.iter_mut() {
-                tile.1.light_level = 0.0;  
-                tile.1.light_color = RGB::named(rltk::WHITE).to_rgba(1.0);
+        // Reset light levels if any illuminants are dirty
+        if (&illuminants, &positions)
+            .join()
+            .any(|(illuminant, _)| illuminant.dirty)
+        {
+            for tile in map_tiles.values_mut() {
+                tile.light_level = 0.0;
+                tile.light_color = RGB::named(rltk::WHITE).to_rgba(1.0);
             }
-        
 
-            for (illuminant, viewshed, position) in (&mut illuminants, &viewsheds, &positions).join() {
+            // Process illuminants
+            for (illuminant, viewshed, position) in
+                (&mut illuminants, &viewsheds, &positions).join()
+            {
                 if illuminant.on {
                     illuminant.dirty = false;
-                    
-                    for tile_position in viewshed.visible_tiles.iter() {
-                        match map_tiles.get_mut(tile_position) {
-                            Some(tile) => {
-                                //let illumination = (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32).max(0.0); 
-                                let illumination = (illuminant.intensity - position.distance_to(*tile_position) as f32 / illuminant.range as f32 * illuminant.intensity).max(0.0); 
 
-                                tile.light_color = mix_colors(tile.light_color, illuminant.color, get_illumination_ratio(tile.light_level, illumination));
-                                tile.light_level = tile.light_level.max(illumination);
+                    for tile_position in &viewshed.visible_tiles {
+                        let distance_to_tile = position.distance_to(*tile_position);
 
-                                //TODO: Change this to be in a better location
-                                for (_player, player_viewshed) in (&players, &viewsheds).join() {
-                                    if player_viewshed.visible_tiles.contains(tile_position) && tile.light_level >= 1.0 - player_viewshed.dark_vision {
-                                        tile.discovered = true;
-                                    }
-                                }
-                            },
-                            _ => {},
-                        }        
+                        if distance_to_tile <= illuminant.range as i32 {
+                            if let Some(tile) = map_tiles.get_mut(tile_position) {
+                                let illumination = illuminant.intensity
+                                    - (illuminant.intensity
+                                        * (distance_to_tile as f32 / illuminant.range as f32));
+
+                                tile.light_color = mix_colors(
+                                    tile.light_color,
+                                    illuminant.color,
+                                    get_illumination_ratio(tile.light_level, illumination),
+                                );
+                                tile.light_level += illumination;
+
+                                discovered_tiles.insert(*tile_position);
+                            }
+                        }
                     }
                 }
             }
         }
 
-        //Update dirty photometry
-        //TODO: Improve this system so it does not rely on a player being in or on a tile
+        // Update player's discovered tiles
+        if let Some(player_entity) = get_player_entity(entities, players) {
+            if let Some(player_viewshed) = viewsheds.get_mut(player_entity) {
+                for tile_position in &discovered_tiles {
+                    if let Some(tile) = map_tiles.get(tile_position) {
+                        if tile.light_level >= 1.0 - player_viewshed.dark_vision {
+                            player_viewshed.discovered_tiles.insert(tile.position);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update dirty photometry
         for (photometry, position) in (&mut photometria, &positions).join() {
             if photometry.dirty {
                 photometry.dirty = false;
 
-                match map_tiles.get_mut(position) {
-                    Some(tile) => {
-                        photometry.light_color = mix_colors(photometry.light_color, tile.light_color, tile.light_level);
-                        photometry.light_level = tile.light_level;
-                    },
-                    _ => {
-                        match map_tiles.get_mut(&(*position + Vector3i::new(0, 0, -1))) {
-                            Some(tile) => {
-                                photometry.light_level = tile.light_level;
-                            },
-                            _ => {},
-                        }
-                    },
-                }    
+                if let Some(tile) = map_tiles.get_mut(position) {
+                    photometry.light_color =
+                        mix_colors(photometry.light_color, tile.light_color, tile.light_level);
+                    photometry.light_level = tile.light_level;
+                } else if let Some(tile) = map_tiles.get_mut(&(*position + Vector3i::new(0, 0, -1))) {
+                    photometry.light_level = tile.light_level;
+                }
             }
         }
     }
-
 }
 
 fn get_illumination_ratio(intensity_one: f32, intensity_two: f32) -> f32 {
     if intensity_one == 0.0 && intensity_two == 0.0 {
-        return 0.5
+        return 0.5;
     }
-    
+
     intensity_two / (intensity_one + intensity_two)
 }

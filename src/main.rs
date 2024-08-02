@@ -15,7 +15,7 @@ use crate::entities::components::*;
 
 const TERMINAL_WIDTH: i32 = 200;
 const TERMINAL_HEIGHT: i32 = 100;
-const MAP_SIZE: i32 = 50;
+const MAP_SIZE: i32 = 100;
 
 
 mod states;
@@ -81,7 +81,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Photometry>();
 
     //Create player
-    let player_start_position =Vector3i::new(2, 1, MAP_SIZE - 2);
+    let player_start_position =Vector3i::new(2, 1, 1);
 
     game_state.ecs.create_entity()
     .with(player_start_position)
@@ -89,19 +89,19 @@ fn main() -> rltk::BError {
         rltk::to_cp437('@'),
         rltk::to_cp437('@'),
         RGB::named(rltk::YELLOW).to_rgba(1.0),
-        RGB::named(rltk::WHITE).to_rgba(0.0),
+        RGB::named(rltk::BLACK).to_rgba(1.0),
     ))
-    .with(Player {})
+    .with(Player::new())
     .with(Viewshed::new(20, 3, 0.9))
     .with(Photometry::new())
-    .with(Illuminant::new(1.0, 5, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, true))
+    .with(Illuminant::new(1.0, 20, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, false))
     .build();
 
     add_camera(player_start_position, &mut game_state.ecs, true);
 
 
     game_state.ecs.create_entity()
-    .with(Vector3i::new(20, 0, MAP_SIZE - 1))
+    .with(player_start_position + Vector3i::new(5, -15, 0))
     .with(Renderable::new(
         rltk::to_cp437('☼'),
         rltk::to_cp437('☼'),
@@ -110,34 +110,21 @@ fn main() -> rltk::BError {
     ))
     .with(Viewshed::new(60, 3, 1.0))
     .with(Photometry::new())
-    .with(Illuminant::new(1.5, 20, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0, true))
-    .build();
-
-    /*game_state.ecs.create_entity()
-    .with(Vector3i::new(25, 0, MAP_SIZE - 2))
-    .with(Renderable::new(
-        rltk::to_cp437('☼'),
-        rltk::to_cp437('☼'),
-        RGB::named(rltk::YELLOW).to_rgba(1.0),
-        RGB::named(rltk::BLACK).to_rgba(0.0),
-    ))
-    .with(Viewshed::new(60, 1.0))
-    .with(Photometry::new())
-    //.with(Illuminant::new(1.5, 20, RGB::named(rltk::GREEN).to_rgba(1.0), PI * 2.0))
+    .with(Illuminant::new(1.5, 10, RGB::named(rltk::BLUE).to_rgba(1.0), PI * 2.0, true))
     .build();
 
     game_state.ecs.create_entity()
-    .with(Vector3i::new(20, 7, MAP_SIZE - 2))
+    .with(player_start_position + Vector3i::new(10, 5, 0))
     .with(Renderable::new(
         rltk::to_cp437('☼'),
         rltk::to_cp437('☼'),
         RGB::named(rltk::YELLOW).to_rgba(1.0),
         RGB::named(rltk::BLACK).to_rgba(0.0),
     ))
-    .with(Viewshed::new(60, 1.0))
+    .with(Viewshed::new(60, 3, 1.0))
     .with(Photometry::new())
-    //.with(Illuminant::new(1.5, 20, RGB::named(rltk::RED).to_rgba(1.0), PI * 2.0))
-    .build();*/
+    .with(Illuminant::new(1.5, 10, RGB::named(rltk::RED).to_rgba(1.0), PI * 2.0, true))
+    .build();
 
     let map = initialise_map(Vector3i::new_equi(MAP_SIZE));
     game_state.ecs.insert(map);

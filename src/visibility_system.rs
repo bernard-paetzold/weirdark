@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, time::Instant};
 
 use specs::prelude::*;
 
-use crate::{vectors::Vector3i, Map, Player, Tile, Viewshed};
+use crate::{vectors::Vector3i, Map, Player, Tile, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 
 pub struct VisibilitySystem {}
 
@@ -19,7 +19,7 @@ impl<'a> System<'a> for VisibilitySystem {
         let (mut map, entities, mut viewshed, positions, player) = data;
         let map_tiles = &mut map.tiles;
 
-        for (entity, viewshed, position) in (&entities, &mut viewshed, &positions).join() {
+        for (_entity, viewshed, position) in (&entities, &mut viewshed, &positions).join() {
             if viewshed.dirty {
                 viewshed.dirty = false;
                 viewshed.visible_tiles.clear();
@@ -170,7 +170,7 @@ fn light_cast<'a>(
                 let mut up_z_blocked = false;
                 let mut current_z_offset = 0;
 
-                while current_z_offset < viewshed_z_range && !(down_z_blocked || up_z_blocked) {
+                while current_z_offset < viewshed_z_range && !(down_z_blocked && up_z_blocked) {
                     if !down_z_blocked {
                         //If there is no tile or the tile is not opaque show the tile below that
                         let tile_below = map_tiles.get_mut(

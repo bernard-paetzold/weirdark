@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8.5"
-rltk = { version = "0.8.0" }
+rltk = { version = "0.8.0", features= ["threaded"] }
 specs = { version = "0.16.1" }
 specs-derive = "0.4.1"

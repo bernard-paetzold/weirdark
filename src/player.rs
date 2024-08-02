@@ -1,11 +1,23 @@
+use std::collections::HashSet;
+
 use rltk::{Rltk, VirtualKeyCode};
-use specs::prelude::*;
+use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
-use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed};
+use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 
 
 #[derive(Component, Debug)]
-pub struct Player {}
+pub struct Player {
+    pub tiles_on_screen: HashSet<Vector3i>,
+}
+
+impl Player {
+    pub fn new() -> Player {
+        Player {
+            tiles_on_screen: HashSet::new(),
+        }
+    }
+}
 
 pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     let mut positions = ecs.write_storage::<Vector3i>();
@@ -15,7 +27,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     let mut photometria = ecs.write_storage::<Photometry>();
     let mut illuminants = ecs.write_storage::<Illuminant>();
 
-    for (_player, position, entity) in (&mut players, &mut positions, &entities).join() {
+    for (player, position, entity) in (&mut players, &mut positions, &entities).join() {
         let map = ecs.fetch::<Map>();
 
         let tile = map.tiles.get(&(*position + delta));
@@ -35,7 +47,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
         }
 
         if movement_possible {
-            //println!("{}", position);
+            println!("{}", position);
             *position += delta;
             let new_position = *position;
 
@@ -151,3 +163,6 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) {
     }
 }
 
+pub fn get_player_entity(entities: Read<EntitiesRes>, players: Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {
+    (&entities, &players).join().next().map(|(entity, _)| entity)
+}

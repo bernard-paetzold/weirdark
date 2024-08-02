@@ -9,6 +9,7 @@ use crate::vectors::Vector3i;
 #[derive(Component)]
 pub struct Viewshed {
     pub visible_tiles: HashSet<Vector3i>,
+    pub discovered_tiles: HashSet<Vector3i>,
     pub z_range: usize,
     pub view_distance: usize,
     pub dark_vision: f32,
@@ -19,6 +20,7 @@ impl Viewshed {
     pub fn new(view_distance: usize, z_range: usize, dark_vision: f32) -> Viewshed {
         Viewshed {
             visible_tiles: HashSet::new(),
+            discovered_tiles: HashSet::new(),
             z_range,
             view_distance,
             dark_vision,

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use rltk::{Rltk, RGBA};
+use rltk::{DrawBatch, Rltk, RGBA};
 use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::MaskedStorage};
 
 use crate::{colors::{dim_color, mix_colors}, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
@@ -26,8 +26,10 @@ pub fn draw_game_screen(ctx : &mut Rltk, ecs: &mut World) {
     
 }
 
-fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {   
-    let discovered_tile_dimming = 0.4;
+fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) { 
+    let mut draw_batch = DrawBatch::new();
+      
+    let discovered_tile_dimming = 0.2;
 
     let positions = ecs.write_storage::<Vector3i>();
     let viewsheds = ecs.write_storage::<Viewshed>();
@@ -38,59 +40,74 @@ fn draw_tiles(ctx : &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
     let map = ecs.fetch::<Map>();
 
     for (_player, viewshed, position) in (&mut players, &viewsheds, &positions).join() {
-        for x in (position.x - 1) - (TERMINAL_WIDTH / 2)..position.x + (TERMINAL_WIDTH / 2) {
-            for y in (position.y - 1) - (TERMINAL_HEIGHT / 2)..position.y + (TERMINAL_WIDTH / 2) {
-                for z in position.z - 2..viewport_position.z + 1 {
-                    let tile_position = &Vector3i::new(x, y, z);
-                    let tile = map.tiles.get(tile_position);
 
-                    match tile {          
-                        Some(tile) => {
-                            if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 1.0 - viewshed.dark_vision { 
-                                let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);                               
-                                if tile_position.z == viewport_position.z {
-                                    ctx.set_active_console(1);
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
-                                            tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                           foreground_color, 
+        for tile_position in viewshed.discovered_tiles.iter().filter(|tile_position|
+            (tile_position.x - position.x).abs() < TERMINAL_WIDTH / 2 &&
+            (tile_position.y - position.y).abs() < TERMINAL_HEIGHT / 2 &&
+            (tile_position.z - position.z).abs() < viewshed.z_range as i32) {
+            let tile = map.tiles.get(&tile_position);
 
-                                           tile.background,
-                                            tile.side_glyph);
-                                }
-                                else if viewport_position.z - tile_position.z == 1 {
-                                    ctx.set_active_console(0);
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+            match tile {          
+                Some(tile) if tile.foreground.a > 0.0 || tile.background.a > 0.0 => {
+                    if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 0.0 { 
+                        let foreground_color = calculate_lit_color(tile.foreground, tile.light_color, tile.light_level);                               
+                        if tile_position.z == viewport_position.z {
+                            ctx.set_active_console(1);
+                            ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
                                     tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                    foreground_color,
-                                  tile.background,
-                                    tile.top_glyph);
-                                } 
-                            }
-                            else if tile.discovered {
-                                let foreground = dim_discovered_tile_color(tile.foreground, discovered_tile_dimming).to_greyscale();
-                                let background = dim_discovered_tile_color(tile.background, discovered_tile_dimming).to_greyscale();
+                                   foreground_color, 
 
-                                if tile_position.z == viewport_position.z {
-                                    ctx.set_active_console(1);
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                    foreground, 
-                                    background, 
+                                   tile.background,
                                     tile.side_glyph);
-                                }
-                                else if viewport_position.z - tile_position.z == 1 {
-                                    ctx.set_active_console(0);
-                                    ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
-                                    foreground, 
-                                    background,
-                                     tile.top_glyph);
-                                } 
-                            }
-                        },
-                        _ => {}
+                        }
+                        else if viewport_position.z - tile_position.z == 1 {
+                            ctx.set_active_console(0);
+                            ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                            tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                            foreground_color,
+                          tile.background,
+                            tile.top_glyph);
+                        } 
+                        else {
+                            ctx.set_active_console(1);
+                            ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                            tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                            dim_color(foreground_color, tile_position.z as f32 / (viewport_position.z + tile_position.z) as f32), 
+                            tile.background,
+                             tile.top_glyph);
+                        } 
                     }
-                }
+                    else {
+                        let foreground = dim_discovered_tile_color(tile.foreground, discovered_tile_dimming).to_greyscale();
+                        let background = dim_discovered_tile_color(tile.background, discovered_tile_dimming).to_greyscale();
+
+                        if tile_position.z == viewport_position.z {
+                            ctx.set_active_console(1);
+                            ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                            tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                            foreground, 
+                            background, 
+                            tile.side_glyph);
+                        }
+                        else if viewport_position.z - tile_position.z == 1 {
+                            ctx.set_active_console(0);
+                            ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                            tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                            foreground, 
+                            background,
+                             tile.top_glyph);
+                        } 
+                        else {
+                            ctx.set_active_console(1);
+                            ctx.set(tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2), 
+                            tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2), 
+                            dim_color(foreground, tile_position.z as f32 / (viewport_position.z + tile_position.z) as f32), 
+                            tile.background,
+                             tile.top_glyph);
+                        } 
+                    }
+                },
+                _ => {}
             }
         }
         draw_entities(ctx, &positions, &renderables, &photometria, viewport_position, &viewshed.visible_tiles);
@@ -136,7 +153,8 @@ pub fn get_viewport_position(ecs: &mut World) -> Vector3i {
 }
 
 fn calculate_lit_color(surface_color: RGBA, light_color: RGBA, intensity: f32) -> RGBA {
-    mix_colors(dim_color(surface_color, intensity), dim_color(light_color, intensity), intensity - (1.0 - light_color.to_rgb().to_hsv().s))
+    mix_colors(dim_color(surface_color, intensity), light_color, intensity - (1.0 - light_color.to_rgb().to_hsv().v))
+    //light_color * intensity
 }
 
 pub fn dim_discovered_tile_color(color: RGBA, factor: f32) -> RGBA {
@@ -144,7 +162,7 @@ pub fn dim_discovered_tile_color(color: RGBA, factor: f32) -> RGBA {
 
     let mut color = color.to_rgb().to_hsv();
 
-    if color.v > factor {
+    while color.v > factor {
         color.v = color.v * factor;
     }
 

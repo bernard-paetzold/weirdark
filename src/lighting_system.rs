@@ -4,8 +4,7 @@ use rltk::RGB;
 use specs::{prelude::*, world};
 
 use crate::{
-    colors::mix_colors, get_player_entity, player, vectors::Vector3i, Illuminant, Map, Photometry,
-    Player, Viewshed,
+    colors::mix_colors, get_player_entity, player, vectors::Vector3i, Illuminant, Map, Photometry, Player, Renderable, Viewshed
 };
 
 pub struct LightingSystem {}
@@ -94,10 +93,10 @@ impl<'a> System<'a> for LightingSystem {
                 photometry.dirty = false;
 
                 if let Some(tile) = map_tiles.get_mut(position) {
-                    photometry.light_color =
-                        mix_colors(photometry.light_color, tile.light_color, tile.light_level);
+                    photometry.light_color = tile.light_color;
                     photometry.light_level = tile.light_level;
                 } else if let Some(tile) = map_tiles.get_mut(&(*position + Vector3i::new(0, 0, -1))) {
+                    photometry.light_color = tile.light_color;
                     photometry.light_level = tile.light_level;
                 }
             }

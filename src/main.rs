@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use graphics::get_viewport_position;
 use rltk::{Rltk, GameState};
 use specs::prelude::*;
 
@@ -54,7 +55,24 @@ impl GameState for State {
         player_input(self, ctx);
 
         //Rendering
-        graphics::draw_game_screen(ctx, &mut self.ecs);
+        let viewport_position = get_viewport_position(&mut self.ecs);
+
+        let now = std::time::Instant::now();
+
+        ctx.set_active_console(0);
+        ctx.cls();
+
+        graphics::draw_tiles(ctx, &mut self.ecs, viewport_position);
+        rltk::render_draw_buffer(ctx).expect("Draw error");
+
+        ctx.set_active_console(1);
+        ctx.cls();
+
+        graphics::draw_entities(ctx, &mut self.ecs, viewport_position);
+        rltk::render_draw_buffer(ctx).expect("Draw error");
+
+        let elapsed = now.elapsed();
+        println!("Drawing: {:.2?}", elapsed);
     }
 }
 
@@ -94,7 +112,7 @@ fn main() -> rltk::BError {
     .with(Player::new())
     .with(Viewshed::new(20, 3, 0.9))
     .with(Photometry::new())
-    .with(Illuminant::new(1.0, 20, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, false))
+    .with(Illuminant::new(1.0, 5, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, false))
     .build();
 
     add_camera(player_start_position, &mut game_state.ecs, true);

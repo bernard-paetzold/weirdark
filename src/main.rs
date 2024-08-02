@@ -33,9 +33,12 @@ mod colors;
 use visibility_system::VisibilitySystem;
 use lighting_system::LightingSystem;
 
+#[derive(PartialEq, Copy, Clone)]
+pub enum RunState { Paused, Running }
 
 pub struct State {
-    ecs: World
+    ecs: World,
+    pub run_state: RunState,
 }
 
 impl State {
@@ -51,28 +54,34 @@ impl State {
 
 impl GameState for State {
     fn tick(&mut self, ctx : &mut Rltk) {
-        self.run_systems();
-        player_input(self, ctx);
+        if self.run_state == RunState::Running {
+            self.run_systems();
+            
+            //Rendering
+            let viewport_position = get_viewport_position(&mut self.ecs);
 
-        //Rendering
-        let viewport_position = get_viewport_position(&mut self.ecs);
+            let now = std::time::Instant::now();
 
-        let now = std::time::Instant::now();
+            ctx.set_active_console(0);
+            ctx.cls();
 
-        ctx.set_active_console(0);
-        ctx.cls();
+            graphics::draw_tiles(ctx, &mut self.ecs, viewport_position);
+            rltk::render_draw_buffer(ctx).expect("Draw error");
 
-        graphics::draw_tiles(ctx, &mut self.ecs, viewport_position);
-        rltk::render_draw_buffer(ctx).expect("Draw error");
+            ctx.set_active_console(1);
+            ctx.cls();
 
-        ctx.set_active_console(1);
-        ctx.cls();
+            graphics::draw_entities(ctx, &mut self.ecs, viewport_position);
+            rltk::render_draw_buffer(ctx).expect("Draw error");
 
-        graphics::draw_entities(ctx, &mut self.ecs, viewport_position);
-        rltk::render_draw_buffer(ctx).expect("Draw error");
+            let elapsed = now.elapsed();
+            println!("Drawing: {:.2?}", elapsed);
 
-        let elapsed = now.elapsed();
-        println!("Drawing: {:.2?}", elapsed);
+            self.run_state = RunState::Paused;
+        }
+        else {
+            self.run_state = player_input(self, ctx);
+        }
     }
 }
 
@@ -88,7 +97,7 @@ fn main() -> rltk::BError {
     .with_title("weirdark")
     .build()?;
 
-    let mut game_state = State{ ecs: World::new() };
+    let mut game_state = State{ ecs: World::new(), run_state: RunState::Running };
     game_state.ecs.register::<Vector3i>();
     game_state.ecs.register::<Renderable>();
     game_state.ecs.register::<Tile>();
@@ -128,7 +137,7 @@ fn main() -> rltk::BError {
     ))
     .with(Viewshed::new(60, 3, 1.0))
     .with(Photometry::new())
-    .with(Illuminant::new(1.5, 10, RGB::named(rltk::BLUE).to_rgba(1.0), PI * 2.0, true))
+    .with(Illuminant::new(1.5, 15, RGB::named(rltk::BLUE).to_rgba(1.0), PI * 2.0, true))
     .build();
 
     game_state.ecs.create_entity()
@@ -141,7 +150,7 @@ fn main() -> rltk::BError {
     ))
     .with(Viewshed::new(60, 3, 1.0))
     .with(Photometry::new())
-    .with(Illuminant::new(1.5, 10, RGB::named(rltk::RED).to_rgba(1.0), PI * 2.0, true))
+    .with(Illuminant::new(1.5, 15, RGB::named(rltk::RED).to_rgba(1.0), PI * 2.0, true))
     .build();
 
     let map = initialise_map(Vector3i::new_equi(MAP_SIZE));

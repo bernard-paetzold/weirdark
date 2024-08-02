@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use rltk::{Rltk, VirtualKeyCode};
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
-use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, State, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
+use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 
 
 #[derive(Component, Debug)]
@@ -92,7 +92,7 @@ pub fn set_camera_position(delta: Vector3i, ecs: &mut World) {
     }
 }
 
-pub fn player_input(game_state: &mut State, ctx: &mut Rltk) {
+pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     // Player movement
 
     let mut delta = Vector3i::new_equi(0);
@@ -101,14 +101,22 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) {
     let mut reset_camera = false;
 
     match ctx.key {
-        None => {}
+        //If there is no input, set runstate to paused
+        None => { return RunState::Paused }
         Some(key) => match key {
             VirtualKeyCode::Period => delta = Vector3i::new(0, 0, -1),
             VirtualKeyCode::Comma => delta = Vector3i::new(0, 0, 1),
-            VirtualKeyCode::Left => delta = Vector3i::new(-1, 0, 0),
-            VirtualKeyCode::Right => delta = Vector3i::new(1, 0, 0),
-            VirtualKeyCode::Up => delta = Vector3i::new(0, -1, 0),
-            VirtualKeyCode::Down => delta = Vector3i::new(0, 1, 0),
+            VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => delta = Vector3i::new(0, -1, 0),
+            VirtualKeyCode::Numpad9 => delta = Vector3i::new(1, -1, 0),
+            VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => delta = Vector3i::new(1, 0, 0),
+            VirtualKeyCode::Numpad3 => delta = Vector3i::new(1, 1, 0),
+            VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => delta = Vector3i::new(0, 1, 0),
+            VirtualKeyCode::Numpad1 => delta = Vector3i::new(-1, 1, 0),
+            VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => delta = Vector3i::new(-1, 0, 0),
+            VirtualKeyCode::Numpad7 => delta = Vector3i::new(-1, -1, 0),
+            
+            //Pass turn
+            VirtualKeyCode::Numpad5 => { return RunState::Running },
 
             //Camera freelook
             VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, -1),
@@ -131,7 +139,8 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) {
                     photometry.dirty = true;
                 }
             },
-            _ => {}
+            //If there is no valid input, set runstate to paused
+            _ => { return RunState::Paused }
         },
     }
 
@@ -161,6 +170,8 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) {
     else if delta_camera.x != 0 || delta_camera.y != 0 || delta_camera.z != 0 {
         update_camera_position(delta_camera, &mut game_state.ecs);
     }
+    //Set run state to running
+    RunState::Running
 }
 
 pub fn get_player_entity(entities: Read<EntitiesRes>, players: Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {

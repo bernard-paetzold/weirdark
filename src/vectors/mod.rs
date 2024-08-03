@@ -1,6 +1,6 @@
 use std::{fmt, ops::{Add, AddAssign, Div, Mul, Sub, SubAssign}};
 
-use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::Component;
 

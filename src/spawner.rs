@@ -1,7 +1,6 @@
 use std::f32::consts::PI;
 
 use rltk::RGB;
-use serde::Serialize;
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
 
 use crate::{vectors::Vector3i, Illuminant, Name, Photometry, Player, Renderable, SerializeThis, Viewshed};

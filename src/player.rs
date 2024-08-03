@@ -1,7 +1,7 @@
 use rltk::{Rltk, VirtualKeyCode};
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
-use crate::{gamelog::GameLog, gui, vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed};
+use crate::{gamelog::GameLog, vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed};
 
 use serde::Serialize;
 use serde::Deserialize;
@@ -117,7 +117,7 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Numpad7 => delta = Vector3i::new(-1, -1, 0),
             
             //Pass turn
-            VirtualKeyCode::Numpad5 => return RunState::PlayerTurn,
+            VirtualKeyCode::Space | VirtualKeyCode::Numpad5 => return skip_turn(&mut game_state.ecs),
 
             //Main menu
             VirtualKeyCode::Escape =>  return RunState::SaveGame,
@@ -190,4 +190,11 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
 
 pub fn get_player_entity(entities: Read<EntitiesRes>, players: Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {
     (&entities, &players).join().next().map(|(entity, _)| entity)
+}
+
+fn skip_turn(ecs: &mut World) -> RunState {
+    //TODO: Add functionality to heal while waiting etc here.
+    let mut log = ecs.fetch_mut::<GameLog>();
+    log.entries.push("Waiting...".to_string());
+    RunState::PlayerTurn
 }

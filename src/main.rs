@@ -1,6 +1,3 @@
-use std::f32::consts::PI;
-
-use graphics::get_viewport_position;
 use graphics::render_map;
 use rltk::{Rltk, GameState};
 use specs::prelude::*;
@@ -9,7 +6,6 @@ extern crate serde;
 
 use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 
-use rltk::RGB;
 use vectors::Vector3i;
 
 use crate::player::*;
@@ -23,7 +19,7 @@ const TERMINAL_WIDTH: i32 = 200;
 const TERMINAL_HEIGHT: i32 = 100;
 const MAP_SCREEN_WIDTH: i32 = 200;
 const MAP_SCREEN_HEIGHT: i32 = 75;
-const MAP_SIZE: i32 = 10;
+const MAP_SIZE: i32 = 100;
 
 
 mod states;
@@ -90,7 +86,7 @@ impl GameState for State {
         }
 
         match new_runstate {
-            RunState::MainMenu { menu_selection } => {
+            RunState::MainMenu { .. } => {
                 
             }
             _ => {
@@ -178,15 +174,17 @@ fn main() -> rltk::BError {
 
     game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
+    let map = initialise_map(Vector3i::new_equi(MAP_SIZE));
+    game_state.ecs.insert(map);
+    game_state.ecs.insert(gamelog::GameLog{ entries : vec!["Game log".to_string()] });
+    game_state.ecs.insert(RunState::MainMenu { menu_selection: gui::MainMenuSelection::NewGame });
+
     //Create player
     let player_start_position =Vector3i::new(2, 1, 1);
-    let _player_entity = spawner::player(&mut game_state.ecs, player_start_position);
+    let player_entity = spawner::player(&mut game_state.ecs, player_start_position);
 
-    
-
-    add_camera(player_start_position, &mut game_state.ecs, true);
-
-
+    game_state.ecs.insert(player_start_position);
+    game_state.ecs.insert(player_entity);
     /*game_state.ecs.create_entity()
     .with(player_start_position + Vector3i::new(5, -15, 0))
     .with(Renderable::new(
@@ -214,11 +212,6 @@ fn main() -> rltk::BError {
     .with(Illuminant::new(1.5, 15, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, true))
     .with(Name::new("Standing lamp".to_owned()))
     .build();*/
-
-    let map = initialise_map(Vector3i::new_equi(MAP_SIZE));
-    game_state.ecs.insert(map);
-    game_state.ecs.insert(gamelog::GameLog{ entries : vec!["Game log".to_string()] });
-    game_state.ecs.insert(RunState::MainMenu { menu_selection: gui::MainMenuSelection::NewGame });
 
     rltk::main_loop(context, game_state)
 }

@@ -1,14 +1,11 @@
-use std::collections::HashMap;
 use std::fs::{self, File};
 use std::path::Path;
 
 use bimap::BiMap;
-use serde::Serialize;
-use specs::rayon::iter::Positions;
 use specs::saveload::{SerializeComponents, SimpleMarkerAllocator, DeserializeComponents};
 use specs::error::NoError;
 
-use specs::{world, Entity, Join};
+use specs::{Entity, Join};
 use specs::{saveload::{MarkedBuilder, SimpleMarker}, Builder, World, WorldExt};
 
 use crate::Camera;
@@ -123,13 +120,13 @@ pub fn load_game(ecs: &mut World) {
             delete_me = Some(entity);
         }
 
-        /*for (entity, player, position) in (&entities, &players, &positions).join() {
+        for (entity, _player, position) in (&entities, &players, &positions).join() {
             let mut player_pos = ecs.write_resource::<Vector3i>();
             *player_pos = *position;
 
             let mut player_resource = ecs.write_resource::<Entity>();
             *player_resource = entity;
-        }*/
+        }
 
 
     }

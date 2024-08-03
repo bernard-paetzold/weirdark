@@ -2,11 +2,15 @@ use std::collections::HashSet;
 
 use rltk::{RGB, RGBA};
 use specs::prelude::*;
-use specs_derive::Component;
-
+use specs_derive::*;
+use specs::error::NoError;
+use specs::saveload::{Marker, ConvertSaveload};
+use serde::Serialize;
+use serde::Deserialize;
+use crate::map;
 use crate::vectors::Vector3i;
 
-#[derive(Component)]
+#[derive(Component, ConvertSaveload, Clone)]
 pub struct Viewshed {
     pub visible_tiles: HashSet<Vector3i>,
     pub discovered_tiles: HashSet<Vector3i>,
@@ -29,7 +33,7 @@ impl Viewshed {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, ConvertSaveload, Clone)]
 pub struct Illuminant {
     pub intensity: f32,
     pub range: usize,
@@ -53,7 +57,7 @@ impl Illuminant {
 }
 
 
-#[derive(Component)]
+#[derive(Component, ConvertSaveload, Clone)]
 pub struct Photometry {
     pub light_level: f32,
     pub light_color: RGBA,
@@ -71,3 +75,24 @@ impl Photometry {
     }
 }
 
+#[derive(Component, ConvertSaveload, Clone, Debug)]
+pub struct Name {
+    pub name: String,
+}
+
+impl Name {
+    pub fn new(name: String) -> Name {
+        Name {
+            name,
+        }
+    }
+}
+
+#[derive(Component, Serialize, Deserialize, Clone, Debug)]
+pub struct SerializeThis;
+
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct SerializationHelper {
+    pub map : map::Map
+}

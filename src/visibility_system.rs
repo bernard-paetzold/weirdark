@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, time::Instant};
 
 use specs::prelude::*;
 
-use crate::{vectors::Vector3i, Map, Player, Tile, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
+use crate::{vectors::Vector3i, Map, Player, Tile, Viewshed};
 
 pub struct VisibilitySystem {}
 
@@ -16,7 +16,7 @@ impl<'a> System<'a> for VisibilitySystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut map, entities, mut viewshed, positions, player) = data;
+        let (mut map, entities, mut viewshed, positions, _player) = data;
         let map_tiles = &mut map.tiles;
 
         for (_entity, viewshed, position) in (&entities, &mut viewshed, &positions).join() {

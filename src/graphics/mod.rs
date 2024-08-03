@@ -1,21 +1,32 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use rltk::{to_cp437, ColorPair, DrawBatch, Point, Rltk, RGB, RGBA};
-use specs::{
-    prelude::*,
-    shred::{Fetch, FetchMut},
-    storage::MaskedStorage,
-};
+use rltk::{ColorPair, DrawBatch, Point, Rltk, RGBA};
+use specs::prelude::*;
 
 use crate::{
-    colors::{dim_color, mix_colors},
-    vectors::Vector3i,
-    Camera, Map, Photometry, Player, Renderable, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH,
+    colors::{dim_color, mix_colors}, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH
 };
 
 pub mod components;
 
-pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
+pub fn render_map(ecs: &mut World, ctx: &mut Rltk) {
+    //Rendering
+    let viewport_position = get_viewport_position(&ecs);
+
+    ctx.set_active_console(0);
+    ctx.cls();
+
+    draw_tiles(ecs, viewport_position);
+    rltk::render_draw_buffer(ctx).expect("Draw error");
+
+    ctx.set_active_console(1);
+    ctx.cls();
+
+    draw_entities(ecs, viewport_position);
+    rltk::render_draw_buffer(ctx).expect("Draw error");
+}
+
+pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
     let mut draw_batch = DrawBatch::new();
 
     let discovered_tile_dimming = 0.2;
@@ -28,8 +39,8 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
 
     for (_player, viewshed, position) in (&mut players, &viewsheds, &positions).join() {
         for tile_position in viewshed.discovered_tiles.iter().filter(|tile_position| {
-            (tile_position.x - position.x).abs() < TERMINAL_WIDTH / 2
-                && (tile_position.y - position.y).abs() < TERMINAL_HEIGHT / 2
+            (tile_position.x - position.x).abs() < MAP_SCREEN_WIDTH / 2
+                && (tile_position.y - position.y).abs() < MAP_SCREEN_HEIGHT / 2
                 && (tile_position.z - position.z).abs() < viewshed.z_range as i32
         }) {
             let tile = map.tiles.get(&tile_position);
@@ -45,8 +56,8 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
                         if tile_position.z == viewport_position.z {
                             draw_batch.set_with_z(
                                 Point::new(
-                                    tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(foreground_color, tile.background),
                                 tile.side_glyph,
@@ -55,8 +66,8 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
                         } else if viewport_position.z - tile_position.z == 1 {
                             draw_batch.set_with_z(
                                 Point::new(
-                                    tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(foreground_color, tile.background),
                                 tile.top_glyph,
@@ -65,8 +76,8 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
                         } else {
                             draw_batch.set_with_z(
                                 Point::new(
-                                    tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(
                                     dim_color(
@@ -91,8 +102,8 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
                         if tile_position.z == viewport_position.z {
                             draw_batch.set_with_z(
                                 Point::new(
-                                    tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(foreground, background),
                                 tile.side_glyph,
@@ -101,8 +112,8 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
                         } else if viewport_position.z - tile_position.z == 1 {
                             draw_batch.set_with_z(
                                 Point::new(
-                                    tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(foreground, background),
                                 tile.top_glyph,
@@ -111,8 +122,8 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
                         } else {
                             draw_batch.set_with_z(
                                 Point::new(
-                                    tile_position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(
                                     dim_color(
@@ -135,7 +146,7 @@ pub fn draw_tiles(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) 
     draw_batch.submit(0).expect("Batch error");
 }
 
-pub fn draw_entities(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3i) {
+pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
     let mut entity_draw_batch = DrawBatch::new();
 
     let positions = ecs.write_storage::<Vector3i>();
@@ -170,8 +181,8 @@ pub fn draw_entities(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3
                 if position.z == viewport_position.z {
                     entity_draw_batch.set_with_z(
                         Point::new(
-                            position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                            position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                            position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                            position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                         ),
                         ColorPair::new(foreground_color, background_color),
                         renderable.side_glyph,
@@ -181,8 +192,8 @@ pub fn draw_entities(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3
                 } else if viewport_position.z - position.z == 1 {
                     entity_draw_batch.set_with_z(
                         Point::new(
-                            position.x - viewport_position.x + (TERMINAL_WIDTH / 2),
-                            position.y - viewport_position.y + (TERMINAL_HEIGHT / 2),
+                            position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                            position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                         ),
                         ColorPair::new(foreground_color, background_color),
                         renderable.top_glyph,
@@ -196,7 +207,7 @@ pub fn draw_entities(ctx: &mut Rltk, ecs: &mut World, viewport_position: Vector3
     entity_draw_batch.submit(1).expect("Batch error");
 }
 
-pub fn get_viewport_position(ecs: &mut World) -> Vector3i {
+pub fn get_viewport_position(ecs: &World) -> Vector3i {
     //Get viewport position
     let positions = ecs.read_storage::<Vector3i>();
     let cameras = ecs.read_storage::<Camera>();

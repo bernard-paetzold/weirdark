@@ -1,21 +1,19 @@
-use std::collections::HashSet;
-
 use rltk::{Rltk, VirtualKeyCode};
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
-use crate::{vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed, TERMINAL_HEIGHT, TERMINAL_WIDTH};
+use crate::{gamelog::GameLog, gui, vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed};
+
+use serde::Serialize;
+use serde::Deserialize;
 
 
-#[derive(Component, Debug)]
+#[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Player {
-    pub tiles_on_screen: HashSet<Vector3i>,
 }
 
 impl Player {
     pub fn new() -> Player {
-        Player {
-            tiles_on_screen: HashSet::new(),
-        }
+        Player { }
     }
 }
 
@@ -27,7 +25,9 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     let mut photometria = ecs.write_storage::<Photometry>();
     let mut illuminants = ecs.write_storage::<Illuminant>();
 
-    for (player, position, entity) in (&mut players, &mut positions, &entities).join() {
+    let mut log = ecs.fetch_mut::<GameLog>();
+
+    for (_player, position, entity) in (&mut players, &mut positions, &entities).join() {
         let map = ecs.fetch::<Map>();
 
         let tile = map.tiles.get(&(*position + delta));
@@ -47,9 +47,11 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
         }
 
         if movement_possible {
-            println!("{}", position);
             *position += delta;
             let new_position = *position;
+
+            log.entries.push(new_position.to_string());
+
 
             if let Some(viewshed) = viewsheds.get_mut(entity) {
                 viewshed.dirty = true;
@@ -94,7 +96,6 @@ pub fn set_camera_position(delta: Vector3i, ecs: &mut World) {
 
 pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     // Player movement
-
     let mut delta = Vector3i::new_equi(0);
     let mut delta_camera = Vector3i::new_equi(0);
 
@@ -102,7 +103,7 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
 
     match ctx.key {
         //If there is no input, set runstate to paused
-        None => { return RunState::Paused }
+        None => { return RunState::AwaitingInput }
         Some(key) => match key {
             VirtualKeyCode::Period => delta = Vector3i::new(0, 0, -1),
             VirtualKeyCode::Comma => delta = Vector3i::new(0, 0, 1),
@@ -116,8 +117,10 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Numpad7 => delta = Vector3i::new(-1, -1, 0),
             
             //Pass turn
-            VirtualKeyCode::Numpad5 => { return RunState::Running },
+            VirtualKeyCode::Numpad5 => return RunState::PlayerTurn,
 
+            //Main menu
+            VirtualKeyCode::Escape =>  return RunState::SaveGame,
             //Camera freelook
             VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, -1),
             VirtualKeyCode::E => delta_camera = Vector3i::new(0, 0, 1),
@@ -137,10 +140,21 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
                     illuminant.dirty = true;
                     viewshed.dirty = true;
                     photometry.dirty = true;
+
+                    let mut log = game_state.ecs.fetch_mut::<GameLog>();
+
+                    match illuminant.on {
+                        true => {
+                            log.entries.push("Light: On".to_string());
+                        },
+                        false => {
+                            log.entries.push("Light: Off".to_string());
+                        }
+                    }
                 }
             },
             //If there is no valid input, set runstate to paused
-            _ => { return RunState::Paused }
+            _ => { return RunState::AwaitingInput }
         },
     }
 
@@ -171,7 +185,7 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
         update_camera_position(delta_camera, &mut game_state.ecs);
     }
     //Set run state to running
-    RunState::Running
+    RunState::PlayerTurn
 }
 
 pub fn get_player_entity(entities: Read<EntitiesRes>, players: Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {

@@ -1,5 +1,6 @@
 use std::{fmt, ops::{Add, AddAssign, Div, Mul, Sub, SubAssign}};
 
+use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use specs::prelude::*;
 use specs_derive::Component;
 
@@ -7,7 +8,7 @@ mod utils;
 //pub use utils::find_path;
 
 
-#[derive(Component, Copy, Clone, Debug, Default, Ord, PartialOrd, Eq, Hash)]
+#[derive(Component, Copy, Clone, Debug, Default, Ord, PartialOrd, Eq, Hash, Serialize, Deserialize)]
 pub struct Vector3i
 {
     pub x: i32,
@@ -43,6 +44,19 @@ impl Vector3i {
         (((self.x - other.x).pow(2) + (self.y - other.y).pow(2) + (self.z - other.z).pow(2)) as f32).sqrt().round() as i32
     }
 }
+
+/*impl Serialize for Vector3i {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer {
+        let mut state = serializer.serialize_struct("Vector3i", 3)?;
+    
+        state.serialize_field("x", &self.x)?;
+        state.serialize_field("y", &self.y)?;
+        state.serialize_field("z", &self.z)?;
+        state.end()
+    }
+}*/
 
 impl Add for Vector3i {
     type Output = Self;

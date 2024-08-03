@@ -1,8 +1,7 @@
 use crate::{vectors::Vector3i, Tile};
 use bimap::BiMap;
 use rltk::RGB;
-use serde::{ser::{SerializeMap, SerializeStruct}, Deserialize, Serialize, Serializer};
-use serde_json;
+use serde::{Deserialize, Serialize};
 use specs::Entity;
 use std::collections::HashMap;
 

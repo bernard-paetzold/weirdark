@@ -1,7 +1,7 @@
-use crate::{colors::SerialisableRGBA, vectors::Vector3i};
+use crate::vectors::Vector3i;
 
 use rltk::{RGB, RGBA};
-use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::Component;
 

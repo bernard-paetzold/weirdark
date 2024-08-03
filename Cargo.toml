@@ -5,6 +5,10 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8.5"
-rltk = { version = "0.8.0", features= ["threaded"] }
-specs = { version = "0.16.1" }
+rltk = { version = "0.8.0", features = ["threaded", "serde"] }
+specs = { version = "0.16.1", features = ["serde"] }
 specs-derive = "0.4.1"
+bimap = "0.6.3"
+serde = { version= "1.0.204", features = ["derive"]}
+serde_json = "1.0.122"
+serde_with = { version = "3.9.0", features = ["json"] }

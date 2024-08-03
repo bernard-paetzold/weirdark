@@ -1,8 +1,14 @@
 use rltk::RGBA;
 use specs::prelude::*;
-use specs_derive::Component;
+use specs::saveload::Marker;
+use specs::saveload::ConvertSaveload;
+use specs::error::NoError;
+use serde::Serialize;
+use serde::Deserialize;
 
-#[derive(Component)]
+use specs_derive::{Component, ConvertSaveload};
+
+#[derive(Component, ConvertSaveload)]
 pub struct Renderable {
     pub top_glyph: rltk::FontCharType,
     pub side_glyph: rltk::FontCharType,

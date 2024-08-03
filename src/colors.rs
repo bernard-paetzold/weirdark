@@ -1,4 +1,5 @@
 use rltk::RGBA;
+use serde::{ser::SerializeStruct, Serialize, Serializer};
 
 
 
@@ -21,4 +22,42 @@ pub fn dim_color(color: RGBA, amount: f32) -> RGBA {
     color.v = color.v * amount;
 
     color.to_rgba(alpha)
+}
+
+pub struct SerialisableRGBA {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
+
+impl From<RGBA> for SerialisableRGBA {
+    fn from(rgba: RGBA) -> Self {
+        SerialisableRGBA {
+            r: (rgba.r * 255.0) as u8,
+            g: (rgba.g * 255.0) as u8,
+            b: (rgba.b * 255.0) as u8,
+            a: (rgba.a * 255.0) as u8,
+        }
+    }
+}
+
+impl From<SerialisableRGBA> for RGBA {
+    fn from(s_rgba: SerialisableRGBA) -> Self {
+        RGBA::from_u8(s_rgba.r, s_rgba.g, s_rgba.b, s_rgba.a)
+    }
+}
+
+impl Serialize for SerialisableRGBA {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer {
+        let mut state = serializer.serialize_struct("Vector3i", 4)?;
+    
+        state.serialize_field("r", &self.r)?;
+        state.serialize_field("g", &self.g)?;
+        state.serialize_field("b", &self.b)?;
+        state.serialize_field("a", &self.a)?;
+        state.end()
+    }
 }

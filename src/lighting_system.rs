@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use rltk::RGB;
-use specs::{prelude::*, world};
+use specs::prelude::*;
 
 use crate::{
-    colors::mix_colors, get_player_entity, player, vectors::Vector3i, Illuminant, Map, Photometry, Player, Renderable, Viewshed
+    colors::mix_colors, get_player_entity, vectors::Vector3i, Illuminant, Map, Photometry, Player, Viewshed
 };
 
 pub struct LightingSystem {}

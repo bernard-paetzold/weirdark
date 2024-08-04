@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::Component;
 
-mod utils;
+pub mod utils;
 //pub use utils::find_path;
 
 

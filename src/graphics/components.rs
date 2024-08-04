@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use specs_derive::{Component, ConvertSaveload};
 
-#[derive(Component, ConvertSaveload)]
+#[derive(Debug, Component, Serialize, Deserialize, Clone)]
 pub struct Renderable {
     pub top_glyph: rltk::FontCharType,
     pub side_glyph: rltk::FontCharType,

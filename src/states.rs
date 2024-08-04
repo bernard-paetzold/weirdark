@@ -1,19 +1,12 @@
-/*
+use crate::{gui, vectors::Vector3i};
 
-#[derive(Clone, Debug, Default, Hash, Eq, States, PartialEq)]
-pub enum MainState
-{
-    #[default]
-    LoadAssets,
-    Game,
+#[derive(PartialEq, Copy, Clone)]
+pub enum RunState { 
+    AwaitingInput, 
+    PreRun,
+    PlayerTurn,
+    NPCTurn, 
+    MainMenu { menu_selection: gui::MainMenuSelection },
+    SaveGame,
+    InteractGUI { range: usize, source: Vector3i, target: Vector3i },
 }
-
-
-#[derive(Clone, Debug, Default, Hash, Eq, States, PartialEq)]
-pub enum GameState {
-    #[default]
-    None,
-    PlayerInput,
-    TurnUpdate
-}
-*/

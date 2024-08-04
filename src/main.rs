@@ -6,6 +6,7 @@ extern crate serde;
 
 use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 
+use states::RunState;
 use vectors::Vector3i;
 
 use crate::player::*;
@@ -40,17 +41,6 @@ mod menu;
 pub mod save_load_system;
 
 mod systems;
-
-#[derive(PartialEq, Copy, Clone)]
-pub enum RunState { 
-    AwaitingInput, 
-    PreRun,
-    PlayerTurn,
-    NPCTurn, 
-    MainMenu { menu_selection: gui::MainMenuSelection },
-    SaveGame,
-}
-
 pub struct State {
     ecs: World,
     dispatcher: Box<dyn systems::UnifiedDispatcher + 'static>
@@ -130,7 +120,13 @@ impl GameState for State {
             RunState::SaveGame => {
                 save_load_system::save_game(&mut self.ecs);
                 new_runstate = RunState::MainMenu{ menu_selection : gui::MainMenuSelection::LoadGame };
+            },
+            RunState::InteractGUI { range, source, target } => {
+                new_runstate = gui::interact_gui(self, ctx, range, source, target);
             }
+            RunState::InteractGUI { range, source, target } => {
+                new_runstate = gui::interact_gui(self, ctx, range, source, target);
+            },
         }
 
         {
@@ -171,7 +167,14 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Photometry>();
     game_state.ecs.register::<SimpleMarker<SerializeThis>>();
     game_state.ecs.register::<SerializationHelper>();
+    game_state.ecs.register::<InteractIntent>();
+    game_state.ecs.register::<OpenContainer>();
 
+    //Power 
+    game_state.ecs.register::<Power>();
+    game_state.ecs.register::<PowerSwitch>();
+
+    game_state.ecs.insert(rltk::RandomNumberGenerator::seeded(0));
     game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
     let map = map_builders::build_system_test_map(Vector3i::new(MAP_SIZE, MAP_SIZE, 5));

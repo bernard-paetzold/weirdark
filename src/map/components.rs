@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::vectors::Vector3i;
 
 use rltk::{RGB, RGBA};

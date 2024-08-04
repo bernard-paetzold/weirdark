@@ -21,27 +21,25 @@ const MAP_SCREEN_WIDTH: i32 = 200;
 const MAP_SCREEN_HEIGHT: i32 = 75;
 const MAP_SIZE: i32 = 100;
 
+const SHOW_FPS : bool = true;
+
 
 mod states;
 mod gui;
 mod gamelog;
 mod player;
 mod map;
+mod map_builders;
 mod spawner;
 mod vectors;
 mod camera;
 mod entities;
 mod graphics;
-mod visibility_system;
-mod lighting_system;
-mod map_index_system;
 mod colors;
 mod menu;
 pub mod save_load_system;
 
-use map_index_system::MapIndexSystem;
-use visibility_system::VisibilitySystem;
-use lighting_system::LightingSystem;
+mod systems;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState { 
@@ -55,17 +53,12 @@ pub enum RunState {
 
 pub struct State {
     ecs: World,
+    dispatcher: Box<dyn systems::UnifiedDispatcher + 'static>
 }
 
 impl State {
     fn run_systems(&mut self) {
-        let mut visibility_system = VisibilitySystem {};
-        let mut lighting_system = LightingSystem {};
-        let mut map_index_system = MapIndexSystem {};
-
-        visibility_system.run_now(&self.ecs);
-        lighting_system.run_now(&self.ecs);
-        map_index_system.run_now(&self.ecs);
+        self.dispatcher.run_now(&mut self.ecs);
 
         self.ecs.maintain();
     }
@@ -123,7 +116,7 @@ impl GameState for State {
                         match selected {
                             gui::MainMenuSelection::NewGame => new_runstate = RunState::PreRun,
                             gui::MainMenuSelection::LoadGame => {
-                                save_load_system::load_game(&mut self.ecs);
+                                save_load_system::load_game(&mut self.ecs, ctx);
                                 new_runstate = RunState::AwaitingInput;
                                 //save_load_system::delete_save();
                             },
@@ -144,6 +137,9 @@ impl GameState for State {
             let mut run_writer = self.ecs.write_resource::<RunState>();
             *run_writer = new_runstate;
         }
+        if SHOW_FPS {
+            ctx.print(1, 1, &format!("FPS: {}", ctx.fps));
+        }
     }
 }
 
@@ -159,7 +155,11 @@ fn main() -> rltk::BError {
     .with_title("weirdark")
     .build()?;
 
-    let mut game_state = State{ ecs: World::new() };
+    let mut game_state = State{ 
+        ecs: World::new(),
+        dispatcher: systems::build(),
+     };
+
     game_state.ecs.register::<Vector3i>();
     game_state.ecs.register::<Renderable>();
     game_state.ecs.register::<Tile>();
@@ -174,44 +174,20 @@ fn main() -> rltk::BError {
 
     game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
-    let map = initialise_map(Vector3i::new_equi(MAP_SIZE));
+    let map = map_builders::build_system_test_map(Vector3i::new(MAP_SIZE, MAP_SIZE, 5));
     game_state.ecs.insert(map);
     game_state.ecs.insert(gamelog::GameLog{ entries : vec!["Game log".to_string()] });
     game_state.ecs.insert(RunState::MainMenu { menu_selection: gui::MainMenuSelection::NewGame });
 
     //Create player
-    let player_start_position =Vector3i::new(2, 1, 1);
+    let player_start_position = Vector3i::new(2, 1, 1);
     let player_entity = spawner::player(&mut game_state.ecs, player_start_position);
+
+    //Add a light
+     spawner::standing_lamp(&mut game_state.ecs, Vector3i::new(-6, 6, player_start_position.z));
 
     game_state.ecs.insert(player_start_position);
     game_state.ecs.insert(player_entity);
-    /*game_state.ecs.create_entity()
-    .with(player_start_position + Vector3i::new(5, -15, 0))
-    .with(Renderable::new(
-        rltk::to_cp437('☼'),
-        rltk::to_cp437('☼'),
-        RGB::named(rltk::YELLOW).to_rgba(1.0),
-        RGB::named(rltk::BLACK).to_rgba(1.0),
-    ))
-    .with(Viewshed::new(20, 3, 1.0))
-    .with(Photometry::new())
-    .with(Illuminant::new(1.5, 15, RGB::named(rltk::ANTIQUEWHITE).to_rgba(1.0), PI * 2.0, true))
-    .with(Name::new("Standing lamp".to_owned()))
-    .build();
-
-    game_state.ecs.create_entity()
-    .with(player_start_position + Vector3i::new(10, 5, 0))
-    .with(Renderable::new(
-        rltk::to_cp437('☼'),
-        rltk::to_cp437('☼'),
-        RGB::named(rltk::YELLOW).to_rgba(1.0),
-        RGB::named(rltk::BLACK).to_rgba(1.0),
-    ))
-    .with(Viewshed::new(20, 3, 1.0))
-    .with(Photometry::new())
-    .with(Illuminant::new(1.5, 15, RGB::named(rltk::WHITE).to_rgba(1.0), PI * 2.0, true))
-    .with(Name::new("Standing lamp".to_owned()))
-    .build();*/
 
     rltk::main_loop(context, game_state)
 }

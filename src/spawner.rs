@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use rltk::RGB;
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
 
-use crate::{vectors::Vector3i, Illuminant, Name, OpenContainer, Photometry, Player, Power, PowerSwitch, Renderable, SerializeThis, Viewshed};
+use crate::{vectors::Vector3i, Illuminant, Name, Photometry, Player, Power, PowerSwitch, Renderable, SerializeThis, Viewshed};
 
 pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
     //Add player camera
@@ -52,9 +52,8 @@ pub fn standing_lamp(ecs: &mut World, light_position: Vector3i) -> Entity {
             true,
         ))
         .with(Name::new("Standing lamp".to_string()))
-        .with(Power::new(false))
-        .with(PowerSwitch::new(true))
-        .with(OpenContainer::new(false))
+        .with(Power::new(true, false))
+        .with(PowerSwitch::new(false))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }

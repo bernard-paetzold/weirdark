@@ -108,14 +108,16 @@ pub struct InteractIntent {
     pub initiator: Entity,
     pub target: Entity,
     pub interaction_id: String,
+    pub interaction_description: String,
 }
 
 impl InteractIntent {
-    pub fn new(initiator: Entity, target: Entity, interaction_id: String) -> InteractIntent {
+    pub fn new(initiator: Entity, target: Entity, interaction_id: String, interaction_description: String) -> InteractIntent {
         InteractIntent {
             initiator,
             target,
             interaction_id,
+            interaction_description,
         }
     }
 }
@@ -123,6 +125,7 @@ impl InteractIntent {
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct Power {
     pub powered: bool,
+    pub on: bool,
 }
 
 pub trait Interactable {
@@ -130,15 +133,15 @@ pub trait Interactable {
 }
 
 impl Power {
-    pub fn new(powered: bool) -> Power {
-        Power { powered }
+    pub fn new(powered: bool, on: bool) -> Power {
+        Power { powered, on }
     }
 }
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct PowerSwitch {
     pub on: bool,
-    pub interaction_name: String,
+    pub interaction_description: String,
     pub interaction_id: String,
 }
 
@@ -148,13 +151,12 @@ impl PowerSwitch {
 
         PowerSwitch {
             on,
-            interaction_name: "Toggle power switch".to_string(),
+            interaction_description: "Toggled power switch".to_string(),
             interaction_id: rng.next_u64().to_string(),
         }
     }
 
     pub fn toggle(&mut self) {
-        println!("Toggle switch");
         self.on = !self.on;
     }
 }
@@ -166,40 +168,8 @@ impl Interactable for PowerSwitch {
     }
 }
 
-#[derive(Component, Default, Serialize, Deserialize, Clone)]
-pub struct OpenContainer {
-    pub open: bool,
-    pub interaction_name: String,
-    pub interaction_id: String,
-}
-
-impl OpenContainer {
-    pub fn new(open: bool) -> OpenContainer {
-        let mut rng = RandomNumberGenerator::new();
-
-        OpenContainer {
-            open,
-            interaction_name: "Open container".to_string(),
-            interaction_id: rng.next_u64().to_string(),
-        }
-    }
-
-    pub fn toggle(&mut self) {
-        println!("Open container");
-        self.open = !self.open;
-    }
-}
-
-impl Interactable for OpenContainer {
-    fn interact(&mut self) -> bool {
-        self.toggle();
-        true
-    }
-}
-
 pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(String, String)> {
     let power_switches = ecs.read_storage::<PowerSwitch>();
-    let containers = ecs.read_storage::<OpenContainer>();
 
     let mut interactables: Vec<(String, String)> = Vec::new();
 
@@ -207,14 +177,7 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(String, Stri
     if let Some(power_switch) = power_switches.get(entity) {
         interactables.push((
             power_switch.interaction_id.clone(),
-            power_switch.interaction_name.clone(),
-        ));
-    }
-
-    if let Some(container) = containers.get(entity) {
-        interactables.push((
-            container.interaction_id.clone(),
-            container.interaction_name.clone(),
+            power_switch.interaction_description.clone(),
         ));
     }
 

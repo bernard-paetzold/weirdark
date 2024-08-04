@@ -1,3 +1,5 @@
+use std::usize;
+
 use rltk::{Rltk, VirtualKeyCode};
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
@@ -65,6 +67,12 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
                 illuminant.dirty = true;
             }
 
+            //Update player position tracker
+            let mut player_position = ecs.write_resource::<Vector3i>();
+            player_position.x = new_position.x;
+            player_position.y = new_position.y;
+            player_position.z = new_position.z;
+
             return Some(new_position)
         }
         return None;
@@ -100,6 +108,8 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     let mut delta = Vector3i::new_equi(0);
     let mut delta_camera = Vector3i::new_equi(0);
 
+    let player_pos = *game_state.ecs.fetch::<Vector3i>();
+    
     let mut reset_camera = false;
 
     match ctx.key {
@@ -122,6 +132,13 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
 
             //Main menu
             VirtualKeyCode::Escape =>  return RunState::SaveGame,
+
+            //Look gui
+            VirtualKeyCode::K =>  return RunState::InteractGUI { range: usize::MAX, target: player_pos, source: player_pos },
+
+            //Interaction gui
+            VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos },
+
             //Camera freelook
             VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, -1),
             VirtualKeyCode::E => delta_camera = Vector3i::new(0, 0, 1),

@@ -39,11 +39,12 @@ impl<'a> System<'a> for LightingSystem {
             .any(|(illuminant, _)| illuminant.dirty)
         {
             for tile in map_tiles.values_mut() {
-                tile.light_level = 0.0;
-                tile.light_color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                tile.photometry.light_level = 0.0;
+                tile.photometry.light_color = RGB::named(rltk::WHITE).to_rgba(1.0);
             }
 
             // Process illuminants
+            //TODO: Add some light leaking to neighbouring tiles that have lower light levels than the lit tile
             for (illuminant, viewshed, position) in
                 (&mut illuminants, &viewsheds, &positions).join()
             {
@@ -59,12 +60,12 @@ impl<'a> System<'a> for LightingSystem {
                                     - (illuminant.intensity
                                         * (distance_to_tile as f32 / illuminant.range as f32));
 
-                                tile.light_color = mix_colors(
-                                    tile.light_color,
+                                tile.photometry.light_color = mix_colors(
+                                    tile.photometry.light_color,
                                     illuminant.color,
-                                    get_illumination_ratio(tile.light_level, illumination),
+                                    get_illumination_ratio(tile.photometry.light_level, illumination),
                                 );
-                                tile.light_level += illumination;
+                                tile.photometry.light_level += illumination;
 
                                 discovered_tiles.insert(*tile_position);
                             }
@@ -79,7 +80,7 @@ impl<'a> System<'a> for LightingSystem {
             if let Some(player_viewshed) = viewsheds.get_mut(player_entity) {
                 for tile_position in &discovered_tiles {
                     if let Some(tile) = map_tiles.get(tile_position) {
-                        if tile.light_level >= 1.0 - player_viewshed.dark_vision {
+                        if tile.photometry.light_level >= 1.0 - player_viewshed.dark_vision {
                             player_viewshed.discovered_tiles.insert(tile.position);
                         }
                     }
@@ -93,11 +94,11 @@ impl<'a> System<'a> for LightingSystem {
                 photometry.dirty = false;
 
                 if let Some(tile) = map_tiles.get_mut(position) {
-                    photometry.light_color = tile.light_color;
-                    photometry.light_level = tile.light_level;
+                    photometry.light_color = tile.photometry.light_color;
+                    photometry.light_level = tile.photometry.light_level;
                 } else if let Some(tile) = map_tiles.get_mut(&(*position + Vector3i::new(0, 0, -1))) {
-                    photometry.light_color = tile.light_color;
-                    photometry.light_level = tile.light_level;
+                    photometry.light_color = tile.photometry.light_color;
+                    photometry.light_level = tile.photometry.light_level;
                 }
             }
         }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rltk::{ColorPair, DrawBatch, Point, Rltk, RGBA};
+use rltk::{to_char, ColorPair, DrawBatch, Point, Rltk, RGBA};
 use specs::prelude::*;
 
 use crate::{
@@ -46,12 +46,12 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
             let tile = map.tiles.get(&tile_position);
 
             match tile {
-                Some(tile) if tile.foreground.a > 0.0 || tile.background.a > 0.0 => {
-                    if viewshed.visible_tiles.contains(&tile.position) && tile.light_level > 0.0 {
+                Some(tile) if tile.renderable.foreground.a > 0.0 || tile.renderable.background.a > 0.0 => {
+                    if viewshed.visible_tiles.contains(&tile.position) && tile.photometry.light_level > 0.0 {
                         let foreground_color = calculate_lit_color(
-                            tile.foreground,
-                            tile.light_color,
-                            tile.light_level,
+                            tile.renderable.foreground,
+                            tile.photometry.light_color,
+                            tile.photometry.light_level,
                         );
                         if tile_position.z == viewport_position.z {
                             draw_batch.set_with_z(
@@ -59,8 +59,8 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                     tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
                                     tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
-                                ColorPair::new(foreground_color, tile.background),
-                                tile.side_glyph,
+                                ColorPair::new(foreground_color, tile.renderable.background),
+                                tile.renderable.side_glyph,
                                 1,
                             );
                         } else if viewport_position.z - tile_position.z == 1 {
@@ -69,8 +69,8 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                     tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
                                     tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
-                                ColorPair::new(foreground_color, tile.background),
-                                tile.top_glyph,
+                                ColorPair::new(foreground_color, tile.renderable.background),
+                                tile.renderable.top_glyph,
                                 0,
                             );
                         } else {
@@ -85,18 +85,18 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                         tile_position.z as f32
                                             / (viewport_position.z + tile_position.z) as f32,
                                     ),
-                                    tile.background,
+                                    tile.renderable.background,
                                 ),
-                                tile.side_glyph,
+                                tile.renderable.side_glyph,
                                 0,
                             );
                         }
                     } else {
                         let foreground =
-                            dim_discovered_tile_color(tile.foreground, discovered_tile_dimming)
+                            dim_discovered_tile_color(tile.renderable.foreground, discovered_tile_dimming)
                                 .to_greyscale();
                         let background =
-                            dim_discovered_tile_color(tile.background, discovered_tile_dimming)
+                            dim_discovered_tile_color(tile.renderable.background, discovered_tile_dimming)
                                 .to_greyscale();
 
                         if tile_position.z == viewport_position.z {
@@ -106,7 +106,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                     tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(foreground, background),
-                                tile.side_glyph,
+                                tile.renderable.side_glyph,
                                 1,
                             );
                         } else if viewport_position.z - tile_position.z == 1 {
@@ -116,7 +116,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                     tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(foreground, background),
-                                tile.top_glyph,
+                                tile.renderable.top_glyph,
                                 0,
                             );
                         } else {
@@ -133,7 +133,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                     ),
                                     background,
                                 ),
-                                tile.top_glyph,
+                                tile.renderable.top_glyph,
                                 0,
                             );
                         }
@@ -170,13 +170,12 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
             if !rendered_entities.contains_key(position)
                 && !rendered_entities.contains_key(&(*position + Vector3i::new(0, 0, 1)))
             {
-                let mut foreground_color = calculate_lit_color(
+                let foreground_color = calculate_lit_color(
                     renderable.foreground,
                     photometry.light_color,
                     photometry.light_level,
                 );
                 let background_color = renderable.background;
-                foreground_color.a = photometry.light_level;
 
                 if position.z == viewport_position.z {
                     entity_draw_batch.set_with_z(

@@ -1,13 +1,10 @@
-use std::collections::HashMap;
 
 use crate::Renderable;
 use crate::{vectors::Vector3i, Photometry};
-use specs_derive::{Component, ConvertSaveload};
-use rltk::{RGB, RGBA};
+use specs_derive::Component;
+use rltk::RGBA;
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
-use specs::error::NoError;
-use specs::saveload::{Marker, ConvertSaveload};
 
 
 #[derive(Component, Debug, Clone, Serialize, Deserialize)]

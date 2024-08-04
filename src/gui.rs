@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 
 use rltk::{to_char, to_cp437, Point, Rltk, VirtualKeyCode, RGB};
-use specs::{prelude::*, storage::GenericReadStorage};
+use specs::prelude::*;
 
 use crate::{
-    gamelog::GameLog, get_entity_interactions, get_player_entity, graphics::get_viewport_position, map, vectors::Vector3i, InteractIntent, Interactable, Map, Name, Player, PowerSwitch, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
+    gamelog::GameLog, get_entity_interactions, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, InteractIntent, Map, Name, Player, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
 };
 
 #[derive(PartialEq, Copy, Clone)]
@@ -12,21 +11,6 @@ pub enum MainMenuSelection { NewGame, LoadGame, Quit }
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum MainMenuResult { NoSelection{ selected : MainMenuSelection }, Selected{ selected: MainMenuSelection } }
-
-pub struct InteractableMenuItem {
-    pub text: String,
-    pub description: String,
-}
-
-impl InteractableMenuItem {
-    pub fn new(text: String) -> InteractableMenuItem {
-        InteractableMenuItem {
-            text,
-            description: " ".to_owned(),
-        }
-    }
-}
-
 
 pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
     ctx.set_active_console(2);
@@ -68,10 +52,10 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
         return;
     }
 
-    let player_pos = ecs.fetch::<Vector3i>();
-    let viewport_position = get_viewport_position(&ecs);
+    //let player_pos = ecs.fetch::<Vector3i>();
+    //let viewport_position = get_viewport_position(&ecs);
 
-    let map_mouse_position = Vector3i::new(mouse_pos.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_pos.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, player_pos.z);
+    //let map_mouse_position = Vector3i::new(mouse_pos.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_pos.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, player_pos.z);
 
 
    // draw_tooltips(ecs, ctx, map_mouse_position);
@@ -260,7 +244,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
 
         let mut y = 0;
 
-        for (interaction_id, interaction_name) in interactables.iter() {
+        for (_interaction_id, interaction_name) in interactables.iter() {
             ctx.print(MAP_SCREEN_WIDTH - interact_menu_width, y + 1, format!("<{}> {}", to_char(97 + y), interaction_name));
             y += 1;
         }

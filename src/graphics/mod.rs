@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rltk::{to_char, ColorPair, DrawBatch, Point, Rltk, RGBA};
+use rltk::{ColorPair, DrawBatch, Point, Rltk, RGBA};
 use specs::prelude::*;
 
 use crate::{

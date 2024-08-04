@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::map;
 use crate::vectors::Vector3i;
@@ -8,7 +8,6 @@ use serde::Serialize;
 use specs::error::NoError;
 use specs::prelude::*;
 use specs::saveload::{ConvertSaveload, Marker};
-use specs::storage::GenericReadStorage;
 use specs_derive::*;
 
 #[derive(Component, ConvertSaveload, Clone)]

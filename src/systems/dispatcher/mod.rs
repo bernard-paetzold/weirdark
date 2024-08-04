@@ -27,8 +27,8 @@ pub trait UnifiedDispatcher {
 
 construct_dispatcher!(
     (MapIndexSystem, "map_index", &[]),
-    (PowerSystem, "power", &[]),
     (InteractionSystem, "interaction", &[]),
+    (PowerSystem, "power", &[]),
     (VisibilitySystem, "visibility", &[]),
     (LightingSystem, "lighting", &[])
 );

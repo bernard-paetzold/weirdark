@@ -4,7 +4,7 @@ use rltk::{to_char, to_cp437, Point, Rltk, VirtualKeyCode, RGB};
 use specs::{prelude::*, storage::GenericReadStorage};
 
 use crate::{
-    gamelog::GameLog, get_entity_interactions, get_player_entity, graphics::get_viewport_position, map, vectors::Vector3i, InteractIntent, Interactable, Map, Name, OpenContainer, Player, PowerSwitch, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
+    gamelog::GameLog, get_entity_interactions, get_player_entity, graphics::get_viewport_position, map, vectors::Vector3i, InteractIntent, Interactable, Map, Name, Player, PowerSwitch, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
 };
 
 #[derive(PartialEq, Copy, Clone)]
@@ -308,7 +308,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         if let Some(entity) = entity {
                             if interactables.len() > 0 {
                                 let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                                let _ = interaction.insert(*entity, InteractIntent::new(player, *entity, interactables[0].0.clone()));
+                                let _ = interaction.insert(*entity, InteractIntent::new(player, *entity, interactables[0].0.clone(), interactables[0].1.clone()));
                             }
                         }
                     }

@@ -24,13 +24,13 @@ impl<'a> System<'a> for VisibilitySystem {
                 viewshed.dirty = false;
                 viewshed.visible_tiles.clear();
 
-                let now = Instant::now();
+                //let now = Instant::now();
 
                 viewshed.visible_tiles =
                     los(map_tiles, &mut HashSet::new(), *position, viewshed).clone();
 
-                let elapsed = now.elapsed();
-                println!("LOS: {:.2?}", elapsed);
+                //let elapsed = now.elapsed();
+                //println!("LOS: {:.2?}", elapsed);
             }
         }
     }

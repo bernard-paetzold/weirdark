@@ -168,7 +168,6 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<SimpleMarker<SerializeThis>>();
     game_state.ecs.register::<SerializationHelper>();
     game_state.ecs.register::<InteractIntent>();
-    game_state.ecs.register::<OpenContainer>();
 
     //Power 
     game_state.ecs.register::<Power>();

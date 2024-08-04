@@ -1,44 +1,48 @@
 use std::collections::HashMap;
 
-use specs::prelude::*;
+use specs::{prelude::*, shred::{FetchMut, PanicHandler}, storage::{GenericReadStorage, MaskedStorage}};
 
-use crate::{gamelog::GameLog, vectors::Vector3i, InteractIntent, Name, OpenContainer, PowerSwitch};
+use crate::{gamelog::GameLog, vectors::Vector3i, InteractIntent, Name, PowerSwitch};
 
 pub struct InteractionSystem {}
 
 impl<'a> System<'a> for InteractionSystem {
-    type SystemData = ( ReadExpect<'a, Entity>,
+    type SystemData = ( Entities<'a>,
                         WriteExpect<'a, GameLog>,
                         WriteStorage<'a, InteractIntent>,
                         WriteStorage<'a, PowerSwitch>,
-                        WriteStorage<'a, OpenContainer>,
+                        ReadStorage<'a, Name>,
                       );
 
     fn run(&mut self, data: Self::SystemData) {
         let (
-            mut entities,
+            entities,
             mut game_log,
             mut interact_intents,
             mut power_switches,
-            mut containers,
+            names,
         ) = data;
 
 
-        for (interact_intent, power_switch) in (&interact_intents, &mut power_switches).join() {
-            if power_switch.interaction_id == interact_intent.interaction_id {
-                power_switch.toggle();
+        let mut cleared_intents = Vec::new();
+
+        //TODO: Add other interactions
+        for (entity, interact_intent) in (&entities, &interact_intents).join() {
+            if let Some(power_switch) = power_switches.get_mut(interact_intent.target) {
+                if power_switch.interaction_id == interact_intent.interaction_id {
+                    power_switch.toggle();
+
+                    if let Some(name) = names.get(entity) {
+                        game_log.entries.push(format!("{}: {}", name.name, interact_intent.interaction_description.clone()));
+                    }
+                    cleared_intents.push(entity);
+                }
             }
-            interact_intents.remove(interact_intent.target);
-            break;
         }
 
-        for (interact_intent, container) in (&interact_intents, &mut containers).join() {
-            if container.interaction_id == interact_intent.interaction_id {
-                container.toggle();
-            }
-            interact_intents.remove(interact_intent.target);
-            break;
-        }
-        
+        //Clear intents
+        for entity in cleared_intents.iter() {
+            interact_intents.remove(*entity);
+        }   
     }
 }

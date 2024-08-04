@@ -23,12 +23,35 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
         .with(Photometry::new())
         .with(Illuminant::new(
             1.0,
-            5,
-            RGB::named(rltk::RED).to_rgba(1.0),
+            10,
+            RGB::named(rltk::WHITE).to_rgba(1.0),
             PI * 2.0,
             false,
         ))
         .with(Name::new("Player".to_string()))
+        .marked::<SimpleMarker<SerializeThis>>()
+        .build()
+}
+
+pub fn standing_lamp(ecs: &mut World, light_position: Vector3i) -> Entity {
+    ecs.create_entity()
+        .with(light_position)
+        .with(Renderable::new(
+            rltk::to_cp437('☼'),
+            rltk::to_cp437('î'),
+            RGB::named(rltk::YELLOW).to_rgba(1.0),
+            RGB::named(rltk::BLACK).to_rgba(0.0),
+        ))
+        .with(Viewshed::new(20, 3, 1.0))
+        .with(Photometry::new())
+        .with(Illuminant::new(
+            1.0,
+            20,
+            RGB::named(rltk::ANTIQUEWHITE1).to_rgba(1.0),
+            PI * 2.0,
+            true,
+        ))
+        .with(Name::new("Standing lamp".to_string()))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }

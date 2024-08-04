@@ -67,6 +67,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
 
             return Some(new_position)
         }
+        return None;
     }
     None
 }

@@ -2,13 +2,14 @@ use std::fs::{self, File};
 use std::path::Path;
 
 use bimap::BiMap;
+use rltk::{Rltk, RGB};
 use specs::saveload::{SerializeComponents, SimpleMarkerAllocator, DeserializeComponents};
 use specs::error::NoError;
 
 use specs::{Entity, Join};
 use specs::{saveload::{MarkedBuilder, SimpleMarker}, Builder, World, WorldExt};
 
-use crate::Camera;
+use crate::{Camera, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 use crate::{vectors::Vector3i, Illuminant, Name, Photometry, Player, Renderable, SerializationHelper, SerializeThis, Tile, Viewshed};
 
 
@@ -75,7 +76,8 @@ macro_rules! deserialize_individually {
     };
 }
 
-pub fn load_game(ecs: &mut World) {
+pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
+    let progress_bar_width = TERMINAL_WIDTH / 2;
     {
         let mut to_delete = Vec::new();
 
@@ -86,6 +88,10 @@ pub fn load_game(ecs: &mut World) {
             ecs.delete_entity(*del).expect("Deletion failed");
         }
     }
+
+    ctx.set_active_console(2);
+    ctx.cls();
+    ctx.draw_bar_horizontal(TERMINAL_HEIGHT / 4, TERMINAL_HEIGHT / 2, progress_bar_width, 0, progress_bar_width, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
 
     let data = fs::read_to_string("./savegame.json").unwrap();
     let mut de = serde_json::Deserializer::from_str(&data);

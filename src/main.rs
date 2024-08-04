@@ -124,9 +124,6 @@ impl GameState for State {
             RunState::InteractGUI { range, source, target } => {
                 new_runstate = gui::interact_gui(self, ctx, range, source, target);
             }
-            RunState::InteractGUI { range, source, target } => {
-                new_runstate = gui::interact_gui(self, ctx, range, source, target);
-            },
         }
 
         {

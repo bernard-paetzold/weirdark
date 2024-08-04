@@ -4,10 +4,6 @@ use serde::{Deserialize, Serialize};
 use specs::Entity;
 use std::collections::HashMap;
 
-use specs::prelude::*;
-use specs::error::NoError;
-use specs::saveload::{Marker, ConvertSaveload};
-
 #[serde_with::serde_as]
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Map {

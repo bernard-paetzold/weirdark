@@ -1,7 +1,7 @@
-use specs::{prelude::*, storage::GenericReadStorage};
+use specs::prelude::*;
 
 use crate::{
-    vectors::Vector3i, Illuminant, Map, Photometry, Player, Power, PowerSwitch, Viewshed
+    Illuminant, Map, Photometry, Power, PowerSwitch
 };
 
 pub struct PowerSystem {}
@@ -18,7 +18,7 @@ impl<'a> System<'a> for PowerSystem {
 
     fn run(&mut self, data: Self::SystemData) {
         let (
-            mut map,
+            _map,
             mut power,
             power_switches,
             mut illuminants,

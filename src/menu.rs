@@ -1,7 +1,6 @@
-use rltk::{to_cp437, Rltk, VirtualKeyCode, RGB};
-use specs::prelude::*;
+use rltk::{Rltk, VirtualKeyCode, RGB};
 
-use crate::{graphics::get_viewport_position, gui::{draw_tooltips, MainMenuResult, MainMenuSelection}, save_load_system, vectors::{utils::get_neighbours, Vector3i}, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT};
+use crate::{gui::{MainMenuResult, MainMenuSelection}, save_load_system, RunState, State, TERMINAL_HEIGHT};
 
 
 

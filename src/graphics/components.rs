@@ -1,12 +1,9 @@
 use rltk::RGBA;
 use specs::prelude::*;
-use specs::saveload::Marker;
-use specs::saveload::ConvertSaveload;
-use specs::error::NoError;
 use serde::Serialize;
 use serde::Deserialize;
 
-use specs_derive::{Component, ConvertSaveload};
+use specs_derive::Component;
 
 #[derive(Debug, Component, Serialize, Deserialize, Clone)]
 pub struct Renderable {

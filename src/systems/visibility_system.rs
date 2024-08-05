@@ -53,21 +53,28 @@ fn los<'a>(
         (0, 1, -1, 0),  // 7 - Southeast
     ];
 
-    for &(xx, xy, yx, yy) in octants.iter() {
-        light_cast(
-            map_tiles,
-            0,
-            1.0,
-            0.0,
-            xx,
-            xy,
-            yx,
-            yy,
-            viewshed.view_distance,
-            source,
-            visible_tiles,
-            viewshed.z_range,
-        );
+
+    for z in -(viewshed.z_range as i32)..(viewshed.z_range as i32) + 1 {
+        let current_source = source + Vector3i::new(0, 0, z);
+
+        if !map_tiles.get(&current_source).is_some_and(|x| x.opaque) {
+            for &(xx, xy, yx, yy) in octants.iter() {
+                light_cast(
+                    map_tiles,
+                    0,
+                    1.0,
+                    0.0,
+                    xx,
+                    xy,
+                    yx,
+                    yy,
+                    viewshed.view_distance,
+                    current_source,
+                    visible_tiles,
+                    viewshed.z_range,
+                );
+            }
+        }
     }
     //Insert source tiles
     let mut down_z_blocked = false;
@@ -141,7 +148,7 @@ fn light_cast<'a>(
         }
 
         let delta_y = -(distance as i32);
-        for delta_x in -(distance as i32)..=0 {
+        for delta_x in -(distance as i32)..= 0 {
             let current_x = start_position.x + delta_x * xx + delta_y * xy;
             let current_y = start_position.y + delta_x * yx + delta_y * yy;
             let current_position = Vector3i::new(current_x, current_y, start_position.z);
@@ -159,18 +166,50 @@ fn light_cast<'a>(
             if current_position.distance_to(start_position) as f32 <= radius as f32 {
                 let tile = map_tiles.get(&current_position);
 
+                let mut tile_transparent = false;
+
                 match tile {
-                    Some(_) => {
+                    Some(tile) => {
                         visible_tiles.insert(current_position);
+
+                        if !tile.opaque {
+                            tile_transparent = true;
+                        }
                     }
                     _ => {}
                 }
 
-                let mut down_z_blocked = false;
+                if tile_transparent {
+                    let tile_below = map_tiles.get_mut(
+                        &(current_position + Vector3i::new(0, 0, -1)),
+                    );
+    
+                    match tile_below {
+                        Some(tile) => {
+                            visible_tiles.insert(current_position + Vector3i::new(0, 0, -1));
+                        }
+                        _ => {}
+                    }
+
+                    /*let tile_above = map_tiles.get_mut(
+                        &(current_position + Vector3i::new(0, 0, 1)),
+                    );
+    
+                    match tile_above {
+                        Some(tile) => {
+                            visible_tiles.insert(current_position + Vector3i::new(0, 0, 1));
+                        }
+                        _ => {}
+                    }*/
+
+
+                }
+
+                /*let mut down_z_blocked = false;
                 let mut up_z_blocked = false;
                 let mut current_z_offset = 0;
 
-                while current_z_offset < viewshed_z_range && !(down_z_blocked && up_z_blocked) {
+                while (current_position.z - current_z_offset).abs() < viewshed_z_range as i32 && !(down_z_blocked && up_z_blocked) {
                     if !down_z_blocked {
                         //If there is no tile or the tile is not opaque show the tile below that
                         let tile_below = map_tiles.get_mut(
@@ -200,7 +239,23 @@ fn light_cast<'a>(
 
                         match tile_above {
                             Some(tile) => {
+                     let tile_below = map_tiles.get_mut(
+                            &(current_position + Vector3i::new(0, 0, -(current_z_offset as i32))),
+                        );
+
+                        match tile_below {
+                            Some(tile) => {
                                 visible_tiles.insert(
+                                    current_position
+                                        + Vector3i::new(0, 0, -(current_z_offset as i32)),
+                                );
+
+                                if tile.opaque {
+                                    down_z_blocked = true;
+                                }
+                            }
+                            _ => {}
+                        }           visible_tiles.insert(
                                     current_position + Vector3i::new(0, 0, current_z_offset as i32),
                                 );
 
@@ -212,7 +267,7 @@ fn light_cast<'a>(
                         }
                         current_z_offset += 1;
                     }
-                }
+                }*/
             }
 
             if blocked {

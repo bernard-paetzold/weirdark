@@ -1,3 +1,4 @@
+use std::u32::MAX;
 use std::usize;
 
 use rltk::{Rltk, VirtualKeyCode};
@@ -44,7 +45,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
                 }
             },
             _ => {
-                movement_possible = true;
+                //movement_possible = true;
             }
         }
 
@@ -92,13 +93,26 @@ pub fn update_camera_position(delta: Vector3i, ecs: &mut World) -> Option<&Camer
     None
 }
 
-pub fn set_camera_position(delta: Vector3i, ecs: &mut World) {
+pub fn set_camera_position(new_position: Vector3i, ecs: &mut World) {
     let cameras = ecs.read_storage::<Camera>();
     let mut camera_positions = ecs.write_storage::<Vector3i>();
 
     for (position, camera) in (&mut camera_positions, &cameras).join() {
         if camera.is_active {
-            *position = delta;
+            *position = new_position;
+        }
+    }
+}
+
+pub fn reset_camera_position(ecs: &mut World) {
+    let cameras = ecs.read_storage::<Camera>();
+    let mut camera_positions = ecs.write_storage::<Vector3i>();
+
+    let player_pos = ecs.fetch::<Vector3i>();
+
+    for (position, camera) in (&mut camera_positions, &cameras).join() {
+        if camera.is_active {
+            *position = *player_pos;
         }
     }
 }
@@ -140,8 +154,8 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos },
 
             //Camera freelook
-            VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, -1),
-            VirtualKeyCode::E => delta_camera = Vector3i::new(0, 0, 1),
+            VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, 1),
+            VirtualKeyCode::E => delta_camera = Vector3i::new(0, 0, -1),
             VirtualKeyCode::A => delta_camera = Vector3i::new(-1, 0, 0),
             VirtualKeyCode::D => delta_camera = Vector3i::new(1, 0, 0),
             VirtualKeyCode::W => delta_camera = Vector3i::new(0, -1, 0),
@@ -206,8 +220,8 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     RunState::PlayerTurn
 }
 
-pub fn get_player_entity(entities: Read<EntitiesRes>, players: Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {
-    (&entities, &players).join().next().map(|(entity, _)| entity)
+pub fn get_player_entity(entities: &Read<EntitiesRes>, players: &Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {
+    (entities, players).join().next().map(|(entity, _)| entity)
 }
 
 fn skip_turn(ecs: &mut World) -> RunState {

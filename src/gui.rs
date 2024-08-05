@@ -1,9 +1,12 @@
 
+use std::u32::MAX;
+
 use rltk::{to_char, to_cp437, Point, Rltk, VirtualKeyCode, RGB};
+use crate::{systems::interaction_system::get_entity_interactions, Photometry, Renderable};
 use specs::prelude::*;
 
 use crate::{
-    gamelog::GameLog, get_entity_interactions, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, InteractIntent, Map, Name, Player, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
+    gamelog::GameLog, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, InteractIntent, Map, Name, Player, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
 };
 
 #[derive(PartialEq, Copy, Clone)]
@@ -76,10 +79,10 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
 
     let mut tooltip: Vec<String> = Vec::new();
 
-    if let Some(player_entity) = get_player_entity(entities, players) {
+    if let Some(player_entity) = get_player_entity(&entities, &players) {
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
             for (name, position) in (&names, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
-                if position.x == target.x && position.y == target.y {
+                if position.x == target.x && position.y == target.y  && (position.z == target.z || position.z == target.z - 1) {
                     if position.z < viewport_position.z {
                         tooltip.push((name.name.to_string() + " (below)").to_string());
                     }
@@ -168,42 +171,11 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
     }
 }
 
-/*pub fn look_gui(game_state: &mut State, ctx: &mut Rltk, target: Vector3i) -> RunState {
-    let viewport_positon = get_viewport_position(&game_state.ecs);
-
-    ctx.set_active_console(2);
-    ctx.cls();
-    ctx.set(
-        target.x + MAP_SCREEN_WIDTH / 2 - viewport_positon.x,
-        target.y + MAP_SCREEN_HEIGHT / 2 - viewport_positon.y,
-        RGB::named(rltk::GOLD),
-        RGB::named(rltk::BLACK).to_rgba(0.0),
-        to_cp437('┼'),
-    );
-    draw_tooltips(&game_state.ecs, ctx, target);
-
-    match ctx.key {
-        None => return RunState::LookGUI { target },
-        Some(key) => {
-            match key {
-                VirtualKeyCode::Escape => { return RunState::AwaitingInput },
-                VirtualKeyCode::Period => return RunState::LookGUI { target: target + Vector3i::new(0, 0, -1) },
-                VirtualKeyCode::Comma => return RunState::LookGUI { target: target + Vector3i::new(0, 0, 1) },
-                VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => return RunState::LookGUI { target: target + Vector3i::new(0, -1, 0) },
-                VirtualKeyCode::Numpad9 => return RunState::LookGUI { target: target + Vector3i::new(1, -1, 0) },
-                VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => return RunState::LookGUI { target: target + Vector3i::new(1, 0, 0) },
-                VirtualKeyCode::Numpad3 => return RunState::LookGUI { target: target + Vector3i::new(1, 1, 0) },
-                VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => return RunState::LookGUI { target: target + Vector3i::new(0, 1, 0) },
-                VirtualKeyCode::Numpad1 => return RunState::LookGUI { target: target + Vector3i::new(-1, 1, 0) },
-                VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => return RunState::LookGUI { target: target + Vector3i::new(-1, 0, 0) },
-                VirtualKeyCode::Numpad7 => return RunState::LookGUI { target: target + Vector3i::new(-1, -1, 0) },
-                _ => return RunState::LookGUI { target }      
-            }
-        }
-    }
-}*/
-
 pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source: Vector3i, target: Vector3i) -> RunState {
+    crate::set_camera_position(target, &mut game_state.ecs);
+
+    let entities = game_state.ecs.entities();
+    
     let viewport_positon = get_viewport_position(&game_state.ecs);
 
     draw_ui(&game_state.ecs, ctx);
@@ -218,7 +190,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     draw_tooltips(&game_state.ecs, ctx, target);
 
     //Draw interact menu
-    let interact_menu_width = 25;
+    let interact_menu_width = 30;
 
     ctx.draw_box(
         MAP_SCREEN_WIDTH - interact_menu_width - 1,
@@ -230,23 +202,80 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     );
 
     let map = game_state.ecs.fetch::<Map>();
-    let entity = map.entities.get_by_left(&target);
 
-    let entities = game_state.ecs.entities();
+    
     let players = game_state.ecs.read_storage::<Player>();
+    let renderables = game_state.ecs.read_storage::<Renderable>();
+    let names = game_state.ecs.read_storage::<Name>();
+    let viewsheds = game_state.ecs.read_storage::<Viewshed>();
+    let positions = game_state.ecs.read_storage::<Vector3i>();
 
-    let player = get_player_entity(entities, players);
+    let player = get_player_entity(&entities, &players);
 
-    let mut interactables: Vec<(String, String)> = Vec::new();
+    let mut interactables: Vec<(String, String, u32)> = Vec::new();
 
-    if let Some(entity) = entity {
-        interactables = get_entity_interactions(&game_state.ecs, *entity);
+    let target_tile = map.tiles.get(&target);
 
-        let mut y = 0;
+    if let Some(player_entity) = player {
+        if let Some(player_viewshed) = viewsheds.get(player_entity) {
+            for (entity, position) in (&entities, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
+                if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {                
+                    interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
+                }
+            }
+        }
+    }
 
-        for (_interaction_id, interaction_name) in interactables.iter() {
-            ctx.print(MAP_SCREEN_WIDTH - interact_menu_width, y + 1, format!("<{}> {}", to_char(97 + y), interaction_name));
-            y += 1;
+    let mut interactable_menu_y = 0;
+    let tile_info_y = 1;
+
+    if let Some(target_tile) = target_tile {
+        interactable_menu_y = 12;
+
+        ctx.draw_hollow_box(MAP_SCREEN_WIDTH - interact_menu_width, tile_info_y, interact_menu_width - 2, 10, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
+        ctx.print(MAP_SCREEN_WIDTH - interact_menu_width + 1, tile_info_y + 1, format!("{}", target_tile.name.clone()));
+        ctx.print(MAP_SCREEN_WIDTH - interact_menu_width + 1, tile_info_y + 2, format!("Glyphs: {}, {}", to_char(target_tile.renderable.top_glyph as u8), to_char(target_tile.renderable.side_glyph as u8)));
+        ctx.print(MAP_SCREEN_WIDTH - interact_menu_width + 1, tile_info_y + 3, format!("Light level: {:.2}", target_tile.photometry.light_level));
+    }
+
+    let interaction_menu_height = (interactables.len() + 10).clamp(10, (MAP_SCREEN_HEIGHT - interactable_menu_y).try_into().unwrap());
+
+    if (interactables.len()) > 0 {
+        ctx.draw_hollow_box(MAP_SCREEN_WIDTH - interact_menu_width, interactable_menu_y, interact_menu_width - 2, interaction_menu_height, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
+        ctx.print_color(MAP_SCREEN_WIDTH - interact_menu_width + 1, interactable_menu_y + 1, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), "Interactables:");
+        
+        let mut y = 3;
+        let mut count = 0;
+        let mut prev_id = MAX;
+
+        for (_interaction_id, interaction_name, entity_id) in interactables.iter() {
+            let interactable_entity = entities.entity(*entity_id);
+            let renderable = renderables.get(interactable_entity);
+            let name = names.get(interactable_entity);
+
+            if y < 50 {
+                if *entity_id != prev_id {
+                    let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                    let mut entity_name = "{unknown}".to_string();
+
+                    if let Some(renderable) = renderable {
+                        color = renderable.foreground;
+                    }
+                    if let Some(name) = name {
+                        entity_name = name.name.to_string();
+                    }
+                    y += 1;
+                        ctx.print_color(MAP_SCREEN_WIDTH - interact_menu_width + 1, 
+                            interactable_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}:", entity_name));
+
+                    y += 2;
+                    prev_id = *entity_id;
+                        
+                }
+                ctx.print(MAP_SCREEN_WIDTH - interact_menu_width + 2, interactable_menu_y + y, format!("<{}> {}", to_char(97 + count), interaction_name));
+                y += 1;
+                count += 1;
+            }
         }
     }
 
@@ -288,18 +317,30 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                     return check_range(range, source, target, Vector3i::new(-1, -1, 0));
                 },
                 VirtualKeyCode::A => {
-                    if let Some(player) = player {
-                        if let Some(entity) = entity {
-                            if interactables.len() > 0 {
-                                let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                                let _ = interaction.insert(*entity, InteractIntent::new(player, *entity, interactables[0].0.clone(), interactables[0].1.clone()));
-                            }
-                        }
+                    if interactables.len() > 0 {
+                        let interactable = interactables[0].clone();
+                        let entity = entities.entity(interactable.2);
+                        if let Some(player) = player {
+                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0.clone(), interactable.1.clone()));
+                        
+                            return RunState::PreRun; 
+                        }       
                     }
-                    return RunState::PreRun;
+                    return RunState::InteractGUI { range, source, target }
                 },
-                VirtualKeyCode::B => {
-                    return RunState::PreRun;
+                VirtualKeyCode::B => { 
+                    if interactables.len() > 1 {
+                        let interactable = interactables[1].clone();
+                        let entity = entities.entity(interactable.2);
+                        if let Some(player) = player {
+                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0.clone(), interactable.1.clone()));
+                        
+                            return RunState::PreRun; 
+                        }       
+                    }
+                    return RunState::InteractGUI { range, source, target }
                 },
                 VirtualKeyCode::Return => {
                     return RunState::PreRun;

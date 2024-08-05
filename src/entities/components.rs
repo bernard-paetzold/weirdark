@@ -150,7 +150,7 @@ impl PowerSwitch {
 
         PowerSwitch {
             on,
-            interaction_description: "Toggled power switch".to_string(),
+            interaction_description: "Toggle power switch".to_string(),
             interaction_id: rng.next_u64().to_string(),
         }
     }
@@ -165,20 +165,4 @@ impl Interactable for PowerSwitch {
         self.toggle();
         true
     }
-}
-
-pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(String, String)> {
-    let power_switches = ecs.read_storage::<PowerSwitch>();
-
-    let mut interactables: Vec<(String, String)> = Vec::new();
-
-    //TODO: Add any other interactable components
-    if let Some(power_switch) = power_switches.get(entity) {
-        interactables.push((
-            power_switch.interaction_id.clone(),
-            power_switch.interaction_description.clone(),
-        ));
-    }
-
-    interactables
 }

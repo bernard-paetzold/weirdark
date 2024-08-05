@@ -156,7 +156,7 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
     let photometria = ecs.read_storage::<Photometry>();
 
     for (_player, viewshed) in (&mut players, &viewsheds).join() {
-        let mut rendered_entities = HashMap::new();
+        //let mut rendered_entities = HashMap::new();
 
         for (position, renderable, photometry) in (&positions, &renderables, &photometria)
             .join()
@@ -167,39 +167,34 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
                         .contains(&(*x.0 + Vector3i::new(0, 0, -1)))
             })
         {
-            if !rendered_entities.contains_key(position)
-                && !rendered_entities.contains_key(&(*position + Vector3i::new(0, 0, 1)))
-            {
-                let foreground_color = calculate_lit_color(
-                    renderable.foreground,
-                    photometry.light_color,
-                    photometry.light_level,
-                );
-                let background_color = renderable.background;
 
-                if position.z == viewport_position.z {
-                    entity_draw_batch.set_with_z(
-                        Point::new(
-                            position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                            position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                        ),
-                        ColorPair::new(foreground_color, background_color),
-                        renderable.side_glyph,
-                        1,
-                    );
-                    //rendered_entities.insert(position, renderable);
-                } else if viewport_position.z - position.z == 1 {
-                    entity_draw_batch.set_with_z(
-                        Point::new(
-                            position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                            position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                        ),
-                        ColorPair::new(foreground_color, background_color),
-                        renderable.top_glyph,
-                        0,
-                    );
-                }
-                rendered_entities.insert(position, renderable);
+            let foreground_color = calculate_lit_color(
+                renderable.foreground,
+                photometry.light_color,
+                photometry.light_level,
+            );
+            let background_color = renderable.background;
+
+            if position.z == viewport_position.z {
+                entity_draw_batch.set_with_z(
+                    Point::new(
+                        position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                        position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
+                    ),
+                    ColorPair::new(foreground_color, background_color),
+                    renderable.side_glyph,
+                    1,
+                );
+            } else if viewport_position.z - position.z == 1 {
+                entity_draw_batch.set_with_z(
+                    Point::new(
+                        position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                        position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
+                    ),
+                    ColorPair::new(foreground_color, background_color),
+                    renderable.top_glyph,
+                    0,
+                );
             }
         }
     }

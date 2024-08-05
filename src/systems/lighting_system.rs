@@ -76,7 +76,7 @@ impl<'a> System<'a> for LightingSystem {
         }
 
         // Update player's discovered tiles
-        if let Some(player_entity) = get_player_entity(entities, players) {
+        if let Some(player_entity) = get_player_entity(&entities, &players) {
             if let Some(player_viewshed) = viewsheds.get_mut(player_entity) {
                 for tile_position in &discovered_tiles {
                     if let Some(tile) = map_tiles.get(tile_position) {

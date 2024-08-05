@@ -34,6 +34,9 @@ impl<'a> System<'a> for InteractionSystem {
                     if let Some(name) = names.get(entity) {
                         game_log.entries.push(format!("{}: {}", name.name, interact_intent.interaction_description.clone()));
                     }
+                    else {
+                        game_log.entries.push("Invalid intent".to_string());
+                    }
                     cleared_intents.push(entity);
                 }
             }
@@ -44,4 +47,21 @@ impl<'a> System<'a> for InteractionSystem {
             interact_intents.remove(*entity);
         }   
     }
+}
+
+pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(String, String, u32)> {
+    let power_switches = ecs.read_storage::<PowerSwitch>();
+
+    let mut interactables = Vec::new();
+
+    //TODO: Add any other interactable components
+    if let Some(power_switch) = power_switches.get(entity) {
+        interactables.push((
+            power_switch.interaction_id.clone(),
+            power_switch.interaction_description.clone(),
+            entity.id()
+        ));
+    }
+
+    interactables
 }

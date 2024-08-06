@@ -219,7 +219,7 @@ fn calculate_lit_color(surface_color: RGBA, light_color: RGBA, intensity: f32) -
     mix_colors(
         dim_color(surface_color, intensity),
         light_color,
-        intensity - (1.0 - light_color.to_rgb().to_hsv().v),
+        intensity - (1.0 - surface_color.to_rgb().to_hsv().v),
     )
     //light_color * intensity
 }

@@ -286,6 +286,9 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                 VirtualKeyCode::Escape => { 
                     return RunState::AwaitingInput 
                 },
+                VirtualKeyCode::I => { 
+                    return RunState::AwaitingInput 
+                },
                 VirtualKeyCode::Period => {
                     return check_range(range, source, target, Vector3i::new(0, 0, -1));
                 },

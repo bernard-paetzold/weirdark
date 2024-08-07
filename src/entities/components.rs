@@ -33,6 +33,24 @@ impl Viewshed {
     }
 }
 
+#[derive(Component, Clone, Debug)]
+pub struct Blocker {}
+
+impl Blocker {
+    pub fn new() -> Blocker {
+        Blocker {}
+    }
+}
+
+#[derive(Component, Clone)]
+pub struct VisionBlocker {}
+
+impl VisionBlocker {
+    pub fn new() -> VisionBlocker {
+        VisionBlocker {}
+    }
+}
+
 #[derive(Component, ConvertSaveload, Clone)]
 pub struct Illuminant {
     pub intensity: f32,
@@ -102,6 +120,7 @@ pub struct SerializationHelper {
     pub map: map::Map,
 }
 
+#[allow(dead_code)]
 #[derive(Component, Clone)]
 pub struct InteractIntent {
     pub initiator: Entity,
@@ -127,13 +146,32 @@ pub struct Power {
     pub on: bool,
 }
 
+#[allow(dead_code)]
 pub trait Interactable {
-    fn interact(&mut self) -> bool;
+    fn interaction_id(&self) -> String;
+    fn interaction_description(&self) -> String;
+    fn state_description(&self) -> String;
+    fn interact(&mut self);
 }
 
 impl Power {
     pub fn new(powered: bool, on: bool) -> Power {
         Power { powered, on }
+    }
+
+    pub fn state_description(&self) -> String {
+        if self.on && self.powered { 
+            "on, powered".to_string() 
+        } 
+        else if self.on && !self.powered { 
+            "on, not powered".to_string() 
+        }
+        else if !self.on && self.powered { 
+            "off, powered".to_string() 
+        }
+        else { 
+            "off, not powered".to_string() 
+        }
     }
 }
 
@@ -148,21 +186,97 @@ impl PowerSwitch {
     pub fn new(on: bool) -> PowerSwitch {
         let mut rng = RandomNumberGenerator::new();
 
+        let description: String;
+        if on { description = "Turn off".to_string() } else { description = "Turn on".to_string() }
+
         PowerSwitch {
             on,
-            interaction_description: "Toggle power switch".to_string(),
+            interaction_description: description.to_string(),
             interaction_id: rng.next_u64().to_string(),
         }
     }
 
     pub fn toggle(&mut self) {
         self.on = !self.on;
+
+        if self.on { self.interaction_description = "Turn off".to_string() } 
+        else { self.interaction_description = "Turn on".to_string() }
+    }
+
+    pub fn state_description(&self) -> String {
+        if self.on { "on".to_string() } else { "off".to_string() }
     }
 }
 
 impl Interactable for PowerSwitch {
-    fn interact(&mut self) -> bool {
+    fn interact(&mut self) {
         self.toggle();
-        true
+    }
+        
+    fn interaction_id(&self) -> String {
+        self.interaction_id.clone()
+    }
+    
+    fn interaction_description(&self) -> String {
+        self.interaction_description.clone()
+    }
+    
+    fn state_description(&self) -> String {
+        self.state_description()
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Door {
+    pub open: bool,
+    pub interaction_description: String,
+    pub interaction_id: String,
+    pub open_glyph: rltk::FontCharType,
+    pub closed_glyph: rltk::FontCharType,
+}
+
+impl Door {
+    pub fn new(open: bool, open_glyph: rltk::FontCharType, closed_glyph: rltk::FontCharType) -> Door {
+        let mut rng = RandomNumberGenerator::new();
+
+        let description: String;
+        if open { description = "Close".to_string() } else { description = "Open".to_string() }
+
+        Door {
+            open,
+            interaction_description: description.to_string(),
+            interaction_id: rng.next_u64().to_string(),
+            open_glyph,
+            closed_glyph
+        }
+    }
+
+    pub fn open_close(&mut self) {
+        self.open = !self.open;
+
+        if self.open { self.interaction_description = "Close".to_string() } 
+        else { self.interaction_description = "Open".to_string() }
+    }
+
+    pub fn state_description(&self) -> String {
+        if self.open { "open".to_string() } else { "closed".to_string() }
+    }
+}
+
+impl Interactable for Door {
+    fn interact(&mut self) {
+        self.open_close();
+    }
+    
+    fn interaction_id(&self) -> String {
+        self.interaction_id.clone()
+    }
+    
+    fn interaction_description(&self) -> String {
+        self.interaction_description.clone()
+    }
+    
+    fn state_description(&self) -> String {
+        self.state_description()
     }
 }

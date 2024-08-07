@@ -7,6 +7,7 @@ use super::Map;
 
 mod system_test_map;
 
+#[allow(dead_code)]
 pub trait MapBuilder {
     fn build_map(&mut self);
     fn spawn_entities(&mut self, ecs: &mut World);
@@ -18,6 +19,6 @@ pub trait MapBuilder {
     EmptyPlainMapBuilder::build(map_size)
 }*/
 
-pub fn build_system_test_map(map_size: Vector3i, start_position: Vector3i) -> Box<dyn MapBuilder> {
+pub fn build_system_test_map(_map_size: Vector3i, start_position: Vector3i) -> Box<dyn MapBuilder> {
     Box::new(SystemTestMapBuilder::new(start_position))
 }

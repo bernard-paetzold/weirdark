@@ -1,5 +1,6 @@
 use crate::{gui, vectors::Vector3i};
 
+#[allow(dead_code)]
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState { 
     AwaitingInput, 

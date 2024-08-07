@@ -2,6 +2,7 @@ pub use lighting_system::LightingSystem;
 use map_index_system::MapIndexSystem;
 use power_system::PowerSystem;
 use specs::prelude::World;
+use state_align_system::StateAlignSystem;
 use visibility_system::VisibilitySystem;
 use interaction_system::InteractionSystem;
 
@@ -28,6 +29,7 @@ pub trait UnifiedDispatcher {
 construct_dispatcher!(
     (MapIndexSystem, "map_index", &[]),
     (InteractionSystem, "interaction", &[]),
+    (StateAlignSystem, "state_align", &[]),
     (PowerSystem, "power", &[]),
     (VisibilitySystem, "visibility", &[]),
     (LightingSystem, "lighting", &[])

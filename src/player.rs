@@ -1,9 +1,9 @@
-use std::u32::MAX;
 use std::usize;
 
 use rltk::{Rltk, VirtualKeyCode};
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
+use crate::{Blocker, TERMINAL_WIDTH};
 use crate::{gamelog::GameLog, vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed};
 
 use serde::Serialize;
@@ -27,58 +27,67 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     let entities = ecs.entities();
     let mut photometria = ecs.write_storage::<Photometry>();
     let mut illuminants = ecs.write_storage::<Illuminant>();
+    let blockers = ecs.read_storage::<Blocker>();
+
+    let mut target_position = Vector3i::new_equi(0);
 
     let mut log = ecs.fetch_mut::<GameLog>();
 
-    for (_player, position, entity) in (&mut players, &mut positions, &entities).join() {
+    for (_player, position, _entity) in (&mut players, &mut positions, &entities).join() {
         let map = ecs.fetch::<Map>();
-
         let tile = map.tiles.get(&(*position + delta));
 
-        let mut movement_possible = false;
-
+        //Check tile blockers
         match tile {
             Some(tile) => {
                 //TODO: Add exceptions here for if a player might need to move through solid tiles
-                if tile.passable {
-                    movement_possible = true;
+                if !tile.passable {
+                    return None;
                 }
             },
             _ => {
-                //movement_possible = true;
+                return None
             }
         }
 
-        if movement_possible {
-            *position += delta;
-            let new_position = *position;
+        target_position = *position + delta;
+    }
 
-            log.entries.push(new_position.to_string());
-
-
-            if let Some(viewshed) = viewsheds.get_mut(entity) {
-                viewshed.dirty = true;
-            }
-
-            if let Some(photometry) = photometria.get_mut(entity) {
-                photometry.dirty = true;
-            }
-
-            if let Some(illuminant) = illuminants.get_mut(entity) {
-                illuminant.dirty = true;
-            }
-
-            //Update player position tracker
-            let mut player_position = ecs.write_resource::<Vector3i>();
-            player_position.x = new_position.x;
-            player_position.y = new_position.y;
-            player_position.z = new_position.z;
-
-            return Some(new_position)
-        }
+    //Check entity blockers
+    if (&blockers, &positions).join().filter(|x| *x.1 == target_position).next().is_some() {
         return None;
     }
-    None
+
+    log.entries.push(target_position.to_string());
+
+    let player = ecs.write_resource::<Entity>();
+
+    //Update player position
+    for (_player, position) in (&mut players, &mut positions).join() {
+        *position = target_position;
+    }
+
+
+
+    if let Some(viewshed) = viewsheds.get_mut(*player) {
+        viewshed.dirty = true;
+    }
+
+    if let Some(photometry) = photometria.get_mut(*player) {
+        photometry.dirty = true;
+    }
+
+    if let Some(illuminant) = illuminants.get_mut(*player) {
+        illuminant.dirty = true;
+    }
+
+    //Update player position tracker  
+    let mut stored_player_position = ecs.write_resource::<Vector3i>();     
+    stored_player_position.x = target_position.x;
+    stored_player_position.y = target_position.y;
+    stored_player_position.z = target_position.z;
+
+    return Some(target_position)
 }
 
 pub fn update_camera_position(delta: Vector3i, ecs: &mut World) -> Option<&Camera> {
@@ -148,7 +157,7 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Escape =>  return RunState::SaveGame,
 
             //Look gui
-            VirtualKeyCode::K =>  return RunState::InteractGUI { range: usize::MAX, target: player_pos, source: player_pos },
+            VirtualKeyCode::K =>  return RunState::InteractGUI { range: TERMINAL_WIDTH as usize, target: player_pos, source: player_pos },
 
             //Interaction gui
             VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos },

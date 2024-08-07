@@ -1,3 +1,4 @@
+
 use graphics::render_map;
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
@@ -79,9 +80,6 @@ impl GameState for State {
                 self.run_systems();
                 self.ecs.maintain();
 
-                //Snap camera to player
-                crate::player::reset_camera_position(&mut self.ecs);
-
                 new_runstate = RunState::AwaitingInput;
             }
             RunState::AwaitingInput => {
@@ -133,6 +131,14 @@ impl GameState for State {
                 target,
             } => {
                 new_runstate = gui::interact_gui(self, ctx, range, source, target);
+
+                //If the gui exits snap the camera position to the player
+                match new_runstate {
+                    RunState::AwaitingInput { .. } | RunState::PreRun => {
+                        crate::player::reset_camera_position(&mut self.ecs);
+                    }
+                    _ => {}
+                }
             }
         }
 
@@ -151,7 +157,7 @@ fn main() -> rltk::BError {
     let context = RltkBuilder::simple(TERMINAL_WIDTH, TERMINAL_HEIGHT)
         .unwrap()
         .with_title("Weirdark")
-        .with_font("vga8x16.png", 8, 16)
+        //.with_font("vga8x16.png", 8, 16)
         .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
         .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
         .with_vsync(false)
@@ -162,7 +168,6 @@ fn main() -> rltk::BError {
         ecs: World::new(),
         dispatcher: systems::build(),
     };
-
     game_state.ecs.register::<Vector3i>();
     game_state.ecs.register::<Renderable>();
     game_state.ecs.register::<Tile>();
@@ -175,19 +180,19 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<SimpleMarker<SerializeThis>>();
     game_state.ecs.register::<SerializationHelper>();
     game_state.ecs.register::<InteractIntent>();
-
-    let player_start_position = Vector3i::new(0, 0, 5);
+    game_state.ecs.register::<Blocker>();
+    game_state.ecs.register::<VisionBlocker>();
+    game_state.ecs.register::<Door>();
 
     //Power
     game_state.ecs.register::<Power>();
     game_state.ecs.register::<PowerSwitch>();
 
-    game_state
-        .ecs
-        .insert(rltk::RandomNumberGenerator::seeded(0));
-    game_state
-        .ecs
-        .insert(SimpleMarkerAllocator::<SerializeThis>::new());
+
+    let player_start_position = Vector3i::new(0, 0, 5);
+
+    game_state.ecs.insert(rltk::RandomNumberGenerator::seeded(0));
+    game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
     let mut builder = map_builders::build_system_test_map(
         Vector3i::new(MAP_SIZE, MAP_SIZE, 5),

@@ -47,7 +47,14 @@ pub fn main_menu(game_state: &mut State, ctx: &mut Rltk) -> MainMenuResult {
                         match selection {
                             MainMenuSelection::NewGame => new_selection = MainMenuSelection::Quit,
                             MainMenuSelection::LoadGame => new_selection = MainMenuSelection::NewGame,
-                            MainMenuSelection::Quit => new_selection = MainMenuSelection::LoadGame,
+                            MainMenuSelection::Quit => {
+                                if save_exists {
+                                    new_selection = MainMenuSelection::LoadGame
+                                }
+                                else {
+                                    new_selection = MainMenuSelection::NewGame
+                                }                               
+                            },
                         }
                         return MainMenuResult::NoSelection { selected: new_selection }
                     }  
@@ -55,7 +62,14 @@ pub fn main_menu(game_state: &mut State, ctx: &mut Rltk) -> MainMenuResult {
                         let new_selection;
 
                         match selection {
-                            MainMenuSelection::NewGame => new_selection = MainMenuSelection::LoadGame,
+                            MainMenuSelection::NewGame => {
+                                if save_exists {
+                                    new_selection = MainMenuSelection::LoadGame
+                                }
+                                else {
+                                    new_selection = MainMenuSelection::Quit
+                                }                               
+                            },
                             MainMenuSelection::LoadGame => new_selection = MainMenuSelection::Quit,
                             MainMenuSelection::Quit => new_selection = MainMenuSelection::NewGame,
                         }

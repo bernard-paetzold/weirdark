@@ -32,18 +32,26 @@ impl<'a> System<'a> for LightingSystem {
         ) = data;
         let map_tiles = &mut map.tiles;
         let mut discovered_tiles = HashSet::new();
+        let mut affected_tiles = Vec::new();
 
         // Reset light levels if any illuminants are dirty
         if (&illuminants, &positions)
             .join()
             .any(|(illuminant, _)| illuminant.dirty)
         {
-            for tile in map_tiles.values_mut() {
-                tile.photometry.light_level = 0.0;
-                tile.photometry.light_color = RGB::named(rltk::WHITE).to_rgba(1.0);
+            // Process illuminants
+            for (_illuminant, viewshed, position) in
+                (&illuminants, &viewsheds, &positions).join().filter(|(illuminant, _, _)| illuminant.dirty)
+            {
+                //Reset light levels in affected illuminants
+                for tile in map_tiles.values_mut().filter(|tile| tile.position.distance_to(*position) < viewshed.view_distance as i32) {
+                    tile.photometry.light_level = 0.0;
+                    tile.photometry.light_color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                    tile.photometry.dirty = true;
+                    affected_tiles.push(tile.position);
+                }
             }
 
-            // Process illuminants
             //TODO: Add some light leaking to neighbouring tiles that have lower light levels than the lit tile
             for (illuminant, viewshed, position) in
                 (&mut illuminants, &viewsheds, &positions).join()
@@ -56,16 +64,15 @@ impl<'a> System<'a> for LightingSystem {
 
                         if distance_to_tile <= illuminant.range as i32 {
                             if let Some(tile) = map_tiles.get_mut(tile_position) {
-                                let illumination = illuminant.intensity
-                                    - (illuminant.intensity
-                                        * (distance_to_tile as f32 / illuminant.range as f32));
+                                let illumination = illuminant.intensity - (illuminant.intensity * (distance_to_tile as f32 / (illuminant.range - 1) as f32));
 
                                 tile.photometry.light_color = mix_colors(
                                     tile.photometry.light_color,
                                     illuminant.color,
                                     get_illumination_ratio(tile.photometry.light_level, illumination),
                                 );
-                                tile.photometry.light_level += illumination;
+                                tile.photometry.light_level += illumination.max(0.0);
+
 
                                 discovered_tiles.insert(*tile_position);
                             }
@@ -78,13 +85,20 @@ impl<'a> System<'a> for LightingSystem {
         // Update player's discovered tiles
         if let Some(player_entity) = get_player_entity(&entities, &players) {
             if let Some(player_viewshed) = viewsheds.get_mut(player_entity) {
-                for tile_position in &discovered_tiles {
+                for tile_position in discovered_tiles.iter().filter(|tile_position| player_viewshed.visible_tiles.contains(tile_position)) {
                     if let Some(tile) = map_tiles.get(tile_position) {
                         if tile.photometry.light_level >= 1.0 - player_viewshed.dark_vision {
                             player_viewshed.discovered_tiles.insert(tile.position);
                         }
                     }
                 }
+            }
+        }
+
+        //All affected photometry must be marked as dirty
+        for affected_tile in affected_tiles.iter() {
+            for (photometry, _position) in (&mut photometria, &positions).join().filter(|(_, position)| *position == affected_tile) {
+                photometry.dirty = true;
             }
         }
 

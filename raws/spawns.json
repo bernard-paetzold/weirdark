@@ -1,0 +1,56 @@
+{
+    "entities": [
+        {
+            "player": {},
+            "renderable": {
+                "top_glyph": "@",
+                "side_glyph": "@",
+                "foreground": "#FF00FF",
+                "background": "#000000"
+            },
+            "viewshed": {
+                "range": 30,
+                "z_range": 3,
+                "darkvision": 0.9
+            },
+            "photometry": {},
+            "illuminant": {
+                "intensity": 30,
+                "range": 10,
+                "color": "#000000",
+                "beam_angle": 6.283185307179586,
+                "on": false
+            },
+            "name": "name"
+        },
+        {
+            "renderable": {
+                "top_glyph": "☼",
+                "side_glyph": "☼",
+                "foreground": "#FF00FF",
+                "background": "#000000"
+            },
+            "viewshed": {
+                "range": 30,
+                "z_range": 3,
+                "darkvision": 1.0
+            },
+            "photometry": {},
+            "illuminant": {
+                "intensity": 30,
+                "range": 10,
+                "color": "#000000",
+                "beam_angle": 6.283185307179586,
+                "on": false
+            },
+            "name": "name",
+            "power": {
+                "powered": true,
+                "on": true
+            },
+            "power_switch": {
+                "on": true
+            }
+        }
+    ]
+}

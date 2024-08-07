@@ -1,7 +1,6 @@
-
 use specs::prelude::*;
 
-use crate::{gamelog::GameLog, InteractIntent, Interactable, Name, PowerSwitch};
+use crate::{gamelog::GameLog, Door, InteractIntent, Interactable, Name, PowerSwitch};
 
 pub struct InteractionSystem {}
 
@@ -11,6 +10,7 @@ impl<'a> System<'a> for InteractionSystem {
                         WriteStorage<'a, InteractIntent>,
                         WriteStorage<'a, PowerSwitch>,
                         ReadStorage<'a, Name>,
+                        WriteStorage<'a, Door>,
                       );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -20,26 +20,36 @@ impl<'a> System<'a> for InteractionSystem {
             mut interact_intents,
             mut power_switches,
             names,
+            mut doors,
         ) = data;
-
 
         let mut cleared_intents = Vec::new();
 
         //TODO: Add other interactions
         for (entity, interact_intent) in (&entities, &interact_intents).join() {
-            if let Some(power_switch) = power_switches.get_mut(interact_intent.target) {
-                if power_switch.interaction_id == interact_intent.interaction_id {
-                    power_switch.interact();
-
-                    if let Some(name) = names.get(entity) {
-                        game_log.entries.push(format!("{}: {}", name.name, interact_intent.interaction_description.clone()));
+            macro_rules! handle_intent {
+                ( $( $x:expr ),* ) => {
+                    {
+                        $(
+                            if let Some(component) = $x.get_mut(interact_intent.target) {
+                                if component.interaction_id == component.interaction_id {
+                                    component.interact();
+                
+                                    if let Some(name) = names.get(entity) {
+                                        game_log.entries.push(format!("{}: {}", name.name, interact_intent.interaction_description.clone()));
+                                    }
+                                    else {
+                                        game_log.entries.push("Invalid intent".to_string());
+                                    }
+                                    cleared_intents.push(entity);
+                                }
+                            }
+                        )*
                     }
-                    else {
-                        game_log.entries.push("Invalid intent".to_string());
-                    }
-                    cleared_intents.push(entity);
-                }
+                };
             }
+
+            handle_intent!(power_switches, doors);
         }
 
         //Clear intents
@@ -50,18 +60,34 @@ impl<'a> System<'a> for InteractionSystem {
 }
 
 pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(String, String, u32)> {
-    let power_switches = ecs.read_storage::<PowerSwitch>();
+    let names = ecs.read_storage::<Name>();
 
     let mut interactables = Vec::new();
 
-    //TODO: Add any other interactable components
-    if let Some(power_switch) = power_switches.get(entity) {
-        interactables.push((
-            power_switch.interaction_id.clone(),
-            power_switch.interaction_description.clone(),
-            entity.id()
-        ));
+    macro_rules! check_for_interactable {
+        ($($typ:ty), *) => {
+            {
+                $(
+                    let storage = ecs.read_storage::<$typ>();
+
+                    if let Some(interactable) = storage.get(entity) {
+                        let mut name = "{unknown}".to_string();
+                
+                        if let Some(entity_name) = names.get(entity) { name = entity_name.name.clone()}
+                
+                        interactables.push((
+                            interactable.interaction_id.clone(),
+                            format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
+                            entity.id()
+                        ));
+                    }
+                )*
+            }
+        };
     }
+
+    //TODO: Add any other interactable components
+    check_for_interactable!(PowerSwitch, Door);
 
     interactables
 }

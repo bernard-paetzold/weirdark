@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 
 use rltk::{ColorPair, DrawBatch, Point, Rltk, RGBA};
 use specs::prelude::*;
@@ -29,7 +28,7 @@ pub fn render_map(ecs: &mut World, ctx: &mut Rltk) {
 pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
     let mut draw_batch = DrawBatch::new();
 
-    let discovered_tile_dimming = 0.2;
+    let discovered_tile_dimming = 0.1;
 
     let positions = ecs.write_storage::<Vector3i>();
     let viewsheds = ecs.write_storage::<Viewshed>();
@@ -54,6 +53,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                             tile.photometry.light_level,
                         );
                         if tile_position.z == viewport_position.z {
+                            //Tile is on the same level as the player
                             draw_batch.set_with_z(
                                 Point::new(
                                     tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),

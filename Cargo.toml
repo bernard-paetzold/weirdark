@@ -12,3 +12,4 @@ bimap = "0.6.3"
 serde = { version= "1.0.204", features = ["derive"]}
 serde_json = "1.0.122"
 serde_with = { version = "3.9.0", features = ["json"] }
+lazy_static = "1.5.0"

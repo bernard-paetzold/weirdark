@@ -3,7 +3,7 @@ use rltk::{ColorPair, DrawBatch, Point, Rltk, RGBA};
 use specs::prelude::*;
 
 use crate::{
-    colors::{dim_color, mix_colors}, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH
+    colors::{dim_color, mix_surface_light_colors}, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH
 };
 
 pub mod components;
@@ -46,7 +46,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
 
             match tile {
                 Some(tile) if tile.renderable.foreground.a > 0.0 || tile.renderable.background.a > 0.0 => {
-                    if viewshed.visible_tiles.contains(&tile.position) && tile.photometry.light_level > 0.0 {
+                    if viewshed.visible_tiles.contains(&tile_position) && tile.photometry.light_level > 0.0 {
                         let foreground_color = calculate_lit_color(
                             tile.renderable.foreground,
                             tile.photometry.light_color,
@@ -148,7 +148,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
 
 pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
     let mut entity_draw_batch = DrawBatch::new();
-
+    let map = ecs.fetch::<Map>();
     let positions = ecs.write_storage::<Vector3i>();
     let viewsheds = ecs.write_storage::<Viewshed>();
     let mut players = ecs.write_storage::<Player>();
@@ -186,15 +186,18 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
                     1,
                 );
             } else if viewport_position.z - position.z == 1 {
-                entity_draw_batch.set_with_z(
-                    Point::new(
-                        position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                        position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                    ),
-                    ColorPair::new(foreground_color, background_color),
-                    renderable.top_glyph,
-                    0,
-                );
+                //First check if opaque tile exists above it
+                if let Some(_) = map.tiles.get(&(*position + Vector3i::new(0, 0, 1))).filter(|tile| !tile.opaque) {
+                    entity_draw_batch.set_with_z(
+                        Point::new(
+                            position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
+                            position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
+                        ),
+                        ColorPair::new(foreground_color, background_color),
+                        renderable.top_glyph,
+                        0,
+                    );
+                }
             }
         }
     }
@@ -216,7 +219,7 @@ pub fn get_viewport_position(ecs: &World) -> Vector3i {
 }
 
 fn calculate_lit_color(surface_color: RGBA, light_color: RGBA, intensity: f32) -> RGBA {
-    mix_colors(
+    mix_surface_light_colors(
         dim_color(surface_color, intensity),
         light_color,
         intensity - (1.0 - surface_color.to_rgb().to_hsv().v),

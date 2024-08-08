@@ -40,23 +40,14 @@ impl Vector3i {
         (self.x - other.x).abs() + (self.y - other.y).abs() + (self.z - other.z).abs()
     }
 
-    pub fn distance_to(&self, other: Self) -> i32{
+    pub fn distance_to_int(&self, other: Self) -> i32{
         (((self.x - other.x).pow(2) + (self.y - other.y).pow(2) + (self.z - other.z).pow(2)) as f32).sqrt().round() as i32
     }
-}
 
-/*impl Serialize for Vector3i {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer {
-        let mut state = serializer.serialize_struct("Vector3i", 3)?;
-    
-        state.serialize_field("x", &self.x)?;
-        state.serialize_field("y", &self.y)?;
-        state.serialize_field("z", &self.z)?;
-        state.end()
+    pub fn distance_to(&self, other: Self) -> f32{
+        (((self.x - other.x).pow(2) + (self.y - other.y).pow(2) + (self.z - other.z).pow(2)) as f32).sqrt()
     }
-}*/
+}
 
 impl Add for Vector3i {
     type Output = Self;

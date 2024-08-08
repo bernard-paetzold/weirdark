@@ -2,7 +2,7 @@
 use std::u32::MAX;
 
 use rltk::{to_char, to_cp437, Point, Rltk, VirtualKeyCode, RGB};
-use crate::{systems::interaction_system::get_entity_interactions, Power, PowerSwitch, Renderable};
+use crate::{spawner::power_source, systems::interaction_system::get_entity_interactions, PowerSource, PowerSwitch, PoweredState, Renderable, Wire};
 use specs::prelude::*;
 
 use crate::{
@@ -209,8 +209,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     let names = game_state.ecs.read_storage::<Name>();
     let viewsheds = game_state.ecs.read_storage::<Viewshed>();
     let positions = game_state.ecs.read_storage::<Vector3i>();
-    let power = game_state.ecs.read_storage::<Power>();
+    let power_states = game_state.ecs.read_storage::<PoweredState>();
     let power_switches = game_state.ecs.read_storage::<PowerSwitch>();
+    let power_sources = game_state.ecs.read_storage::<PowerSource>();
+    let wires = game_state.ecs.read_storage::<Wire>();
 
     let player = get_player_entity(&entities, &players);
 
@@ -247,7 +249,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, tile_info_y + 4, format!("Color: ({:.2},{:.2},{:.2})", target_tile.renderable.foreground.r, target_tile.renderable.foreground.g, target_tile.renderable.foreground.b));
     }
 
-    const ENTITY_FIELDS: usize = 5;
+    const ENTITY_FIELDS: usize = 8;
 
     if tile_entities.len() > 0 {
         let mut render_menu = false;
@@ -259,44 +261,56 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
             let renderable = renderables.get(*entity);
             let name = names.get(*entity);
 
-            if y < 50 {
+            if entity.id() != prev_id {
+                let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
 
-                if entity.id() != prev_id {
-                    let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
-
-                    if let Some(renderable) = renderable {
-                        color = renderable.foreground;
-                    }
-                    if let Some(name) = name {
-                        let entity_name = name.name.to_string();
-
-                        y += 1;
-                        ctx.print_color(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, 
-                            entity_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}", entity_name));
-                        y += 2;
-
-                        render_menu = true;
-                    }
-
-                    prev_id = entity.id();
-                        
+                if let Some(renderable) = renderable {
+                    color = renderable.foreground;
                 }
-                if let Some(renderable) = renderables.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Glyphs: {}, {}", to_char(renderable.top_glyph as u8), to_char(renderable.side_glyph as u8)));
-                    y += 1;
-                    ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Color: ({:.2},{:.2},{:.2})", renderable.foreground.r, renderable.foreground.g, renderable.foreground.b));
-                    y += 1;
-                }
-                if let Some(power) = power.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power: {}", power.state_description()));
-                    y += 1;
+                if let Some(name) = name {
+                    let entity_name = name.name.to_string();
 
-                }
-                if let Some(power_switch) = power_switches.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power switch: {}", power_switch.state_description()));
                     y += 1;
+                    ctx.print_color(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, 
+                        entity_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}", entity_name));
+                    y += 2;
+
+                    render_menu = true;
                 }
+
+                prev_id = entity.id();
+                    
             }
+            if let Some(renderable) = renderables.get(*entity) {
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Glyphs: {}, {}", to_char(renderable.top_glyph as u8), to_char(renderable.side_glyph as u8)));
+                y += 1;
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Color: ({:.2},{:.2},{:.2})", renderable.foreground.r, renderable.foreground.g, renderable.foreground.b));
+                y += 1;
+            }
+            if let Some(powered_state) = power_states.get(*entity) {
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power on: {}", powered_state.state_description()));
+                y += 1;
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", powered_state.available_wattage));
+                y += 1;
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power draw: {}", powered_state.wattage));
+                y += 1;
+
+            }
+            if let Some(wire) = wires.get(*entity) {
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", wire.available_wattage));
+                y += 1;
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power load: {}", wire.power_load));
+                y += 1;
+            }
+            if let Some(power_switch) = power_switches.get(*entity) {
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power switch: {}", power_switch.state_description()));
+                y += 1;
+            }
+            if let Some(power_source) = power_sources.get(*entity) {
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power capacity: {}", power_source.max_wattage));
+                y += 1;
+            }
+            
         }
 
         if render_menu {

@@ -31,7 +31,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
 
     let mut target_position = Vector3i::new_equi(0);
 
-    let mut log = ecs.fetch_mut::<GameLog>();
+    //let mut log = ecs.fetch_mut::<GameLog>();
 
     for (_player, position, _entity) in (&mut players, &mut positions, &entities).join() {
         let map = ecs.fetch::<Map>();
@@ -58,7 +58,7 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
         return None;
     }
 
-    log.entries.push(target_position.to_string());
+    //log.entries.push(target_position.to_string());
 
     let player = ecs.write_resource::<Entity>();
 
@@ -151,7 +151,11 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Numpad7 => delta = Vector3i::new(-1, -1, 0),
             
             //Pass turn
-            VirtualKeyCode::Space | VirtualKeyCode::Numpad5 => return skip_turn(&mut game_state.ecs),
+            
+            VirtualKeyCode::Space | VirtualKeyCode::Numpad5 => {
+                let game_log = game_state.ecs.fetch_mut::<GameLog>();
+                return skip_turn(game_log)
+            },
 
             //Main menu
             VirtualKeyCode::Escape =>  return RunState::SaveGame,
@@ -233,9 +237,8 @@ pub fn get_player_entity(entities: &Read<EntitiesRes>, players: &Storage<Player,
     (entities, players).join().next().map(|(entity, _)| entity)
 }
 
-fn skip_turn(ecs: &mut World) -> RunState {
+fn skip_turn(mut game_log: specs::shred::FetchMut<GameLog>) -> RunState {
     //TODO: Add functionality to heal while waiting etc here.
-    let mut log = ecs.fetch_mut::<GameLog>();
-    log.entries.push("Waiting...".to_string());
+    game_log.entries.push("Waiting...".to_string());
     RunState::PlayerTurn
 }

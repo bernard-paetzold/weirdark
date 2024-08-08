@@ -2,13 +2,25 @@ use std::collections::HashSet;
 
 use crate::map;
 use crate::vectors::Vector3i;
-use rltk::{RandomNumberGenerator, RGB, RGBA};
+use rltk::{RGB, RGBA};
 use serde::Deserialize;
 use serde::Serialize;
 use specs::error::NoError;
 use specs::prelude::*;
 use specs::saveload::{ConvertSaveload, Marker};
 use specs_derive::*;
+
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub enum Direction {
+    #[default] N,
+    NW,
+    W,
+    SW,
+    S,
+    SE,
+    E,
+    NE,
+}
 
 #[derive(Component, ConvertSaveload, Clone)]
 pub struct Viewshed {
@@ -140,12 +152,6 @@ impl InteractIntent {
     }
 }
 
-#[derive(Component, Default, Serialize, Deserialize, Clone)]
-pub struct Power {
-    pub powered: bool,
-    pub on: bool,
-}
-
 #[allow(dead_code)]
 pub trait Interactable {
     fn interaction_id(&self) -> String;
@@ -154,19 +160,26 @@ pub trait Interactable {
     fn interact(&mut self);
 }
 
-impl Power {
-    pub fn new(powered: bool, on: bool) -> Power {
-        Power { powered, on }
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct PoweredState {
+    pub on: bool,
+    pub wattage: f32,
+    pub available_wattage: f32
+}
+
+impl PoweredState {
+    pub fn new(on: bool, wattage: f32) -> PoweredState {
+        PoweredState { on, wattage, available_wattage: 0.0 }
     }
 
     pub fn state_description(&self) -> String {
-        if self.on && self.powered { 
+        if self.on && !(self.available_wattage >= self.wattage) { 
             "on, powered".to_string() 
         } 
-        else if self.on && !self.powered { 
+        else if self.on && !(self.available_wattage < self.wattage) { 
             "on, not powered".to_string() 
         }
-        else if !self.on && self.powered { 
+        else if !self.on && !(self.available_wattage >= self.wattage) { 
             "off, powered".to_string() 
         }
         else { 
@@ -184,7 +197,6 @@ pub struct PowerSwitch {
 
 impl PowerSwitch {
     pub fn new(on: bool) -> PowerSwitch {
-        let mut rng = RandomNumberGenerator::new();
 
         let description: String;
         if on { description = "Turn off".to_string() } else { description = "Turn on".to_string() }
@@ -192,7 +204,7 @@ impl PowerSwitch {
         PowerSwitch {
             on,
             interaction_description: description.to_string(),
-            interaction_id: rng.next_u64().to_string(),
+            interaction_id: crate::rng::random_int().to_string()
         }
     }
 
@@ -237,15 +249,13 @@ pub struct Door {
 
 impl Door {
     pub fn new(open: bool, open_glyph: rltk::FontCharType, closed_glyph: rltk::FontCharType) -> Door {
-        let mut rng = RandomNumberGenerator::new();
-
         let description: String;
         if open { description = "Close".to_string() } else { description = "Open".to_string() }
 
         Door {
             open,
             interaction_description: description.to_string(),
-            interaction_id: rng.next_u64().to_string(),
+            interaction_id: crate::rng::random_int().to_string(),
             open_glyph,
             closed_glyph
         }
@@ -280,3 +290,51 @@ impl Interactable for Door {
         self.state_description()
     }
 }
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Power {
+    pub wattage: f32
+}
+
+impl Power {
+    pub fn new(wattage: f32) -> Power {
+        Power {
+            wattage
+        }
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Wire {
+    pub direction: Direction,
+    pub power_load: f32,
+    pub available_wattage: f32,
+}
+
+impl Wire {
+    pub fn new(direction: Direction) -> Wire {
+        Wire {
+            direction,
+            power_load: 0.0,
+            available_wattage: 0.0,
+        }
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct PowerSource {
+    pub on: bool,
+    pub max_wattage: f32,
+    pub available_wattage: f32,
+}
+
+impl PowerSource {
+    pub fn new(on: bool, max_wattage: f32) -> PowerSource {
+        PowerSource {
+            on,
+            max_wattage,
+            available_wattage: max_wattage
+        }
+    }
+}
+

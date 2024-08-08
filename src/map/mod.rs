@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use specs::Entity;
 use std::collections::HashMap;
 
+pub mod pathfinding;
+
 #[serde_with::serde_as]
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Map {

@@ -39,6 +39,7 @@ pub mod save_load_system;
 mod spawner;
 mod states;
 mod vectors;
+pub mod rng;
 
 mod systems;
 pub struct State {
@@ -160,7 +161,6 @@ fn main() -> rltk::BError {
         //.with_font("vga8x16.png", 8, 16)
         .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
         .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
-        .with_vsync(false)
         .with_title("weirdark")
         .build()?;
 
@@ -183,15 +183,16 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Blocker>();
     game_state.ecs.register::<VisionBlocker>();
     game_state.ecs.register::<Door>();
+    game_state.ecs.register::<PowerSource>();
+    game_state.ecs.register::<Wire>();
 
     //Power
-    game_state.ecs.register::<Power>();
+    game_state.ecs.register::<PoweredState>();
     game_state.ecs.register::<PowerSwitch>();
 
 
     let player_start_position = Vector3i::new(0, 0, 5);
 
-    game_state.ecs.insert(rltk::RandomNumberGenerator::seeded(0));
     game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
     let mut builder = map_builders::build_system_test_map(
@@ -199,10 +200,13 @@ fn main() -> rltk::BError {
         player_start_position + Vector3i::new(0, 0, -1),
     );
     builder.build_map();
-    builder.spawn_entities(&mut game_state.ecs);
+    //builder.spawn_entities(&mut game_state.ecs);
     let map = builder.get_map();
 
     game_state.ecs.insert(map);
+    builder.spawn_entities(&mut game_state.ecs);
+
+    
     game_state.ecs.insert(gamelog::GameLog {
         entries: vec!["Game log".to_string()],
     });

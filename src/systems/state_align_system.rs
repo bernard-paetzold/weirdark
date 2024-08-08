@@ -1,4 +1,3 @@
-use rltk::to_cp437;
 use specs::prelude::*;
 
 use crate::{
@@ -75,7 +74,7 @@ impl<'a> System<'a> for StateAlignSystem {
 
         //Rebuild viewsheds
         for (viewshed, position) in (&mut viewsheds, &positions).join() {
-            if affected_tiles.iter().filter(|affected_tile| affected_tile.distance_to(*position) < viewshed.view_distance as i32).next().is_some() {
+            if affected_tiles.iter().filter(|affected_tile| affected_tile.distance_to_int(*position) < viewshed.view_distance as i32).next().is_some() {
                 viewshed.dirty = true;
             }
         }

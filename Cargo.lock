@@ -2289,6 +2289,7 @@ name = "weirdark"
 version = "0.1.0"
 dependencies = [
  "bimap",
+ "lazy_static",
  "rand",
  "rltk",
  "serde",

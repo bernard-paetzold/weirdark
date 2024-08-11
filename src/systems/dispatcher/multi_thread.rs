@@ -35,7 +35,7 @@ macro_rules! construct_dispatcher {
             let dispatch = MultiThreadedDispatcher{
                 dispatcher : dispatcher
             };
-
+            
             return Box::new(dispatch);
         }
     };

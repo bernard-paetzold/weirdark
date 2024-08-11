@@ -49,7 +49,14 @@ pub struct State {
 
 impl State {
     fn run_systems(&mut self) {
+        use std::time::Instant;
+        let now = Instant::now();
+
         self.dispatcher.run_now(&mut self.ecs);
+
+
+        let elapsed = now.elapsed();
+        println!("Elapsed: {:.2?}", elapsed);
 
         self.ecs.maintain();
     }
@@ -162,6 +169,7 @@ fn main() -> rltk::BError {
         .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
         .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
         .with_title("weirdark")
+        .with_vsync(false)
         .build()?;
 
     let mut game_state = State {
@@ -185,13 +193,16 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Door>();
     game_state.ecs.register::<PowerSource>();
     game_state.ecs.register::<Wire>();
+    game_state.ecs.register::<Duct>();
+    game_state.ecs.register::<EntityDirection>();
 
     //Power
     game_state.ecs.register::<PoweredState>();
     game_state.ecs.register::<PowerSwitch>();
+    game_state.ecs.register::<PowerNode>();
 
 
-    let player_start_position = Vector3i::new(0, 0, 5);
+    let player_start_position = Vector3i::new(0, 0, 10);
 
     game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
 

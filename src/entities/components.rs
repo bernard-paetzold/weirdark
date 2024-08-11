@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::path::Display;
 
 use crate::map;
 use crate::vectors::Vector3i;
@@ -10,7 +11,7 @@ use specs::prelude::*;
 use specs::saveload::{ConvertSaveload, Marker};
 use specs_derive::*;
 
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
 pub enum Direction {
     #[default] N,
     NW,
@@ -20,6 +21,8 @@ pub enum Direction {
     SE,
     E,
     NE,
+    UP,
+    DOWN,
 }
 
 #[derive(Component, ConvertSaveload, Clone)]
@@ -46,22 +49,84 @@ impl Viewshed {
 }
 
 #[derive(Component, Clone, Debug)]
-pub struct Blocker {}
+pub struct Blocker {
+    pub sides: Vec<Direction>,
+}
 
 impl Blocker {
-    pub fn new() -> Blocker {
-        Blocker {}
+    pub fn new(sides: Vec<Direction>) -> Blocker {
+        Blocker {
+            sides,
+        }
+    }
+    pub fn new_cardinal_sides() -> Blocker {
+        Blocker {
+            sides: vec![Direction::N, Direction::E, Direction::S, Direction::W]
+        }
+    }
+    pub fn new_n_s() -> Blocker {
+        Blocker {
+            sides: vec![Direction::N, Direction::NW, Direction::W,
+            Direction::SW, Direction::S, Direction::SE, 
+            Direction::E, Direction::UP, Direction::DOWN],
+        }
+    }
+    pub fn new_e_w() -> Blocker {
+        Blocker {
+            sides: vec![Direction::N, Direction::NW, Direction::W,
+            Direction::SW, Direction::S, Direction::SE, 
+            Direction::E, Direction::UP, Direction::DOWN],
+        }
+    }
+    pub fn new_all_sides() -> Blocker {
+        Blocker {
+            sides: vec![Direction::N, Direction::W,
+                        Direction::S, Direction::E, 
+                        Direction::UP, Direction::DOWN],
+        }
     }
 }
 
 #[derive(Component, Clone)]
-pub struct VisionBlocker {}
+pub struct VisionBlocker {
+    pub sides: Vec<Direction>,
+}
 
 impl VisionBlocker {
-    pub fn new() -> VisionBlocker {
-        VisionBlocker {}
+    pub fn new(sides: Vec<Direction>) -> VisionBlocker {
+        VisionBlocker {
+            sides,
+        }
+    }
+    pub fn new_cardinal_sides() -> VisionBlocker {
+        VisionBlocker {
+            sides: vec![Direction::N, Direction::E, Direction::S, Direction::W]
+        }
+    }
+    pub fn new_n_s() -> VisionBlocker {
+        VisionBlocker {
+            sides: vec![Direction::N, Direction::NW, Direction::W,
+            Direction::SW, Direction::S, Direction::SE, 
+            Direction::E, Direction::UP, Direction::DOWN],
+        }
+    }
+    pub fn new_e_w() -> VisionBlocker {
+        VisionBlocker {
+            sides: vec![Direction::N, Direction::NW, Direction::W,
+            Direction::SW, Direction::S, Direction::SE, 
+            Direction::E, Direction::UP, Direction::DOWN],
+        }
+    }
+    pub fn new_all_sides() -> VisionBlocker {
+        VisionBlocker {
+            sides: vec![Direction::N, Direction::W,
+                        Direction::S, Direction::E, 
+                        Direction::UP, Direction::DOWN],
+        }
     }
 }
+
+
 
 #[derive(Component, ConvertSaveload, Clone)]
 pub struct Illuminant {
@@ -137,12 +202,12 @@ pub struct SerializationHelper {
 pub struct InteractIntent {
     pub initiator: Entity,
     pub target: Entity,
-    pub interaction_id: String,
+    pub interaction_id: usize,
     pub interaction_description: String,
 }
 
 impl InteractIntent {
-    pub fn new(initiator: Entity, target: Entity, interaction_id: String, interaction_description: String) -> InteractIntent {
+    pub fn new(initiator: Entity, target: Entity, interaction_id: usize, interaction_description: String) -> InteractIntent {
         InteractIntent {
             initiator,
             target,
@@ -154,7 +219,7 @@ impl InteractIntent {
 
 #[allow(dead_code)]
 pub trait Interactable {
-    fn interaction_id(&self) -> String;
+    fn interaction_id(&self) -> usize;
     fn interaction_description(&self) -> String;
     fn state_description(&self) -> String;
     fn interact(&mut self);
@@ -173,13 +238,13 @@ impl PoweredState {
     }
 
     pub fn state_description(&self) -> String {
-        if self.on && !(self.available_wattage >= self.wattage) { 
+        if self.on && (self.available_wattage >= self.wattage) { 
             "on, powered".to_string() 
         } 
-        else if self.on && !(self.available_wattage < self.wattage) { 
+        else if self.on && (self.available_wattage < self.wattage) { 
             "on, not powered".to_string() 
         }
-        else if !self.on && !(self.available_wattage >= self.wattage) { 
+        else if !self.on && (self.available_wattage >= self.wattage) { 
             "off, powered".to_string() 
         }
         else { 
@@ -192,7 +257,7 @@ impl PoweredState {
 pub struct PowerSwitch {
     pub on: bool,
     pub interaction_description: String,
-    pub interaction_id: String,
+    pub interaction_id: usize,
 }
 
 impl PowerSwitch {
@@ -204,7 +269,7 @@ impl PowerSwitch {
         PowerSwitch {
             on,
             interaction_description: description.to_string(),
-            interaction_id: crate::rng::random_int().to_string()
+            interaction_id: crate::rng::random_int() as usize,
         }
     }
 
@@ -225,8 +290,8 @@ impl Interactable for PowerSwitch {
         self.toggle();
     }
         
-    fn interaction_id(&self) -> String {
-        self.interaction_id.clone()
+    fn interaction_id(&self) -> usize {
+        self.interaction_id
     }
     
     fn interaction_description(&self) -> String {
@@ -242,7 +307,7 @@ impl Interactable for PowerSwitch {
 pub struct Door {
     pub open: bool,
     pub interaction_description: String,
-    pub interaction_id: String,
+    pub interaction_id: usize,
     pub open_glyph: rltk::FontCharType,
     pub closed_glyph: rltk::FontCharType,
 }
@@ -255,7 +320,7 @@ impl Door {
         Door {
             open,
             interaction_description: description.to_string(),
-            interaction_id: crate::rng::random_int().to_string(),
+            interaction_id: crate::rng::random_int() as usize,
             open_glyph,
             closed_glyph
         }
@@ -278,8 +343,8 @@ impl Interactable for Door {
         self.open_close();
     }
     
-    fn interaction_id(&self) -> String {
-        self.interaction_id.clone()
+    fn interaction_id(&self) -> usize {
+        self.interaction_id
     }
     
     fn interaction_description(&self) -> String {
@@ -293,33 +358,46 @@ impl Interactable for Door {
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct Power {
-    pub wattage: f32
+    pub wattage: f32,
 }
 
+#[allow(dead_code)]
 impl Power {
     pub fn new(wattage: f32) -> Power {
         Power {
-            wattage
+            wattage,
         }
     }
 }
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct Wire {
-    pub direction: Direction,
     pub power_load: f32,
     pub available_wattage: f32,
 }
 
 impl Wire {
-    pub fn new(direction: Direction) -> Wire {
+    pub fn new() -> Wire {
         Wire {
-            direction,
             power_load: 0.0,
             available_wattage: 0.0,
         }
     }
 }
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct EntityDirection {
+    pub direction: Direction,
+}
+
+impl EntityDirection {
+    pub fn new(direction: Direction) -> EntityDirection {
+        EntityDirection {
+            direction,
+        }
+    }
+}
+
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct PowerSource {
@@ -333,7 +411,31 @@ impl PowerSource {
         PowerSource {
             on,
             max_wattage,
-            available_wattage: max_wattage
+            available_wattage: max_wattage,
+        }
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Duct {}
+
+impl Duct {
+    pub fn new() -> Duct {
+        Duct { }
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct PowerNode {
+    pub network_id: usize,
+    pub dirty: bool,
+}
+
+impl PowerNode {
+    pub fn new() -> Self {
+        Self {
+            network_id: crate::rng::random_int() as usize,
+            dirty: true,
         }
     }
 }

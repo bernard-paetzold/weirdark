@@ -37,11 +37,10 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
     let map = ecs.fetch::<Map>();
 
     for (_player, viewshed, position) in (&mut players, &viewsheds, &positions).join() {
-        for tile_position in viewshed.discovered_tiles.iter().filter(|tile_position| {
+        for tile_position in viewshed.discovered_tiles.iter().filter(|tile_position| 
             (tile_position.x - position.x).abs() < MAP_SCREEN_WIDTH / 2
                 && (tile_position.y - position.y).abs() < MAP_SCREEN_HEIGHT / 2
-                && (tile_position.z - position.z).abs() < viewshed.z_range as i32
-        }) {
+                && (tile_position.z - position.z).abs() < viewshed.z_range as i32).filter(|tile_position| tile_position.z <= viewport_position.z) {
             let tile = map.tiles.get(&tile_position);
 
             match tile {
@@ -50,8 +49,13 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                         let foreground_color = calculate_lit_color(
                             tile.renderable.foreground,
                             tile.photometry.light_color,
-                            tile.photometry.light_level,
-                        );
+                            tile.photometry.light_level);
+
+                            let background_color = calculate_lit_color(
+                                tile.renderable.background,
+                                tile.photometry.light_color,
+                                tile.photometry.light_level);
+
                         if tile_position.z == viewport_position.z {
                             //Tile is on the same level as the player
                             draw_batch.set_with_z(
@@ -59,7 +63,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                     tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
                                     tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
-                                ColorPair::new(foreground_color, tile.renderable.background),
+                                ColorPair::new(foreground_color, background_color),
                                 tile.renderable.side_glyph,
                                 1,
                             );
@@ -69,7 +73,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                     tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
                                     tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
-                                ColorPair::new(foreground_color, tile.renderable.background),
+                                ColorPair::new(foreground_color, background_color),
                                 tile.renderable.top_glyph,
                                 0,
                             );
@@ -85,7 +89,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                                         tile_position.z as f32
                                             / (viewport_position.z + tile_position.z) as f32,
                                     ),
-                                    tile.renderable.background,
+                                    background_color,
                                 ),
                                 tile.renderable.side_glyph,
                                 0,
@@ -160,20 +164,20 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
 
         for (position, renderable, photometry) in (&positions, &renderables, &photometria)
             .join()
-            .filter(|&x| {
-                viewshed.visible_tiles.contains(x.0)
-                    || viewshed
-                        .visible_tiles
-                        .contains(&(*x.0 + Vector3i::new(0, 0, -1)))
-            })
+            .filter(|&x|
+                viewshed.visible_tiles.contains(x.0)).filter(|x| x.0.z <= viewport_position.z)
         {
 
             let foreground_color = calculate_lit_color(
                 renderable.foreground,
                 photometry.light_color,
-                photometry.light_level,
-            );
-            let background_color = renderable.background;
+                photometry.light_level);
+            let mut background_color = calculate_lit_color(
+                renderable.background,
+                photometry.light_color,
+                photometry.light_level);
+
+            background_color.a = renderable.background.a;
 
             if position.z == viewport_position.z {
                 entity_draw_batch.set_with_z(

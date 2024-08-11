@@ -19,10 +19,14 @@ pub struct Vector3i
 impl Vector3i {
     pub const UP: Vector3i = Vector3i { x:0, y: 0, z: 1 };
     pub const DOWN: Vector3i = Vector3i { x:0, y: 0, z: -1 };
-    pub const TOP: Vector3i = Vector3i { x:0, y: 1, z: 0 };
-    pub const BOTTOM: Vector3i = Vector3i { x:0, y: -1, z: 0 };
-    pub const LEFT: Vector3i = Vector3i { x:-1, y: 0, z: 0 };
-    pub const RIGHT: Vector3i = Vector3i { x:1, y: 0, z: 0 };
+    pub const N: Vector3i = Vector3i { x:0, y: -1, z: 0 };
+    pub const NE: Vector3i = Vector3i { x:1, y: -1, z: 0 };
+    pub const E: Vector3i = Vector3i { x:1, y: 0, z: 0 };
+    pub const SE: Vector3i = Vector3i { x:1, y: 1, z: 0 };
+    pub const S: Vector3i = Vector3i { x:0, y: 1, z: 0 };
+    pub const SW: Vector3i = Vector3i { x:-1, y: 1, z: 0 };
+    pub const W: Vector3i = Vector3i { x:-1, y: 0, z: 0 };
+    pub const NW: Vector3i = Vector3i { x:-1, y: -1, z: 0 };
 
     pub fn new(x: i32, y: i32, z: i32) -> Vector3i 
     {
@@ -46,6 +50,14 @@ impl Vector3i {
 
     pub fn distance_to(&self, other: Self) -> f32{
         (((self.x - other.x).pow(2) + (self.y - other.y).pow(2) + (self.z - other.z).pow(2)) as f32).sqrt()
+    }
+
+    pub fn normalize_delta(&self) -> Vector3i {
+        Vector3i {
+            x: self.x.signum(),
+            y: self.y.signum(),
+            z: self.z.signum(),
+        }
     }
 }
 

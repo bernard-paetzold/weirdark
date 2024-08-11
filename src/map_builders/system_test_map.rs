@@ -26,7 +26,7 @@ impl SystemTestMapBuilder {
         let glass_wall: Tile = Tile::new(false,false,
             rltk::to_cp437('█'),
             rltk::to_cp437('█'),
-            RGB::named(rltk::BLUE).to_rgba(0.5),
+            RGB::named(rltk::SKYBLUE).to_rgba(0.5),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             "Glass hull section".to_string(),
         );
@@ -50,7 +50,7 @@ impl SystemTestMapBuilder {
             RGB::named(rltk::BLACK).to_rgba(0.0),
             "Open space".to_string(),
         );
-        
+
         //Rooms
         for x in self.start_position.x - ROOM_SIZE / 2..self.start_position.x + ROOM_SIZE / 2 + 1 {
             for y in self.start_position.y - ROOM_SIZE / 2..self.start_position.y + ROOM_SIZE / 2 + 1 {
@@ -216,6 +216,8 @@ impl SystemTestMapBuilder {
 
             );
         }
+        //self.map.tiles.insert(self.start_position, open_space.clone());
+        //self.map.tiles.insert(self.start_position + Vector3i::new(ROOM_SIZE + CORRIDOR_LENGTH, 0, 0), open_space);
 
     }
 }
@@ -231,16 +233,22 @@ impl MapBuilder for SystemTestMapBuilder {
 
         spawner::standing_lamp(ecs,"Room 1 lamp".to_string(), Vector3i::new(self.start_position.x + ROOM_SIZE / 3 + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - ROOM_SIZE / 3, self.start_position.z + 1), 1.0, RGB::named(rltk::RED).to_rgba(1.0), true);
 
-        spawner::ceiling_lamp(ecs,"Room 2 light".to_string(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), false);
+        spawner::ceiling_lamp(ecs,"Room 2 light".to_string(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), false);
 
-        spawner::ceiling_lamp(ecs,"Corridor light".to_string(), Vector3i::new(self.start_position.x + ROOM_SIZE / 2 + CORRIDOR_LENGTH / 2, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), true);
+        spawner::ceiling_lamp(ecs,"Corridor light".to_string(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), true);
 
         spawner::door(ecs,"Room 1 door".to_string(), Vector3i::new(self.start_position.x + 22 / 2, self.start_position.y, self.start_position.z + 1), false,RGB::named(rltk::ORANGE).to_rgba(1.0), to_cp437('/'), to_cp437('+'));
         spawner::door(ecs,"Room 2 door".to_string(), Vector3i::new(self.start_position.x + 21 +  22 / 2, self.start_position.y, self.start_position.z + 1), true,RGB::named(rltk::SKYBLUE).to_rgba(0.5), to_cp437('/'), to_cp437('+'));
     
         spawner::power_source(ecs, Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true, 100.0);
 
-        spawner::lay_wire(ecs, self.get_map(), Vector3i::new(self.start_position.x + ROOM_SIZE / 3 + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - ROOM_SIZE / 3, self.start_position.z + 1), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1));
+        
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1));
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1));
+        
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1));
+    
+        //spawner::lay_ducting(ecs, self.get_map(), self.start_position + Vector3i::new(1, 0, -1), self.start_position + Vector3i::new(CORRIDOR_LENGTH + ROOM_SIZE - 1, 0, -1));
     }
 
     fn get_map(&mut self) -> Map {

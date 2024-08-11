@@ -57,10 +57,10 @@ impl<'a> System<'a> for StateAlignSystem {
 
                     //If the door is opaque, block vision
                     if renderable.foreground.a >= 1.0 {
-                        vision_blockers.insert(entity, VisionBlocker::new()).expect("Error inserting component");
+                        vision_blockers.insert(entity, VisionBlocker::new_all_sides()).expect("Error inserting component");
                     }
                 }
-                let result = blockers.insert(entity, Blocker::new()).expect("Error inserting component");
+                let result = blockers.insert(entity, Blocker::new_all_sides()).expect("Error inserting component");
 
                 match result {
                     None => {

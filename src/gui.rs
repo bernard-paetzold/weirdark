@@ -2,7 +2,7 @@
 use std::u32::MAX;
 
 use rltk::{to_char, to_cp437, Point, Rltk, VirtualKeyCode, RGB};
-use crate::{spawner::power_source, systems::interaction_system::get_entity_interactions, PowerSource, PowerSwitch, PoweredState, Renderable, Wire};
+use crate::{systems::interaction_system::get_entity_interactions, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, Wire};
 use specs::prelude::*;
 
 use crate::{
@@ -82,7 +82,7 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
     if let Some(player_entity) = get_player_entity(&entities, &players) {
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
             for (name, position) in (&names, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
-                if position.x == target.x && position.y == target.y  && (position.z == target.z || position.z == target.z - 1) {
+                if position.x == target.x && position.y == target.y  && (position.z == target.z) {
                     if position.z < viewport_position.z {
                         tooltip.push((name.name.to_string() + " (below)").to_string());
                     }
@@ -213,10 +213,11 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     let power_switches = game_state.ecs.read_storage::<PowerSwitch>();
     let power_sources = game_state.ecs.read_storage::<PowerSource>();
     let wires = game_state.ecs.read_storage::<Wire>();
+    let nodes = game_state.ecs.read_storage::<PowerNode>();
 
     let player = get_player_entity(&entities, &players);
 
-    let mut interactables: Vec<(String, String, u32)> = Vec::new();
+    let mut interactables: Vec<(usize, String, u32)> = Vec::new();
     let mut tile_entities: Vec<Entity> = Vec::new();
 
     let target_tile = map.tiles.get(&target);
@@ -224,7 +225,8 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     if let Some(player_entity) = player {
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
             for (entity, position) in (&entities, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
-                if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {                
+                //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {                
+                if position.x == target.x && position.y == target.y && (position.z == target.z) {                
                     interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
                     tile_entities.push(entity);
                 }
@@ -266,6 +268,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
 
                 if let Some(renderable) = renderable {
                     color = renderable.foreground;
+
+                    if color.r < 0.1 && color.g < 0.1 && color.b < 0.1 {
+                        color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                    }
                 }
                 if let Some(name) = name {
                     let entity_name = name.name.to_string();
@@ -308,6 +314,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
             }
             if let Some(power_source) = power_sources.get(*entity) {
                 ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Power capacity: {}", power_source.max_wattage));
+                y += 1;
+            }
+            if let Some(node) = nodes.get(*entity) {
+                ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 1, entity_menu_y + y, format!("Network: {}", node.network_id));
                 y += 1;
             }
             
@@ -407,7 +417,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let entity = entities.entity(interactable.2);
                         if let Some(player) = player {
                             let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0.clone(), interactable.1.clone()));
+                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
                         
                             return RunState::PreRun; 
                         }       
@@ -420,7 +430,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let entity = entities.entity(interactable.2);
                         if let Some(player) = player {
                             let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0.clone(), interactable.1.clone()));
+                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
                         
                             return RunState::PreRun; 
                         }       

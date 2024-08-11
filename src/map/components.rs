@@ -1,6 +1,3 @@
-
-use std::collections::HashMap;
-
 use crate::Renderable;
 use crate::Photometry;
 use specs_derive::Component;

@@ -1,6 +1,6 @@
 use specs::prelude::*;
 
-use crate::{gamelog::GameLog, Door, InteractIntent, Interactable, Name, PowerSwitch};
+use crate::{gamelog::GameLog, Door, InteractIntent, Interactable, Name, PowerNode, PowerSwitch};
 
 pub struct InteractionSystem {}
 
@@ -9,6 +9,7 @@ impl<'a> System<'a> for InteractionSystem {
                         WriteExpect<'a, GameLog>,
                         WriteStorage<'a, InteractIntent>,
                         WriteStorage<'a, PowerSwitch>,
+                        WriteStorage<'a, PowerNode>,
                         ReadStorage<'a, Name>,
                         WriteStorage<'a, Door>,
                       );
@@ -19,6 +20,7 @@ impl<'a> System<'a> for InteractionSystem {
             mut game_log,
             mut interact_intents,
             mut power_switches,
+            mut power_nodes,
             names,
             mut doors,
         ) = data;
@@ -44,6 +46,10 @@ impl<'a> System<'a> for InteractionSystem {
                                     cleared_intents.push(entity);
                                 }
                             }
+
+                            if let Some(power_node) = power_nodes.get_mut(interact_intent.target) {
+                                power_node.dirty = true;
+                            }
                         )*
                     }
                 };
@@ -59,7 +65,7 @@ impl<'a> System<'a> for InteractionSystem {
     }
 }
 
-pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(String, String, u32)> {
+pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, String, u32)> {
     let names = ecs.read_storage::<Name>();
 
     let mut interactables = Vec::new();
@@ -76,7 +82,7 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(String, Stri
                         if let Some(entity_name) = names.get(entity) { name = entity_name.name.clone()}
                 
                         interactables.push((
-                            interactable.interaction_id.clone(),
+                            interactable.interaction_id,
                             format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
                             entity.id()
                         ));

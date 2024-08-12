@@ -1,8 +1,11 @@
 
 use std::u32::MAX;
 
-use rltk::{to_char, to_cp437, Point, Rltk, VirtualKeyCode, RGB};
-use crate::{systems::interaction_system::get_entity_interactions, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, Wire};
+use rltk::{to_char, Point, Rltk, VirtualKeyCode, RGB};
+use crate::graphics::char_to_glyph;
+use crate::systems::power_system::get_devices_on_network;
+use crate::{systems::interaction_system::get_entity_interactions, Renderable};
+use crate::entities::power_components::{BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use specs::prelude::*;
 
 use crate::{
@@ -47,7 +50,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
         mouse_position.1,
         RGB::named(rltk::GOLD),
         RGB::named(rltk::BLACK).to_rgba(0.0),
-        to_cp437('┼'),
+        char_to_glyph('┼'),
     );
 
     let mouse_pos = ctx.mouse_pos();
@@ -185,7 +188,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         target.y + MAP_SCREEN_HEIGHT / 2 - viewport_positon.y,
         RGB::named(rltk::GOLD),
         RGB::named(rltk::BLACK).to_rgba(0.0),
-        to_cp437('┼'),
+        char_to_glyph('┼'),
     );
     draw_tooltips(&game_state.ecs, ctx, target);
 
@@ -214,10 +217,11 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     let power_sources = game_state.ecs.read_storage::<PowerSource>();
     let wires = game_state.ecs.read_storage::<Wire>();
     let nodes = game_state.ecs.read_storage::<PowerNode>();
+    let breaker_boxes = game_state.ecs.read_storage::<BreakerBox>();
 
     let player = get_player_entity(&entities, &players);
 
-    let mut interactables: Vec<(usize, String, u32)> = Vec::new();
+    let mut interactables: Vec<(usize, String, u32, u32)> = Vec::new();
     let mut tile_entities: Vec<Entity> = Vec::new();
 
     let target_tile = map.tiles.get(&target);
@@ -229,6 +233,12 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                 if position.x == target.x && position.y == target.y && (position.z == target.z) {                
                     interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
                     tile_entities.push(entity);
+
+
+                    //Handle breaker boxes or other entities that control interactions off tile
+                    if let Some(_) = breaker_boxes.get(entity) {
+                        interactables.append(&mut get_devices_on_network(&game_state.ecs, entity));
+                    }
                 }
             }
         }
@@ -340,13 +350,13 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         let mut count = 0;
         let mut prev_id = MAX;
 
-        for (_interaction_id, interaction_name, entity_id) in interactables.iter() {
+        for (_interaction_id, interaction_name, listing_id, entity_id) in interactables.iter() {
             let interactable_entity = entities.entity(*entity_id);
             let renderable = renderables.get(interactable_entity);
             let name = names.get(interactable_entity);
 
             if y < 50 {
-                if *entity_id != prev_id {
+                if *listing_id != prev_id {
                     let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
                     let mut entity_name = "{unknown}".to_string();
 
@@ -361,7 +371,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                             interactable_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}:", entity_name));
 
                     y += 2;
-                    prev_id = *entity_id;
+                    prev_id = *listing_id;
                         
                 }
                 ctx.print(MAP_SCREEN_WIDTH - INTERACT_MENU_WIDTH + 2, interactable_menu_y + y, format!("<{}> {}", to_char(97 + count), format!("{}", interaction_name)));
@@ -414,7 +424,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                 VirtualKeyCode::A => {
                     if interactables.len() > 0 {
                         let interactable = interactables[0].clone();
-                        let entity = entities.entity(interactable.2);
+                        let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
                             let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
                             let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
@@ -427,7 +437,46 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                 VirtualKeyCode::B => { 
                     if interactables.len() > 1 {
                         let interactable = interactables[1].clone();
-                        let entity = entities.entity(interactable.2);
+                        let entity = entities.entity(interactable.3);
+                        if let Some(player) = player {
+                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                        
+                            return RunState::PreRun; 
+                        }       
+                    }
+                    return RunState::InteractGUI { range, source, target }
+                },
+                VirtualKeyCode::C => { 
+                    if interactables.len() > 2 {
+                        let interactable = interactables[2].clone();
+                        let entity = entities.entity(interactable.3);
+                        if let Some(player) = player {
+                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                        
+                            return RunState::PreRun; 
+                        }       
+                    }
+                    return RunState::InteractGUI { range, source, target }
+                },
+                VirtualKeyCode::D => { 
+                    if interactables.len() > 3 {
+                        let interactable = interactables[3].clone();
+                        let entity = entities.entity(interactable.3);
+                        if let Some(player) = player {
+                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                        
+                            return RunState::PreRun; 
+                        }       
+                    }
+                    return RunState::InteractGUI { range, source, target }
+                },
+                VirtualKeyCode::E => { 
+                    if interactables.len() > 4 {
+                        let interactable = interactables[4].clone();
+                        let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
                             let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
                             let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));

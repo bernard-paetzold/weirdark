@@ -5,6 +5,7 @@ use specs::Entity;
 use std::collections::HashMap;
 
 pub mod pathfinding;
+pub mod tile_blueprints;
 
 #[serde_with::serde_as]
 #[derive(Default, Clone, Serialize, Deserialize)]

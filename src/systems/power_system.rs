@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use specs::{join, prelude::*};
+use specs::{prelude::*, storage::GenericReadStorage};
 
 use crate::{
-    vectors::{utils::{get_cardinal_neighbours, get_cardinal_neighbours_with_z}, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire
+    vectors::{utils::get_cardinal_neighbours_with_z, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire
 };
 
 pub struct PowerSystem {}
@@ -45,7 +45,7 @@ impl<'a> System<'a> for PowerSystem {
 
         for network_id in dirty_networks.iter() {
             //Rebuild wire network
-            if let Some((start_wire, node, start_position)) = (&mut wires, &nodes, &positions).join()
+            if let Some((_, _, start_position)) = (&mut wires, &nodes, &positions).join()
             .filter(|(_, node, _)| node.network_id == *network_id).next() {
 
                 let mut unchanged_wires = vec!(*start_position);
@@ -53,7 +53,7 @@ impl<'a> System<'a> for PowerSystem {
 
                 while let Some(wire_position) = unchanged_wires.pop() {
 
-                    for (wire, current_position) in (&mut wires, &positions).join()
+                    for (_, current_position) in (&mut wires, &positions).join()
                     .filter(|(_, x)| *x == &wire_position) {
                         visited_positons.insert(current_position);
                     }
@@ -100,7 +100,7 @@ impl<'a> System<'a> for PowerSystem {
             }
 
             //For every power state, check if they have a wire attached to them
-            for (power_state, position, node) in (&mut power_states, &positions, &nodes).join()
+            for (power_state, position, _) in (&mut power_states, &positions, &nodes).join()
             .filter(|(_, _, node)| node.network_id == *network_id) {
                 for (wire, _) in (&mut wires, &positions).join()
                 .filter(|(_, x)| *x == position || *x == &(*position + Vector3i::UP))  {
@@ -173,4 +173,45 @@ impl<'a> System<'a> for PowerSystem {
             }
         }
     }
+}
+
+pub fn get_devices_on_network(ecs: &World, network_entity: Entity) -> Vec<(usize, String, u32, u32)> {
+    let names = ecs.read_storage::<crate::Name>();
+    let nodes = ecs.read_storage::<crate::PowerNode>();
+    let entities = ecs.entities();
+
+    let mut interactables = Vec::new();
+
+    if let Some(network_node) = nodes.get(network_entity) {
+        for (entity, _) in (&entities, &nodes)
+        .join().filter(|(entity, node)| node.network_id == network_node.network_id && *entity != network_entity) {
+            macro_rules! check_for_interactable {
+                ($($typ:ty), *) => {
+                    {
+                        $(
+                            let storage = ecs.read_storage::<$typ>();
+        
+                            if let Some(interactable) = storage.get(entity) {
+                                let mut name = "{unknown}".to_string();
+                        
+                                if let Some(entity_name) = names.get(entity) { name = entity_name.name.clone()}
+                        
+                                interactables.push((
+                                    interactable.interaction_id,
+                                    format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
+                                    network_entity.id(),
+                                    entity.id()
+                                ));
+                            }
+                        )*
+                    }
+                };
+            }
+        
+            //TODO: Add any other interactable components
+            check_for_interactable!(PowerSwitch);
+        }
+    }
+
+    interactables
 }

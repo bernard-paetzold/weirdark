@@ -296,7 +296,7 @@ fn check_entity_blocking(blockers: &Storage<VisionBlocker, Fetch<MaskedStorage<V
 
 fn is_entity_blocked(blockers: &Storage<VisionBlocker, Fetch<MaskedStorage<VisionBlocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {
     //Check tile entity is in
-    for (blocker, position) in (blockers, positions).join().filter(|x| *x.1 == player_position) {
+    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == player_position) {
         let delta = (target_position - player_position).normalize_delta();
 
         if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) { return true; }
@@ -312,7 +312,7 @@ fn is_entity_blocked(blockers: &Storage<VisionBlocker, Fetch<MaskedStorage<Visio
     }
 
     //Check tile entity is going to
-    for (blocker, position) in (blockers, positions).join().filter(|x| *x.1 == target_position) {
+    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == target_position) {
         let delta = (player_position - target_position).normalize_delta();
 
         if delta == Vector3i::N && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::S)) { return true; }

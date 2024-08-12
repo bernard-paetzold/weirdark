@@ -47,6 +47,7 @@ impl<'a> System<'a> for InteractionSystem {
                                 }
                             }
 
+                            //If the interactable is powered, rebuild power state
                             if let Some(power_node) = power_nodes.get_mut(interact_intent.target) {
                                 power_node.dirty = true;
                             }
@@ -65,7 +66,7 @@ impl<'a> System<'a> for InteractionSystem {
     }
 }
 
-pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, String, u32)> {
+pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, String, u32, u32)> {
     let names = ecs.read_storage::<Name>();
 
     let mut interactables = Vec::new();
@@ -84,6 +85,7 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, Strin
                         interactables.push((
                             interactable.interaction_id,
                             format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
+                            entity.id(),
                             entity.id()
                         ));
                     }

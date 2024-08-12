@@ -1,5 +1,5 @@
 
-use rltk::{ColorPair, DrawBatch, Point, Rltk, RGBA};
+use rltk::{to_cp437, ColorPair, DrawBatch, Point, Rltk, RGBA};
 use specs::prelude::*;
 
 use crate::{
@@ -241,4 +241,10 @@ pub fn dim_discovered_tile_color(color: RGBA, factor: f32) -> RGBA {
     }
 
     return color.to_rgba(alpha);
+}
+
+pub fn char_to_glyph(c: char) -> u16 {
+    //if to_cp437(c) != 0 {
+        to_cp437(c)
+    //}
 }

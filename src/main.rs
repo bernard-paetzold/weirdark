@@ -18,10 +18,18 @@ use crate::map::components::*;
 use crate::map::*;
 use crate::player::*;
 
-const TERMINAL_WIDTH: i32 = 200;
-const TERMINAL_HEIGHT: i32 = 100;
-const MAP_SCREEN_WIDTH: i32 = 200;
-const MAP_SCREEN_HEIGHT: i32 = 75;
+const FONT_WIDTH: i32 = 14;
+const FONT_HEIGHT: i32 = 14;
+
+//const FONT: &str = "MxPlus_HP_100LX_16x12.png";
+const FONT: &str = "cp437_14x14.png";
+//const FONT: &str = "unicode_16x16.png";
+const GUI_FONT: &str = "terminal8x8.png";
+
+const TERMINAL_WIDTH: i32 = 160;
+const TERMINAL_HEIGHT: i32 = 90;
+const MAP_SCREEN_WIDTH: i32 = 160;
+const MAP_SCREEN_HEIGHT: i32 = 80;
 const MAP_SIZE: i32 = 100;
 
 const SHOW_FPS: bool = true;
@@ -67,6 +75,7 @@ impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         for index in 0..3 {
             ctx.set_active_console(index);
+            ctx.set_translation_mode(index, rltk::CharacterTranslationMode::Codepage437);
             ctx.cls();
         }
 
@@ -161,16 +170,22 @@ impl GameState for State {
     }
 }
 
+
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
-    let context = RltkBuilder::simple(TERMINAL_WIDTH, TERMINAL_HEIGHT)
-        .unwrap()
+
+    let context = RltkBuilder::new()
         .with_title("Weirdark")
-        //.with_font("vga8x16.png", 8, 16)
-        .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
-        .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, "terminal8x8.png")
-        .with_title("weirdark")
+        .with_font(FONT, FONT_WIDTH, FONT_HEIGHT)
+        .with_font(GUI_FONT, 8, 8)
+        .with_dimensions(TERMINAL_WIDTH, TERMINAL_HEIGHT)
+        .with_tile_dimensions(FONT_WIDTH, FONT_HEIGHT)
+        .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, FONT)
+        .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, FONT)
+        .with_sparse_console(TERMINAL_WIDTH, TERMINAL_HEIGHT, FONT)
+        .with_automatic_console_resize(true)
         .with_vsync(false)
+        .with_fps_cap(144.0)
         .build()?;
 
     let mut game_state = State {

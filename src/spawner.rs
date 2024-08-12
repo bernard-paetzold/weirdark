@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use rltk::{to_cp437, RGB, RGBA};
+use rltk::{RGB, RGBA};
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
 
 use crate::{entities::power_components::BreakerBox, graphics::char_to_glyph, pathfinding::{find_walkable_path, wall_climb_path}, vectors::Vector3i, Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed, VisionBlocker, Wire};
@@ -33,6 +33,7 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
         .build()
 }
 
+#[allow(dead_code)]
 pub fn standing_lamp(ecs: &mut World, name: String, position: Vector3i, intensity: f32, color: RGBA, on: bool) -> Entity {
     ecs.create_entity()
         .with(position)
@@ -86,7 +87,7 @@ pub fn ceiling_lamp(ecs: &mut World, position: Vector3i, intensity: f32, color: 
         .build()
 }
 
-pub fn door(ecs: &mut World, position: Vector3i, open: bool, color: RGBA, open_glyph: rltk::FontCharType, closed_glyph: rltk::FontCharType) -> Entity {
+pub fn door(ecs: &mut World, position: Vector3i, open: bool, color: RGBA, open_glyph: u16, closed_glyph: u16) -> Entity {
     if open {
         ecs.create_entity()
         .with(position)
@@ -139,6 +140,7 @@ pub fn power_source(ecs: &mut World, position: Vector3i, on: bool, power: f32) {
     .build();
 }
 
+#[allow(dead_code)]
 pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_position: Vector3i) {
     let mut path : Vec<Vector3i> = Vec::new();
     if start_position.z == end_position.z {
@@ -324,8 +326,8 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         ecs.create_entity()
         .with(*position)
         .with(Renderable::new(
-            to_cp437(char),
-            to_cp437(char),
+            char_to_glyph(char),
+            char_to_glyph(char),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             RGB::named(rltk::GRAY).to_rgba(1.0),
         ))
@@ -365,7 +367,7 @@ pub fn breaker_box(ecs: &mut World, position: Vector3i) {
 
 
 pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_position: Vector3i, roof_preferred: bool) {
-    let mut path : Vec<Vector3i> = Vec::new();
+    let path;
     if start_position.z == end_position.z {
         path = find_walkable_path(map, start_position, end_position);
     }
@@ -426,8 +428,8 @@ pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_posit
         ecs.create_entity()
         .with(*position)
         .with(Renderable::new(
-            to_cp437(char),
-            to_cp437(char),
+            char_to_glyph(char),
+            char_to_glyph(char),
             RGB::named(rltk::RED).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
         ))

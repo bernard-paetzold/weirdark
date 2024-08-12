@@ -9,7 +9,7 @@ pub fn rand_wall_adj_tile(room_center: Vector3i, size: Vector3i) -> Vector3i {
     let y_upper_limit = room_center.y + size.y / 2 - 1;
 
     let z_lower_limit = room_center.z - size.z / 2 + 1;
-    let z_upper_limit = room_center.z + size.z / 2 - 1;
+    //let z_upper_limit = room_center.z + size.z / 2 - 1;
     
     let breaker_wall = rng::range(0, 4);
 

@@ -167,7 +167,6 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
             .filter(|&x|
                 viewshed.visible_tiles.contains(x.0)).filter(|x| x.0.z <= viewport_position.z)
         {
-
             let foreground_color = calculate_lit_color(
                 renderable.foreground,
                 photometry.light_color,
@@ -244,7 +243,10 @@ pub fn dim_discovered_tile_color(color: RGBA, factor: f32) -> RGBA {
 }
 
 pub fn char_to_glyph(c: char) -> u16 {
-    //if to_cp437(c) != 0 {
+    //if (c as u32) < (FONT_LENGTH as u32) {
         to_cp437(c)
+    //}
+    //else {
+    //    'x' as u16
     //}
 }

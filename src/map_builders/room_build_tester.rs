@@ -24,8 +24,8 @@ impl RoomTestMapBuilder {
         let mut hull = Tile::new_empty();
         if let Some(tile) = crate::tile_blueprints::get_tile("hull") { hull = tile; }
 
-        let mut glass_hull= Tile::new_empty();
-        if let Some(tile) = crate::tile_blueprints::get_tile("glass_hull") { glass_hull = tile; }
+        //let mut glass_hull= Tile::new_empty();
+        //if let Some(tile) = crate::tile_blueprints::get_tile("glass_hull") { glass_hull = tile; }
 
         let mut open_space= Tile::new_empty();
         if let Some(tile) = crate::tile_blueprints::get_tile("open_space") { open_space = tile; }
@@ -57,12 +57,12 @@ impl RoomTestMapBuilder {
     }
     pub fn spawn_room_entities(&mut self, ecs: &mut World, size: Vector3i, power_systems: bool, ceiling_light: bool, power_source: bool) {
         let x_lower_limit = self.start_position.x - size.x / 2 + 1;
-        let x_upper_limit = self.start_position.x + size.x / 2 - 1;
+        //let x_upper_limit = self.start_position.x + size.x / 2 - 1;
 
         let y_lower_limit = self.start_position.y - size.y / 2 + 1;
-        let y_upper_limit = self.start_position.y + size.y / 2 - 1;
+        //let y_upper_limit = self.start_position.y + size.y / 2 - 1;
 
-        let z_lower_limit = self.start_position.z - size.z / 2 + 1;
+        //let z_lower_limit = self.start_position.z - size.z / 2 + 1;
         let z_upper_limit = self.start_position.z + size.z / 2 - 2;
 
         let mut occupied_tiles = HashSet::new();

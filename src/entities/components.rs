@@ -232,12 +232,12 @@ pub struct Door {
     pub open: bool,
     pub interaction_description: String,
     pub interaction_id: usize,
-    pub open_glyph: rltk::FontCharType,
-    pub closed_glyph: rltk::FontCharType,
+    pub open_glyph: u16,
+    pub closed_glyph: u16,
 }
 
 impl Door {
-    pub fn new(open: bool, open_glyph: rltk::FontCharType, closed_glyph: rltk::FontCharType) -> Door {
+    pub fn new(open: bool, open_glyph: u16, closed_glyph: u16) -> Door {
         let description: String;
         if open { description = "Close".to_string() } else { description = "Open".to_string() }
 

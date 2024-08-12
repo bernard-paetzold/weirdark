@@ -1,4 +1,4 @@
-use rltk::{to_cp437, RGB};
+use rltk::RGB;
 use specs::World;
 
 use crate::{graphics::char_to_glyph, spawner, vectors::Vector3i, Map, Tile};

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use specs::{prelude::*, storage::GenericReadStorage};
+use specs::prelude::*;
 
 use crate::{
     vectors::{utils::get_cardinal_neighbours_with_z, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire

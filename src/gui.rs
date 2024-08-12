@@ -20,6 +20,7 @@ pub enum MainMenuResult { NoSelection{ selected : MainMenuSelection }, Selected{
 
 pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
     ctx.set_active_console(2);
+    //ctx.set_translation_mode(2, rltk::CharacterTranslationMode::Codepage437);
     ctx.cls();
 
     let gui_height = TERMINAL_HEIGHT - MAP_SCREEN_HEIGHT - 1;
@@ -79,6 +80,7 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
     let screen_position = Vector3i::new(target.x  + MAP_SCREEN_WIDTH / 2 - viewport_position.x, target.y  + MAP_SCREEN_HEIGHT / 2 - viewport_position.y, target.z);
 
     ctx.set_active_console(2);
+    //ctx.set_translation_mode(2, rltk::CharacterTranslationMode::Codepage437);
 
     let mut tooltip: Vec<String> = Vec::new();
 
@@ -182,6 +184,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     let viewport_positon = get_viewport_position(&game_state.ecs);
 
     draw_ui(&game_state.ecs, ctx);
+    //ctx.set_translation_mode(2, rltk::CharacterTranslationMode::Codepage437);
 
     ctx.set(
         target.x + MAP_SCREEN_WIDTH / 2 - viewport_positon.x,

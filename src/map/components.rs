@@ -1,7 +1,6 @@
 use crate::graphics::char_to_glyph;
 use crate::Renderable;
 use crate::Photometry;
-use rltk::to_cp437;
 use rltk::RGB;
 use specs_derive::Component;
 use rltk::RGBA;
@@ -19,7 +18,7 @@ pub struct Tile {
 }
 
 impl Tile {
-    pub fn new(passable: bool, opaque: bool, top_glyph: rltk::FontCharType, side_glyph: rltk::FontCharType, foreground: RGBA, background: RGBA, name: String) -> Tile {
+    pub fn new(passable: bool, opaque: bool, top_glyph: u16, side_glyph: u16, foreground: RGBA, background: RGBA, name: String) -> Tile {
         Tile {
             passable,
             opaque,

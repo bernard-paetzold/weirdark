@@ -4,7 +4,7 @@ use crate::vectors::{utils::get_cardinal_neighbours, Vector3i};
 
 use super::Map;
 
-
+#[allow(dead_code)]
 pub fn find_walkable_path(map: Map, start_position: Vector3i, target: Vector3i) -> Vec<Vector3i> {
     if let Some(path) = a_star(&map, start_position, target) {
         path
@@ -15,88 +15,102 @@ pub fn find_walkable_path(map: Map, start_position: Vector3i, target: Vector3i) 
     }
 }
 
-pub fn wall_climb_path(map: Map, start_position: Vector3i, target: Vector3i) -> Vec<Vector3i> {
+pub fn wall_climb_path(map: Map, mut start_position: Vector3i, mut target: Vector3i, roof_preferred: bool) -> Vec<Vector3i> {
     let mut path: Vec<Vector3i> = Vec::new();
+    let direction: i32;
+
+    if roof_preferred {
+        let temp = start_position;
+        start_position = target;
+        target = temp;
+    }
+
 
     if start_position.z > target.z {
-        // Find nearest wall to crawl up
-        let mut wall_found = false;
-        let mut wall_position = Vector3i::new_equi(0);
-        let mut wall_climb: Vec<Vector3i> = Vec::new();
-        let mut unchecked_tiles: BinaryHeap<Reverse<(i32, Vector3i)>> = BinaryHeap::new();
-        let mut checked_tiles: HashSet<Vector3i> = HashSet::new();
+        direction = 1;
+    }
+    else {
+        direction = -1; 
+    }
 
-        unchecked_tiles.push(Reverse((0, start_position)));
+    
+    // Find nearest wall to crawl up
+    let mut wall_found = false;
+    let mut wall_position = Vector3i::new_equi(0);
+    let mut wall_climb: Vec<Vector3i> = Vec::new();
+    let mut unchecked_tiles: BinaryHeap<Reverse<(i32, Vector3i)>> = BinaryHeap::new();
+    let mut checked_tiles: HashSet<Vector3i> = HashSet::new();
 
-        while let Some(Reverse((distance, test_position))) = unchecked_tiles.pop() {
-            if checked_tiles.contains(&test_position) {
-                continue;
-            }
+    unchecked_tiles.push(Reverse((0, start_position)));
 
-            checked_tiles.insert(test_position);
+    while let Some(Reverse((distance, test_position))) = unchecked_tiles.pop() {
+        if checked_tiles.contains(&test_position) {
+            continue;
+        }
 
-            let neighbours = get_cardinal_neighbours(test_position);
+        checked_tiles.insert(test_position);
 
-            for neighbour in neighbours.iter() {
-                if let Some(neighbour_tile) = map.tiles.get(neighbour) {
-                    if !neighbour_tile.passable {
-                        // Tile is next to a wall, check downwards to see if it reaches the target z level
-                        let mut test_wall_position: Vector3i = *neighbour;
-                        let mut wall_invalid = false;
+        let neighbours = get_cardinal_neighbours(test_position);
 
-                        wall_climb = Vec::new();
+        for neighbour in neighbours.iter() {
+            if let Some(neighbour_tile) = map.tiles.get(neighbour) {
+                if !neighbour_tile.passable {
+                    // Tile is next to a wall, check downwards to see if it reaches the target z level
+                    let mut test_wall_position: Vector3i = *neighbour;
+                    let mut wall_invalid = false;
 
-                        while test_wall_position.z >= target.z && !wall_invalid {
-                            let down_neighbours = get_cardinal_neighbours(test_wall_position);
-                            let mut invalid_walls = 0;
+                    wall_climb = Vec::new();
 
-                            for down_neighbour in down_neighbours.iter() {
-                                if let Some(down_neighbour_tile) = map.tiles.get(down_neighbour) {
-                                    if down_neighbour_tile.passable {
-                                        invalid_walls += 1;
-                                    }
-                                }                
-                            }
+                    while (target.z.abs() - test_wall_position.z.abs()) >= 0 && !wall_invalid {
+                        let down_neighbours = get_cardinal_neighbours(test_wall_position);
+                        let mut invalid_walls = 0;
 
-                            if invalid_walls < 4 {
-                                wall_climb.push(Vector3i::new(test_position.x, test_position.y, test_wall_position.z));
-                                test_wall_position = test_wall_position + Vector3i::new(0, 0, -1);
-                            } else {
-                                wall_invalid = true;
-                            }
+                        for down_neighbour in down_neighbours.iter() {
+                            if let Some(down_neighbour_tile) = map.tiles.get(down_neighbour) {
+                                if down_neighbour_tile.passable {
+                                    invalid_walls += 1;
+                                }
+                            }                
                         }
 
-                        if !wall_invalid {
-                            wall_found = true;
-                            wall_position = test_position;
-                            break;
+                        if invalid_walls < 4 {
+                            wall_climb.push(Vector3i::new(test_position.x, test_position.y, test_wall_position.z));
+                            test_wall_position = test_wall_position + Vector3i::new(0, 0, -direction);
+                        } else {
+                            wall_invalid = true;
                         }
-                    } else {
-                        let new_distance = distance + 1;
-                        unchecked_tiles.push(Reverse((new_distance, *neighbour)));
                     }
-                }
-            }
 
-            if wall_found {
-                break;
+                    if !wall_invalid {
+                        wall_found = true;
+                        wall_position = test_position;
+                        break;
+                    }
+                } else {
+                    let new_distance = distance + 1 + target.distance_to_int(*neighbour);
+                    unchecked_tiles.push(Reverse((new_distance, *neighbour)));
+                }
             }
         }
 
         if wall_found {
-            if let Some(mut path_to_wall) = a_star(&map, start_position, wall_position) {
-                path.append(&mut path_to_wall);
-            }
+            break;
+        }
+    }
 
-            let wall_end_position = wall_climb.last().cloned();
+    if wall_found {
+        if let Some(mut path_to_wall) = a_star(&map, start_position, wall_position) {
+            path.append(&mut path_to_wall);
+        }
 
-            path.append(&mut wall_climb);
+        let wall_end_position = wall_climb.last().cloned();
 
-            if let Some(wall_end_position) = wall_end_position {
-                if let Some(mut path_to_target) = a_star(&map, wall_end_position, target) {
-                    path_to_target.remove(0);
-                    path.append(&mut path_to_target);
-                }
+        path.append(&mut wall_climb);
+
+        if let Some(wall_end_position) = wall_end_position {
+            if let Some(mut path_to_target) = a_star(&map, wall_end_position, target) {
+                path_to_target.remove(0);
+                path.append(&mut path_to_target);
             }
         }
     }

@@ -1,7 +1,7 @@
 use rltk::{to_cp437, RGB};
 use specs::World;
 
-use crate::{spawner, vectors::Vector3i, Map, Tile};
+use crate::{graphics::char_to_glyph, spawner, vectors::Vector3i, Map, Tile};
 
 use super::MapBuilder;
 
@@ -24,8 +24,8 @@ impl SystemTestMapBuilder {
 
     pub fn rooms_and_corridor(&mut self) {
         let glass_wall: Tile = Tile::new(false,false,
-            rltk::to_cp437('█'),
-            rltk::to_cp437('█'),
+            char_to_glyph('█'),
+            char_to_glyph('█'),
             RGB::named(rltk::SKYBLUE).to_rgba(0.5),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             "Glass hull section".to_string(),
@@ -34,8 +34,8 @@ impl SystemTestMapBuilder {
         let hull_section: Tile = Tile::new(
             false,
             true,
-            rltk::to_cp437('░'),
-            rltk::to_cp437('█'),
+            char_to_glyph('░'),
+            char_to_glyph('█'),
             RGB::named(rltk::WHITE).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             "Hull section".to_string(),
@@ -44,8 +44,8 @@ impl SystemTestMapBuilder {
         let open_space = Tile::new(
             true,
             false,
-            rltk::to_cp437(' '),
-            rltk::to_cp437(' '),
+            char_to_glyph(' '),
+            char_to_glyph(' '),
             RGB::named(rltk::WHITE).to_rgba(0.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
             "Open space".to_string(),
@@ -229,24 +229,24 @@ impl MapBuilder for SystemTestMapBuilder {
 
     fn spawn_entities(&mut self, ecs: &mut World) {
         //Add a light
-        spawner::ceiling_lamp(ecs, "Room 1 light".to_string(), Vector3i::new(self.start_position.x, self.start_position.y, self.start_position.z + 2), 1.0, RGB::named(rltk::WHITE).to_rgba(1.0), true);
+        spawner::ceiling_lamp(ecs,  Vector3i::new(self.start_position.x, self.start_position.y, self.start_position.z + 2), 1.0, RGB::named(rltk::WHITE).to_rgba(1.0), true);
 
-        spawner::standing_lamp(ecs,"Room 1 lamp".to_string(), Vector3i::new(self.start_position.x + ROOM_SIZE / 3 + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - ROOM_SIZE / 3, self.start_position.z + 1), 1.0, RGB::named(rltk::RED).to_rgba(1.0), true);
+        //spawner::standing_lamp(ecs, Vector3i::new(self.start_position.x + ROOM_SIZE / 3 + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - ROOM_SIZE / 3, self.start_position.z + 1), 1.0, RGB::named(rltk::RED).to_rgba(1.0), true);
 
-        spawner::ceiling_lamp(ecs,"Room 2 light".to_string(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), false);
+        spawner::ceiling_lamp(ecs, Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), false);
 
-        spawner::ceiling_lamp(ecs,"Corridor light".to_string(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), true);
+        spawner::ceiling_lamp(ecs, Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), 1.0,RGB::named(rltk::WHITE).to_rgba(1.0), true);
 
-        spawner::door(ecs,"Room 1 door".to_string(), Vector3i::new(self.start_position.x + 22 / 2, self.start_position.y, self.start_position.z + 1), false,RGB::named(rltk::ORANGE).to_rgba(1.0), to_cp437('/'), to_cp437('+'));
-        spawner::door(ecs,"Room 2 door".to_string(), Vector3i::new(self.start_position.x + 21 +  22 / 2, self.start_position.y, self.start_position.z + 1), true,RGB::named(rltk::SKYBLUE).to_rgba(0.5), to_cp437('/'), to_cp437('+'));
+        spawner::door(ecs, Vector3i::new(self.start_position.x + 22 / 2, self.start_position.y, self.start_position.z + 1), false,RGB::named(rltk::ORANGE).to_rgba(1.0), char_to_glyph('/'), char_to_glyph('+'));
+        spawner::door(ecs, Vector3i::new(self.start_position.x + 21 +  22 / 2, self.start_position.y, self.start_position.z + 1), true,RGB::named(rltk::SKYBLUE).to_rgba(0.5), char_to_glyph('/'), char_to_glyph('+'));
     
         spawner::power_source(ecs, Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true, 100.0);
 
         
-        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1));
-        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1));
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true);
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true);
         
-        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1));
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true);
     
         //spawner::lay_ducting(ecs, self.get_map(), self.start_position + Vector3i::new(1, 0, -1), self.start_position + Vector3i::new(CORRIDOR_LENGTH + ROOM_SIZE - 1, 0, -1));
     }

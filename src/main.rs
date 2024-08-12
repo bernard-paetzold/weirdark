@@ -1,4 +1,5 @@
 
+use entities::power_components::{BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use graphics::render_map;
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
@@ -200,16 +201,25 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<PoweredState>();
     game_state.ecs.register::<PowerSwitch>();
     game_state.ecs.register::<PowerNode>();
+    game_state.ecs.register::<BreakerBox>();
 
 
     let player_start_position = Vector3i::new(0, 0, 10);
 
+    tile_blueprints::initalise();
+    rng::reseed(0);
+
     game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
-    let mut builder = map_builders::build_system_test_map(
+    /*let mut builder = map_builders::build_system_test_map(
         Vector3i::new(MAP_SIZE, MAP_SIZE, 5),
         player_start_position + Vector3i::new(0, 0, -1),
+    );*/
+    let mut builder = map_builders::build_room_test_map(
+        Vector3i::new(MAP_SIZE, MAP_SIZE, 5),
+        player_start_position + Vector3i::new(0, 0, 1),
     );
+
     builder.build_map();
     //builder.spawn_entities(&mut game_state.ecs);
     let map = builder.get_map();

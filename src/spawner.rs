@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use rltk::{to_cp437, RGB, RGBA};
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
 
-use crate::{pathfinding::{find_walkable_path, wall_climb_path}, vectors::Vector3i, Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed, VisionBlocker, Wire};
+use crate::{entities::power_components::BreakerBox, graphics::char_to_glyph, pathfinding::{find_walkable_path, wall_climb_path}, vectors::Vector3i, Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed, VisionBlocker, Wire};
 
 pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
     //Add player camera
@@ -13,8 +13,8 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
     ecs.create_entity()
         .with(player_position)
         .with(Renderable::new(
-            rltk::to_cp437('@'),
-            rltk::to_cp437('@'),
+            char_to_glyph('@'),
+            char_to_glyph('@'),
             RGB::named(rltk::YELLOW).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(1.0),
         ))
@@ -37,8 +37,8 @@ pub fn standing_lamp(ecs: &mut World, name: String, position: Vector3i, intensit
     ecs.create_entity()
         .with(position)
         .with(Renderable::new(
-            rltk::to_cp437('î'),
-            rltk::to_cp437('î'),
+            char_to_glyph('î'),
+            char_to_glyph('î'),
             RGB::named(rltk::ANTIQUEWHITE4).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
         ))
@@ -60,12 +60,12 @@ pub fn standing_lamp(ecs: &mut World, name: String, position: Vector3i, intensit
         .build()
 }
 
-pub fn ceiling_lamp(ecs: &mut World, name: String, position: Vector3i, intensity: f32, color: RGBA, on: bool) -> Entity {
+pub fn ceiling_lamp(ecs: &mut World, position: Vector3i, intensity: f32, color: RGBA, on: bool) -> Entity {
     ecs.create_entity()
         .with(position)
         .with(Renderable::new(
-            rltk::to_cp437('☼'),
-            rltk::to_cp437('☼'),
+            char_to_glyph('☼'),
+            char_to_glyph('☼'),
             RGB::named(rltk::ANTIQUEWHITE4).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
         ))
@@ -78,7 +78,7 @@ pub fn ceiling_lamp(ecs: &mut World, name: String, position: Vector3i, intensity
             PI * 2.0,
             false,
         ))
-        .with(Name::new(name.to_string()))
+        .with(Name::new("Ceiling lamp".to_string()))
         .with(PoweredState::new(true, 10.0))
         .with(PowerSwitch::new(on))
         .with(PowerNode::new())
@@ -86,7 +86,7 @@ pub fn ceiling_lamp(ecs: &mut World, name: String, position: Vector3i, intensity
         .build()
 }
 
-pub fn door(ecs: &mut World, name: String, position: Vector3i, open: bool, color: RGBA, open_glyph: rltk::FontCharType, closed_glyph: rltk::FontCharType) -> Entity {
+pub fn door(ecs: &mut World, position: Vector3i, open: bool, color: RGBA, open_glyph: rltk::FontCharType, closed_glyph: rltk::FontCharType) -> Entity {
     if open {
         ecs.create_entity()
         .with(position)
@@ -98,7 +98,7 @@ pub fn door(ecs: &mut World, name: String, position: Vector3i, open: bool, color
             RGB::named(rltk::BLACK).to_rgba(0.0),
         ))
         .with(Photometry::new())
-        .with(Name::new(name.to_string()))
+        .with(Name::new("Door".to_string()))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
     }
@@ -113,7 +113,7 @@ pub fn door(ecs: &mut World, name: String, position: Vector3i, open: bool, color
             RGB::named(rltk::BLACK).to_rgba(0.0),
         ))
         .with(Photometry::new())
-        .with(Name::new(name.to_string()))
+        .with(Name::new("Door".to_string()))
         .with(Blocker::new_all_sides())
         .with(VisionBlocker::new_all_sides())
         .marked::<SimpleMarker<SerializeThis>>()
@@ -125,8 +125,8 @@ pub fn power_source(ecs: &mut World, position: Vector3i, on: bool, power: f32) {
     ecs.create_entity()
     .with(position)
     .with(Renderable::new(
-        to_cp437('◘'),
-        to_cp437('◘'),
+        char_to_glyph('◘'),
+        char_to_glyph('◘'),
         RGB::named(rltk::WHITE).to_rgba(1.0),
         RGB::named(rltk::BLACK).to_rgba(0.0),
     ))
@@ -148,8 +148,8 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
     ecs.create_entity()
         .with(start_position + Vector3i::new(-1, 0, 0))
         .with(Renderable::new(
-            to_cp437('═'),
-            to_cp437('═'),
+            char_to_glyph('═'),
+            char_to_glyph('═'),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             RGB::named(rltk::GRAY).to_rgba(1.0),
         ))
@@ -166,8 +166,8 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         ecs.create_entity()
         .with(start_position + Vector3i::new(-1, 0, 1))
         .with(Renderable::new(
-            to_cp437('■'),
-            to_cp437('■'),
+            char_to_glyph('■'),
+            char_to_glyph('■'),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             RGB::named(rltk::GRAY).to_rgba(1.0),
         ))
@@ -347,10 +347,31 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
     }
 }
 
-pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_position: Vector3i) {
-    let mut path : Vec<Vector3i> = Vec::new();
+pub fn breaker_box(ecs: &mut World, position: Vector3i) {
+    ecs.create_entity()
+    .with(position)
+    .with(Renderable::new(
+        char_to_glyph('b'),
+        char_to_glyph('b'),
+        RGB::named(rltk::BLACK).to_rgba(1.0),
+        RGB::named(rltk::GRAY).to_rgba(1.0),
+    ))
+    .with(Photometry::new())
+    .with(BreakerBox {})
+    .with(PowerNode::new())
+    .marked::<SimpleMarker<SerializeThis>>()
+    .build();
+}
 
-    path = wall_climb_path(map, start_position, end_position);
+
+pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_position: Vector3i, roof_preferred: bool) {
+    let mut path : Vec<Vector3i> = Vec::new();
+    if start_position.z == end_position.z {
+        path = find_walkable_path(map, start_position, end_position);
+    }
+    else {
+        path = wall_climb_path(map, start_position, end_position, roof_preferred);
+    }
     
 
 
@@ -362,7 +383,7 @@ pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_posit
         let mut char = '.';
 
         let mut wire_present = false;
-        //If the wire meets an existing wire, do not add a wire
+        //If the wire meets an existing wire, do not add a second wire
         {
             let positions = ecs.read_storage::<Vector3i>();
             let wires = ecs.read_storage::<Wire>();

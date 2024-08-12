@@ -18,8 +18,8 @@ pub fn add_camera(position: Vector3i, ecs: &mut World, is_active: bool) {
                 .with(position)
                 .with(Camera { is_active })
                 /*.with(Renderable::new(
-                rltk::to_cp437('K'),
-                rltk::to_cp437('K'),
+                rltk::char_to_glyph('K'),
+                rltk::char_to_glyph('K'),
                 RGB::named(rltk::WHITE),
                 RGB::named(rltk::BLACK)))*/
                 .marked::<SimpleMarker<SerializeThis>>()

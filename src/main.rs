@@ -82,14 +82,14 @@ impl GameState for State {
         let mut new_runstate;
         {
             let runstate = self.ecs.fetch::<RunState>();
-            new_runstate = *runstate;
+            new_runstate = (*runstate).clone();
         }
 
         match new_runstate {
             RunState::MainMenu { .. } => {}
             _ => {
                 render_map(&mut self.ecs, ctx);
-                gui::draw_ui(&self.ecs, ctx);
+                gui::draw_ui(&self.ecs, ctx, true);
             }
         }
 
@@ -147,16 +147,22 @@ impl GameState for State {
                 range,
                 source,
                 target,
+                prev_mouse_position,
             } => {
-                new_runstate = gui::interact_gui(self, ctx, range, source, target);
+                new_runstate = gui::interact_gui(self, ctx, range, source, target, prev_mouse_position);
 
                 //If the gui exits snap the camera position to the player
                 match new_runstate {
                     RunState::AwaitingInput { .. } | RunState::PreRun => {
-                        crate::player::reset_camera_position(&mut self.ecs);
+                        crate::reset_camera_position(&mut self.ecs);
                     }
                     _ => {}
                 }
+            },
+            RunState::HandleOtherInput { next_runstate, key } => {
+                handle_other_input(&mut self.ecs, key);
+
+                new_runstate = (*next_runstate).clone();
             }
         }
 

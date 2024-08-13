@@ -4,7 +4,7 @@ use rltk::{Rltk, VirtualKeyCode};
 use specs::shred::FetchMut;
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
-use crate::{Blocker, TERMINAL_WIDTH};
+use crate::{set_camera_position, toggle_camera_power_overlay, update_camera_position, Blocker, TERMINAL_WIDTH};
 use crate::{gamelog::GameLog, vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed};
 
 use serde::Serialize;
@@ -95,42 +95,6 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     return Some(target_position)
 }
 
-pub fn update_camera_position(delta: Vector3i, ecs: &mut World) -> Option<&Camera> {
-    let cameras = ecs.read_storage::<Camera>();
-    let mut camera_positions = ecs.write_storage::<Vector3i>();
-
-    for (position, camera) in (&mut camera_positions, &cameras).join() {
-        if camera.is_active {
-            *position += delta;
-        }
-    }
-    None
-}
-
-pub fn set_camera_position(new_position: Vector3i, ecs: &mut World) {
-    let cameras = ecs.read_storage::<Camera>();
-    let mut camera_positions = ecs.write_storage::<Vector3i>();
-
-    for (position, camera) in (&mut camera_positions, &cameras).join() {
-        if camera.is_active {
-            *position = new_position;
-        }
-    }
-}
-
-pub fn reset_camera_position(ecs: &mut World) {
-    let cameras = ecs.read_storage::<Camera>();
-    let mut camera_positions = ecs.write_storage::<Vector3i>();
-
-    let player_pos = ecs.fetch::<Vector3i>();
-
-    for (position, camera) in (&mut camera_positions, &cameras).join() {
-        if camera.is_active {
-            *position = *player_pos;
-        }
-    }
-}
-
 pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     // Player movement
     let mut delta = Vector3i::new_equi(0);
@@ -166,11 +130,15 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Escape =>  return RunState::SaveGame,
 
             //Look gui
-            VirtualKeyCode::K =>  return RunState::InteractGUI { range: TERMINAL_WIDTH as usize, target: player_pos, source: player_pos },
+            VirtualKeyCode::K =>  return RunState::InteractGUI { range: TERMINAL_WIDTH as usize, target: player_pos, source: player_pos, prev_mouse_position: Vector3i::new(ctx.mouse_pos.0, ctx.mouse_pos.1, player_pos.z) },
 
             //Interaction gui
-            VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos },
+            VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos, prev_mouse_position: Vector3i::new(ctx.mouse_pos.0, ctx.mouse_pos.1, player_pos.z)  },
 
+            //Enable power overlay
+            VirtualKeyCode::P =>  {
+                toggle_camera_power_overlay(&mut game_state.ecs);
+            },
             //Camera freelook
             VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, 1),
             VirtualKeyCode::E => delta_camera = Vector3i::new(0, 0, -1),
@@ -204,7 +172,9 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
                 }
             },
             //If there is no valid input, set runstate to paused
-            _ => { return RunState::AwaitingInput }
+            _ => {
+                return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::AwaitingInput), key }
+            }
         },
     }
 
@@ -321,4 +291,14 @@ fn is_entity_blocked(blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>,
         else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN)  { return true; }
     }
     return false;
+}
+
+pub fn handle_other_input(ecs: &mut World, key: VirtualKeyCode) {
+    match key {
+        //Enable power overlay
+        VirtualKeyCode::P =>  {
+            toggle_camera_power_overlay(ecs);
+        },
+        _ => {}  
+    }
 }

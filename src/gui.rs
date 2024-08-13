@@ -18,9 +18,8 @@ pub enum MainMenuSelection { NewGame, LoadGame, Quit }
 #[derive(PartialEq, Copy, Clone)]
 pub enum MainMenuResult { NoSelection{ selected : MainMenuSelection }, Selected{ selected: MainMenuSelection } }
 
-pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
+pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
     ctx.set_active_console(2);
-    //ctx.set_translation_mode(2, rltk::CharacterTranslationMode::Codepage437);
     ctx.cls();
 
     let gui_height = TERMINAL_HEIGHT - MAP_SCREEN_HEIGHT - 1;
@@ -44,28 +43,28 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
         y += 1;
     }
 
-    let mouse_position = ctx.mouse_pos();
+    if draw_pointer {
+        let mouse_position = ctx.mouse_pos();
 
-    ctx.set(
-        mouse_position.0,
-        mouse_position.1,
-        RGB::named(rltk::GOLD),
-        RGB::named(rltk::BLACK).to_rgba(0.0),
-        char_to_glyph('┼'),
-    );
+        ctx.set(
+            mouse_position.0,
+            mouse_position.1,
+            RGB::named(rltk::GOLD),
+            RGB::named(rltk::BLACK).to_rgba(0.0),
+            char_to_glyph('┼'),
+        );
 
-    let mouse_pos = ctx.mouse_pos();
-    if mouse_pos.0 >= MAP_SCREEN_WIDTH || mouse_pos.1 >= MAP_SCREEN_HEIGHT {
-        return;
+        let mouse_pos = ctx.mouse_pos();
+        if mouse_pos.0 >= MAP_SCREEN_WIDTH || mouse_pos.1 >= MAP_SCREEN_HEIGHT {
+            return;
+        }
+
+        let player_pos = ecs.fetch::<Vector3i>();
+        let viewport_position = get_viewport_position(&ecs);
+
+        let map_mouse_position = Vector3i::new(mouse_pos.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_pos.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, player_pos.z);
+        draw_tooltips(ecs, ctx, map_mouse_position);
     }
-
-    //let player_pos = ecs.fetch::<Vector3i>();
-    //let viewport_position = get_viewport_position(&ecs);
-
-    //let map_mouse_position = Vector3i::new(mouse_pos.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_pos.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, player_pos.z);
-
-
-   // draw_tooltips(ecs, ctx, map_mouse_position);
 }
 
 pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
@@ -176,19 +175,21 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
     }
 }
 
-pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source: Vector3i, target: Vector3i) -> RunState {
-    crate::set_camera_position(target, &mut game_state.ecs);
+pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source: Vector3i, mut target: Vector3i, prev_mouse_position: Vector3i) -> RunState {
+    crate::set_camera_z(target.z, &mut game_state.ecs);
+    let viewport_position = get_viewport_position(&game_state.ecs);
+
+    let mouse_pos = ctx.mouse_pos();
+
+    let mouse_position = Vector3i::new(mouse_pos.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_pos.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, viewport_position.z);    
 
     let entities = game_state.ecs.entities();
-    
-    let viewport_positon = get_viewport_position(&game_state.ecs);
 
-    draw_ui(&game_state.ecs, ctx);
-    //ctx.set_translation_mode(2, rltk::CharacterTranslationMode::Codepage437);
+    draw_ui(&game_state.ecs, ctx, false);
 
     ctx.set(
-        target.x + MAP_SCREEN_WIDTH / 2 - viewport_positon.x,
-        target.y + MAP_SCREEN_HEIGHT / 2 - viewport_positon.y,
+        target.x + MAP_SCREEN_WIDTH / 2 - viewport_position.x,
+        target.y + MAP_SCREEN_HEIGHT / 2 - viewport_position.y,
         RGB::named(rltk::GOLD),
         RGB::named(rltk::BLACK).to_rgba(0.0),
         char_to_glyph('┼'),
@@ -384,8 +385,16 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         }
     }
 
+    if mouse_position != prev_mouse_position && (mouse_pos.0 <= MAP_SCREEN_WIDTH && mouse_pos.1 <= MAP_SCREEN_HEIGHT) {
+        target = Vector3i::new(
+            (mouse_position.x - source.x).abs().min(range as i32) * (mouse_position.x - source.x).signum() + source.x,
+            (mouse_position.y - source.y).abs().min(range as i32) * (mouse_position.y - source.y).signum() + source.y,
+            target.z
+        );
+    }
+
     match ctx.key {
-        None => return RunState::InteractGUI { range, source, target },
+        None => return RunState::InteractGUI { range, source, target, prev_mouse_position },
         Some(key) => {
             match key {
                 VirtualKeyCode::Escape => { 
@@ -395,34 +404,34 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                     return RunState::AwaitingInput 
                 },
                 VirtualKeyCode::Period => {
-                    return check_range(range, source, target, Vector3i::new(0, 0, -1));
+                    return check_range(range, source, target, Vector3i::DOWN, mouse_position);
                 },
                 VirtualKeyCode::Comma => {
-                    return check_range(range, source, target, Vector3i::new(0, 0, 1));
+                    return check_range(range, source, target, Vector3i::UP, mouse_position);
                 },
                 VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => {
-                    return check_range(range, source, target, Vector3i::new(0, -1, 0));
+                    return check_range(range, source, target, Vector3i::N, mouse_position);
                 },
                 VirtualKeyCode::Numpad9 => {
-                    return check_range(range, source, target, Vector3i::new(1, -1, 0));
+                    return check_range(range, source, target, Vector3i::NE, mouse_position);
                 },
                 VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => {
-                    return check_range(range, source, target, Vector3i::new(1, 0, 0));
+                    return check_range(range, source, target, Vector3i::E, mouse_position);
                 },
                 VirtualKeyCode::Numpad3 => {
-                    return check_range(range, source, target, Vector3i::new(1, 1, 0));
+                    return check_range(range, source, target, Vector3i::SE, mouse_position);
                 },
                 VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => {
-                    return check_range(range, source, target, Vector3i::new(0, 1, 0));
+                    return check_range(range, source, target, Vector3i::S, mouse_position);
                 },
                 VirtualKeyCode::Numpad1 => {
-                    return check_range(range, source, target, Vector3i::new(-1, 1, 0));
+                    return check_range(range, source, target, Vector3i::SW, mouse_position);
                 },
                 VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => {
-                    return check_range(range, source, target, Vector3i::new(-1, 0, 0));
+                    return check_range(range, source, target, Vector3i::W, mouse_position);
                 },
                 VirtualKeyCode::Numpad7 => {
-                    return check_range(range, source, target, Vector3i::new(-1, -1, 0));
+                    return check_range(range, source, target, Vector3i::NW, mouse_position);
                 },
                 VirtualKeyCode::A => {
                     if interactables.len() > 0 {
@@ -435,7 +444,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                             return RunState::PreRun; 
                         }       
                     }
-                    return RunState::InteractGUI { range, source, target }
+                    return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
                 },
                 VirtualKeyCode::B => { 
                     if interactables.len() > 1 {
@@ -448,7 +457,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                             return RunState::PreRun; 
                         }       
                     }
-                    return RunState::InteractGUI { range, source, target }
+                    return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
                 },
                 VirtualKeyCode::C => { 
                     if interactables.len() > 2 {
@@ -461,7 +470,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                             return RunState::PreRun; 
                         }       
                     }
-                    return RunState::InteractGUI { range, source, target }
+                    return RunState::InteractGUI { range, source, target, prev_mouse_position }
                 },
                 VirtualKeyCode::D => { 
                     if interactables.len() > 3 {
@@ -474,7 +483,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                             return RunState::PreRun; 
                         }       
                     }
-                    return RunState::InteractGUI { range, source, target }
+                    return RunState::InteractGUI { range, source, target, prev_mouse_position }
                 },
                 VirtualKeyCode::E => { 
                     if interactables.len() > 4 {
@@ -487,21 +496,23 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                             return RunState::PreRun; 
                         }       
                     }
-                    return RunState::InteractGUI { range, source, target }
+                    return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
                 },
-                _ => return RunState::InteractGUI { range, source, target }
+                _ => {
+                    return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }), key }
+                }
                 
             }
         }
     }
 }
 
-fn check_range(range: usize, source: Vector3i, target: Vector3i, delta: Vector3i) -> RunState {
+fn check_range(range: usize, source: Vector3i, target: Vector3i, delta: Vector3i, mouse_position: Vector3i) -> RunState {
     let new_target = target + delta;
     if (source.x - new_target.x).abs() <= range as i32 && (source.y - new_target.y).abs() <= range as i32 && (source.z - new_target.z).abs() <= range as i32 {
-        return RunState::InteractGUI { range, source, target: new_target }
+        return RunState::InteractGUI { range, source, target: new_target, prev_mouse_position: mouse_position }
     }
     else {
-        return RunState::InteractGUI { range, source, target }
+        return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
     }
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::map;
@@ -300,5 +301,30 @@ pub struct Duct {}
 impl Duct {
     pub fn new() -> Duct {
         Duct { }
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Hash)]
+pub enum Gas {
+    Oxygen,
+    Nitrogen,
+    CarbonDioxide,
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Atmosphere {
+    pub pressure: f32,
+    pub temperature: f32,
+    pub gasses: HashMap<Gas, f32>
+}
+
+#[allow(dead_code)]
+impl Atmosphere {
+    pub fn new(pressure: f32, temperature: f32, gasses: HashMap<Gas, f32>) -> Self {
+        Self { 
+            pressure,
+            temperature,
+            gasses,
+        }
     }
 }

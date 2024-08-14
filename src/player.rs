@@ -297,7 +297,6 @@ pub fn toggle_power_overlay(ecs: &mut World) {
     let player_positions = ecs.read_storage::<Vector3i>();
 
     for (_, player) in (&player_positions, &mut players).join() {
-        println!("{}", player.power_overlay);
         player.power_overlay = !player.power_overlay;
     }
 }

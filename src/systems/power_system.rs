@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rltk::RandomNumberGenerator;
 use specs::{prelude::*, storage::GenericReadStorage};
@@ -160,23 +160,22 @@ impl<'a> System<'a> for PowerSystem {
                 }
             }
 
+            let mut visited_power_wires = HashSet::new();
             //Calculate power loads
-            for (start_wire, position) in load_wires.iter() {                
-                if let Some(start_wire) = wires.get(*start_wire) {
+            for (start_wire_entity, position) in load_wires.iter() {                
+                if let Some(start_wire) = wires.get(*start_wire_entity).cloned() {
                     let mut unchanged_wires = vec!(**position);
+                    let mut wire_entites = vec!(*start_wire_entity);
                 
-                    let mut total_draw:f32 = 0.0;
-    
-                    let mut prev_color = HashSet::new();
-                    prev_color.insert(start_wire.color_name.clone());
+                    let mut total_draw = 0.0;
 
-                    let mut visited_power_wires = HashSet::new();
-    
+                    let mut prev_colors = HashSet::new();
+                    prev_colors.insert(start_wire.color_name.clone());
+            
                     while let Some(wire_position) = unchanged_wires.pop() {
-    
-                        //Add all wires on the current position
-                        for (current_wire, current_position) in (&wires, &positions).join()
-                        .filter(|(_, x)| **x == wire_position) {
+                        for (current_wire, current_position, _) in (&wires, &positions, &entities).join()
+                        .filter(|(wire, x, entity)| **x == wire_position && prev_colors.contains(&wire.color_name)
+                        && wire_entites.contains(entity)) {
                             total_draw += current_wire.power_load;
                             visited_power_wires.insert(current_position);
                         }
@@ -186,16 +185,18 @@ impl<'a> System<'a> for PowerSystem {
                         for neighbour in neighbours.into_iter() {
                             if !visited_power_wires.contains(&neighbour) {
     
-                                for (wire, position) in (&wires, &positions).join().filter(|(_, x)| **x == neighbour) {
+                                for (wire, position, entity) in (&wires, &positions, &entities).join().filter(|(_, x, _)| **x == neighbour) {
                                     if let Some((_, switch, _)) = (&breaker_boxes, &power_switches, &positions).join().filter(|(_, _, x)| *x == position).next() {
                                         if switch.on {
                                             unchanged_wires.push(neighbour);
-                                            prev_color.insert(wire.color_name.clone());
+                                            wire_entites.push(entity);
+                                            prev_colors.insert(wire.color_name.clone());
                                         }
                                     }
-                                    else if prev_color.contains(&wire.color_name) {
+                                    else if prev_colors.contains(&wire.color_name) {
                                         unchanged_wires.push(neighbour);
-                                        prev_color.insert(wire.color_name.clone());
+                                        wire_entites.push(entity);
+                                        prev_colors.insert(wire.color_name.clone());
                                     }
                                 }    
                             }
@@ -203,59 +204,59 @@ impl<'a> System<'a> for PowerSystem {
                     }
     
                     for (wire, _) in (&mut wires, &positions).join()
-                        .filter(|(_, x)| visited_power_wires.contains(x)) {
-                            wire.power_load = total_draw;
+                        .filter(|(wire, x)| visited_power_wires.contains(x) && prev_colors.contains(&wire.color_name)) {
+                        wire.power_load = total_draw;
                     }
                 }
                
             }
 
+            let mut visited_power_wires = HashSet::new();
+
             //Align powered state with power sources
             for (power_source, position, _) in (&mut power_sources, &positions, &nodes).join()
             .filter(|(_, _, node)| node.network_id == *network_id) {
                 if power_source.on {
-                    if let Some((start_wire, _)) = (&wires, &positions).join().filter(|(_, x)| *x == position).next() {
+                    if let Some((start_wire, position, entity)) = (&wires, &positions, &entities).join().filter(|(_, x, _)| *x == position).next() {
                         let mut unchanged_wires = vec!(*position);
-                
-    
-                        let mut prev_color = HashSet::new();
-                        prev_color.insert(start_wire.color_name.clone());
+                        let mut wire_entites = vec!(entity);
 
-                        let mut visited_power_wires = HashSet::new();
-        
+                        let mut prev_colors = HashSet::new();
+                        prev_colors.insert(start_wire.color_name.clone());
+                
                         while let Some(wire_position) = unchanged_wires.pop() {
-        
-                            //Add all wires on the current position
-                            for (current_wire, current_position) in (&wires, &positions).join()
-                            .filter(|(_, x)| **x == wire_position) {
+                            for (current_wire, current_position, _) in (&wires, &positions, &entities).join()
+                            .filter(|(wire, x, entity)| **x == wire_position && prev_colors.contains(&wire.color_name)
+                            && wire_entites.contains(entity)) {
                                 visited_power_wires.insert(current_position);
                             }
             
                             let neighbours = get_cardinal_neighbours_with_z(wire_position);
             
                             for neighbour in neighbours.into_iter() {
-                                if !visited_power_wires.contains(&neighbour) {
-        
-                                    for (wire, position) in (&wires, &positions).join().filter(|(_, x)| **x == neighbour) {
+                                for (wire, position, entity) in (&wires, &positions, &entities).join().filter(|(_, x, _)| **x == neighbour) {
+                                    if !visited_power_wires.contains(&neighbour) || !wire_entites.contains(&entity) {
                                         if let Some((_, switch, _)) = (&breaker_boxes, &power_switches, &positions).join().filter(|(_, _, x)| *x == position).next() {
                                             if switch.on {
                                                 unchanged_wires.push(neighbour);
-                                                prev_color.insert(wire.color_name.clone());
+                                                wire_entites.push(entity);
+                                                prev_colors.insert(wire.color_name.clone());
                                             }
                                         }
-                                        else if prev_color.contains(&wire.color_name) {
+                                        else if prev_colors.contains(&wire.color_name) {
                                             unchanged_wires.push(neighbour);
-                                            prev_color.insert(wire.color_name.clone());
+                                            wire_entites.push(entity);
+                                            prev_colors.insert(wire.color_name.clone());
                                         }
                                     }    
                                 }
-                            }                        
+                            }                                    
                         }
                         power_source.available_wattage = power_source.available_wattage - start_wire.power_load;
 
-                        for (wire, _, _) in (&mut wires, &positions, &nodes).join()
-                            .filter(|(_, x, node)| visited_power_wires.contains(x) && node.network_id == *network_id) {
-                                wire.available_wattage = power_source.available_wattage;
+                        for (wire, _) in (&mut wires, &positions).join()
+                        .filter(|(wire, x)| visited_power_wires.contains(x) && prev_colors.contains(&wire.color_name)) {
+                            wire.available_wattage += power_source.available_wattage;
                         }
                     }
                 }

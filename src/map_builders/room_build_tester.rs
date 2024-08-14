@@ -90,11 +90,11 @@ impl RoomTestMapBuilder {
                     if !occupied_tiles.contains(&power_source_position) { break; }
                 } 
                 spawner::power_source(ecs, power_source_position, true, 100.0);
-                device_positions.push(power_source_position);
+                lay_wiring(ecs, self.get_map(), power_source_position, breaker_position, RGB::named(rltk::BLUE).to_rgba(1.0), "blue".to_string(), true);
             }
 
             while let  Some(position) = device_positions.pop() {
-                lay_wiring(ecs, self.get_map(), position, breaker_position, true);
+                lay_wiring(ecs, self.get_map(), position, breaker_position, RGB::named(rltk::RED).to_rgba(1.0), "red".to_string(), true);
             }
         }
     }

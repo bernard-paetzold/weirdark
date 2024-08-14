@@ -1,3 +1,4 @@
+use rltk::RGBA;
 use serde::Deserialize;
 use serde::Serialize;
 use specs::prelude::*;
@@ -123,13 +124,17 @@ impl Interactable for PowerSwitch {
 pub struct Wire {
     pub power_load: f32,
     pub available_wattage: f32,
+    pub color: RGBA,
+    pub color_name: String,
 }
 
 impl Wire {
-    pub fn new() -> Wire {
+    pub fn new(color: RGBA, color_name: String) -> Wire {
         Wire {
             power_load: 0.0,
             available_wattage: 0.0,
+            color,
+            color_name
         }
     }
 }

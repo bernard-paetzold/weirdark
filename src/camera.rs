@@ -11,14 +11,12 @@ use crate::SerializeThis;
 #[derive(Component, Debug, ConvertSaveload, Clone)]
 pub struct Camera {
     pub is_active: bool,
-    pub power_overlay: bool
 }
 
 impl Camera {
     pub fn new(is_active: bool) -> Self {
         Self {
             is_active,
-            power_overlay: false,
         }
     }
 }
@@ -81,15 +79,5 @@ pub fn reset_camera_position(ecs: &mut World) {
         if camera.is_active {
             *position = *player_pos;
         }
-    }
-}
-
-pub fn toggle_camera_power_overlay(ecs: &mut World) {
-    let mut cameras = ecs.write_storage::<Camera>();
-    let camera_positions = ecs.read_storage::<Vector3i>();
-
-    for (_, camera) in (&camera_positions, &mut cameras).join()
-    .filter(|(_, camera)| camera.is_active) {
-        camera.power_overlay = !camera.power_overlay;
     }
 }

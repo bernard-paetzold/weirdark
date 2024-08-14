@@ -158,13 +158,11 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
     let mut players = ecs.write_storage::<Player>();
     let renderables = ecs.read_storage::<Renderable>();
     let photometria = ecs.read_storage::<Photometry>();
-    let cameras = ecs.write_storage::<Camera>();
     let wires = ecs.write_storage::<crate::entities::power_components::Wire>();
     let entities = ecs.entities();
 
-    for (_player, viewshed) in (&mut players, &viewsheds).join() {
+    for (player, viewshed) in (&mut players, &viewsheds).join() {
         //let mut rendered_entities = HashMap::new();
-        let camera = cameras.join().filter(|x| x.is_active).next();
 
         for (position, renderable, photometry, entity) in (&positions, &renderables, &photometria, &entities)
             .join()
@@ -172,11 +170,10 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
             viewshed.visible_tiles.contains(x.0)).filter(|x| x.0.z <= viewport_position.z)
         {
             //If power overlay is disabled don't draw wires
-            if let Some(camera) = camera {
-                if !camera.power_overlay && wires.get(entity).is_some() {
-                    continue;
-                }
+            if !player.power_overlay && wires.get(entity).is_some() {
+                continue;
             }
+            
 
             let foreground_color = calculate_lit_color(
                 renderable.foreground,

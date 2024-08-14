@@ -243,10 +243,10 @@ impl MapBuilder for SystemTestMapBuilder {
         spawner::power_source(ecs, Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true, 100.0);
 
         
-        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true);
-        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true);
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), RGB::named(rltk::RED).to_rgba(1.0), "RED".to_string(), true);
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), RGB::named(rltk::RED).to_rgba(1.0), "RED".to_string(), true);
         
-        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), true);
+        spawner::lay_wiring(ecs, self.get_map(), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE + 3, self.start_position.y, self.start_position.z + 2), Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE, self.start_position.y - 5, self.start_position.z + 1), RGB::named(rltk::RED).to_rgba(1.0), "RED".to_string(), true);
     
         //spawner::lay_ducting(ecs, self.get_map(), self.start_position + Vector3i::new(1, 0, -1), self.start_position + Vector3i::new(CORRIDOR_LENGTH + ROOM_SIZE - 1, 0, -1));
     }

@@ -4,8 +4,9 @@ use rltk::{Rltk, VirtualKeyCode};
 use specs::shred::FetchMut;
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
-use crate::{set_camera_position, toggle_camera_power_overlay, update_camera_position, Blocker, TERMINAL_WIDTH};
-use crate::{gamelog::GameLog, vectors::Vector3i, Camera, Illuminant, Map, Photometry, RunState, State, Viewshed};
+use crate::graphics::get_viewport_position;
+use crate::{mouse_to_map, set_camera_position, update_camera_position, Blocker, TERMINAL_WIDTH};
+use crate::{gamelog::GameLog, vectors::Vector3i, Illuminant, Map, Photometry, RunState, State, Viewshed};
 
 use serde::Serialize;
 use serde::Deserialize;
@@ -13,11 +14,14 @@ use serde::Deserialize;
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Player {
+    pub power_overlay: bool,
 }
 
 impl Player {
     pub fn new() -> Player {
-        Player { }
+        Player {
+            power_overlay: false,
+         }
     }
 }
 
@@ -100,6 +104,8 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     let mut delta = Vector3i::new_equi(0);
     let mut delta_camera = Vector3i::new_equi(0);
 
+    let viewport_position = get_viewport_position(&game_state.ecs);
+
     let player_pos = *game_state.ecs.fetch::<Vector3i>();
     
     let mut reset_camera = false;
@@ -126,19 +132,12 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
                 return skip_turn(game_log)
             },
 
-            //Main menu
-            VirtualKeyCode::Escape =>  return RunState::SaveGame,
-
             //Look gui
-            VirtualKeyCode::K =>  return RunState::InteractGUI { range: TERMINAL_WIDTH as usize, target: player_pos, source: player_pos, prev_mouse_position: Vector3i::new(ctx.mouse_pos.0, ctx.mouse_pos.1, player_pos.z) },
+            VirtualKeyCode::K =>  return RunState::InteractGUI { range: TERMINAL_WIDTH as usize, target: player_pos, source: player_pos, prev_mouse_position: mouse_to_map(ctx.mouse_pos(), viewport_position) },
 
             //Interaction gui
-            VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos, prev_mouse_position: Vector3i::new(ctx.mouse_pos.0, ctx.mouse_pos.1, player_pos.z)  },
+            VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos, prev_mouse_position: mouse_to_map(ctx.mouse_pos(), viewport_position)  },
 
-            //Enable power overlay
-            VirtualKeyCode::P =>  {
-                toggle_camera_power_overlay(&mut game_state.ecs);
-            },
             //Camera freelook
             VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, 1),
             VirtualKeyCode::E => delta_camera = Vector3i::new(0, 0, -1),
@@ -293,12 +292,27 @@ fn is_entity_blocked(blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>,
     return false;
 }
 
-pub fn handle_other_input(ecs: &mut World, key: VirtualKeyCode) {
+pub fn toggle_power_overlay(ecs: &mut World) {
+    let mut players = ecs.write_storage::<Player>();
+    let player_positions = ecs.read_storage::<Vector3i>();
+
+    for (_, player) in (&player_positions, &mut players).join() {
+        println!("{}", player.power_overlay);
+        player.power_overlay = !player.power_overlay;
+    }
+}
+
+
+pub fn handle_other_input(ecs: &mut World, key: VirtualKeyCode, sending_state: RunState) -> RunState {
     match key {
+        //Main menu
+        VirtualKeyCode::Escape =>  return RunState::SaveGame,
+
         //Enable power overlay
         VirtualKeyCode::P =>  {
-            toggle_camera_power_overlay(ecs);
+            toggle_power_overlay(ecs);
+            sending_state
         },
-        _ => {}  
+        _ => { sending_state }  
     }
 }

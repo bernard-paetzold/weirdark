@@ -360,13 +360,15 @@ pub fn breaker_box(ecs: &mut World, position: Vector3i) {
     ))
     .with(Photometry::new())
     .with(BreakerBox {})
+    .with(Name::new("Breaker box".to_string()))
+    .with(PowerSwitch::new(true))
     .with(PowerNode::new())
     .marked::<SimpleMarker<SerializeThis>>()
     .build();
 }
 
 
-pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_position: Vector3i, roof_preferred: bool) {
+pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_position: Vector3i, color: RGBA, color_name: String, roof_preferred: bool) {
     let path;
     if start_position.z == end_position.z {
         path = find_walkable_path(map, start_position, end_position);
@@ -391,7 +393,7 @@ pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_posit
             let wires = ecs.read_storage::<Wire>();
 
             for (_, _) in (&wires, &positions).join()
-            .filter(|(_, x)| *x == position) {
+            .filter(|(wire, x)| wire.color_name == color_name && *x == position) {
                 wire_present = true;
             }
         }
@@ -430,12 +432,12 @@ pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_posit
         .with(Renderable::new(
             char_to_glyph(char),
             char_to_glyph(char),
-            RGB::named(rltk::RED).to_rgba(1.0),
+            color,
             RGB::named(rltk::BLACK).to_rgba(0.0),
         ))
         .with(Photometry::new())
-        .with(Name::new("Wire".to_string()))
-        .with(Wire::new())
+        .with(Name::new(format!("Wire ({})", color_name.clone())))
+        .with(Wire::new(color, color_name.clone()))
         .with(EntityDirection::new(direction))
         .with(PowerNode::new())
         .marked::<SimpleMarker<SerializeThis>>()

@@ -1,4 +1,4 @@
-use crate::{vectors::Vector3i, Tile};
+use crate::{vectors::Vector3i, Tile, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH};
 use bimap::BiMap;
 use serde::{Deserialize, Serialize};
 use specs::Entity;
@@ -31,3 +31,7 @@ impl Map {
 }
 
 pub mod components;
+
+pub fn mouse_to_map(mouse_position: (i32, i32), viewport_position: Vector3i) -> Vector3i {
+    Vector3i::new(mouse_position.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_position.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, viewport_position.z)
+}

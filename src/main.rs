@@ -28,7 +28,8 @@ const GUI_FONT: &str = "terminal8x8.png";
 
 const TERMINAL_WIDTH: i32 = 160;
 const TERMINAL_HEIGHT: i32 = 90;
-const MAP_SCREEN_WIDTH: i32 = 160;
+const INTERACT_MENU_WIDTH: i32 = 35;
+const MAP_SCREEN_WIDTH: i32 = TERMINAL_WIDTH - INTERACT_MENU_WIDTH;
 const MAP_SCREEN_HEIGHT: i32 = 80;
 const MAP_SIZE: i32 = 100;
 
@@ -58,14 +59,14 @@ pub struct State {
 
 impl State {
     fn run_systems(&mut self) {
-        use std::time::Instant;
-        let now = Instant::now();
+        //use std::time::Instant;
+        //let now = Instant::now();
 
         self.dispatcher.run_now(&mut self.ecs);
 
 
-        let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed);
+        //let elapsed = now.elapsed();
+        //println!("Elapsed: {:.2?}", elapsed);
 
         self.ecs.maintain();
     }
@@ -160,9 +161,7 @@ impl GameState for State {
                 }
             },
             RunState::HandleOtherInput { next_runstate, key } => {
-                handle_other_input(&mut self.ecs, key);
-
-                new_runstate = (*next_runstate).clone();
+                new_runstate = handle_other_input(&mut self.ecs, key, (*next_runstate).clone());
             }
         }
 

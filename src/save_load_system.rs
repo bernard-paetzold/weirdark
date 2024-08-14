@@ -9,7 +9,8 @@ use specs::error::NoError;
 use specs::{Entity, Join};
 use specs::{saveload::{MarkedBuilder, SimpleMarker}, Builder, World, WorldExt};
 
-use crate::{Camera, TERMINAL_HEIGHT, TERMINAL_WIDTH};
+use crate::entities::power_components::{BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
+use crate::{Camera, EntityDirection, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 use crate::{vectors::Vector3i, Illuminant, Name, Photometry, Player, Renderable, SerializationHelper, SerializeThis, Tile, Viewshed};
 
 
@@ -51,6 +52,13 @@ pub fn save_game(ecs: &mut World) {
             Name,
             Tile,
             Camera,
+            PowerNode,
+            PowerSource,
+            PoweredState,
+            PowerSwitch,
+            Wire,
+            BreakerBox,
+            EntityDirection,
             SerializationHelper
         );
     }
@@ -108,6 +116,13 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             Name,
             Tile,
             Camera,
+            PowerNode,
+            PowerSource,
+            PoweredState,
+            PowerSwitch,
+            Wire,
+            BreakerBox,
+            EntityDirection,
             SerializationHelper
         );
     }

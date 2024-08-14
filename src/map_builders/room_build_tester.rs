@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use rltk::RGB;
 use specs::World;
 
-use crate::{spawner::{self, lay_wiring}, vectors::Vector3i, Map, Tile};
+use crate::{spawner::{self, lay_wiring, CEILING_LAMP_RANGE}, vectors::Vector3i, Map, Tile};
 
 use super::{common::rand_wall_adj_tile, MapBuilder};
 
@@ -55,7 +55,7 @@ impl RoomTestMapBuilder {
             }
         }
     }
-    pub fn spawn_room_entities(&mut self, ecs: &mut World, size: Vector3i, power_systems: bool, ceiling_light: bool, power_source: bool) {
+    pub fn spawn_room_entities(&mut self, ecs: &mut World, size: Vector3i, power_systems: bool, ceiling_lights: bool, power_source: bool) {
         let x_lower_limit = self.start_position.x - size.x / 2 + 1;
         //let x_upper_limit = self.start_position.x + size.x / 2 - 1;
 
@@ -76,10 +76,17 @@ impl RoomTestMapBuilder {
 
             occupied_tiles.insert(breaker_position);
 
-            if ceiling_light {
-                let ceiling_light_position = Vector3i::new(x_lower_limit , y_lower_limit, z_upper_limit);
-                spawner::ceiling_lamp(ecs, ceiling_light_position, 1.0, RGB::named(rltk::WHITE).to_rgba(1.0), true);
-                device_positions.push(ceiling_light_position)
+            if ceiling_lights {
+                let columns = size.x / (CEILING_LAMP_RANGE / 2) as i32;
+                let rows = size.y / (CEILING_LAMP_RANGE / 2) as i32;
+
+                for x in 0..columns{
+                    for y in 0..rows {
+                        let ceiling_light_position = Vector3i::new(x * (size.x / columns) - self.start_position.x / 3, y * (size.y / rows) - self.start_position.y / 3, z_upper_limit);
+                        spawner::ceiling_lamp(ecs, ceiling_light_position, 1.0, RGB::named(rltk::WHITE).to_rgba(1.0), true);
+                        device_positions.push(ceiling_light_position);
+                    }
+                }
             }
 
             if power_source {
@@ -91,6 +98,13 @@ impl RoomTestMapBuilder {
                 } 
                 spawner::power_source(ecs, power_source_position, true, 100.0);
                 lay_wiring(ecs, self.get_map(), power_source_position, breaker_position, RGB::named(rltk::BLUE).to_rgba(1.0), "blue".to_string(), true);
+
+                loop  {
+                    power_source_position = rand_wall_adj_tile(self.start_position, size);
+                    if !occupied_tiles.contains(&power_source_position) { break; }
+                } 
+                spawner::power_source(ecs, power_source_position, true, 50.0);
+                lay_wiring(ecs, self.get_map(), power_source_position, breaker_position, RGB::named(rltk::ORANGE).to_rgba(1.0), "orange".to_string(), true);
             }
 
             while let  Some(position) = device_positions.pop() {
@@ -102,11 +116,11 @@ impl RoomTestMapBuilder {
 
 impl MapBuilder for RoomTestMapBuilder {
     fn build_map(&mut self) {
-        self.build_room(Vector3i::new(15, 20, 4));
+        self.build_room(Vector3i::new(30, 30, 4));
     }
 
     fn spawn_entities(&mut self, ecs: &mut World) {
-        self.spawn_room_entities(ecs, Vector3i::new(15, 20, 4), true, true, true);
+        self.spawn_room_entities(ecs, Vector3i::new(15, 15, 4), true, true, true);
     }
 
     fn get_map(&mut self) -> Map {

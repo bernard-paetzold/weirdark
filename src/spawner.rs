@@ -61,6 +61,8 @@ pub fn standing_lamp(ecs: &mut World, name: String, position: Vector3i, intensit
         .build()
 }
 
+pub const CEILING_LAMP_RANGE: usize = 30;
+
 pub fn ceiling_lamp(ecs: &mut World, position: Vector3i, intensity: f32, color: RGBA, on: bool) -> Entity {
     ecs.create_entity()
         .with(position)
@@ -70,11 +72,11 @@ pub fn ceiling_lamp(ecs: &mut World, position: Vector3i, intensity: f32, color: 
             RGB::named(rltk::ANTIQUEWHITE4).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
         ))
-        .with(Viewshed::new(30, 3, 1.0))
+        .with(Viewshed::new(CEILING_LAMP_RANGE, 3, 1.0))
         .with(Photometry::new())
         .with(Illuminant::new(
             intensity,
-            30,
+            CEILING_LAMP_RANGE,
             color,
             PI * 2.0,
             false,

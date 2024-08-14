@@ -234,11 +234,9 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
             for (entity, position) in (&entities, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
                 //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {                
-                if position.x == target.x && position.y == target.y && (position.z == target.z) {   
-                    println!("Get");             
+                if position.x == target.x && position.y == target.y && (position.z == target.z) {               
                     interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
                     tile_entities.push(entity);
-
 
                     //Handle breaker boxes or other entities that control interactions off tile
                     if let Some(_) = breaker_boxes.get(entity) {
@@ -348,40 +346,44 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     if interactables.len() > 0 {
         let interaction_menu_height = (tile_entities.len() * 4) + (interactables.len());
 
-        ctx.draw_hollow_box(MAP_SCREEN_WIDTH, interactable_menu_y, INTERACT_MENU_WIDTH - 2, interaction_menu_height, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
-        ctx.print_color(MAP_SCREEN_WIDTH + 1, interactable_menu_y + 1, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), "Interactables:");
+        if interactable_menu_y < TERMINAL_HEIGHT - entity_menu_y {
+            
         
-        let mut y = 3;
-        let mut count = 0;
-        let mut prev_id = MAX;
+            ctx.draw_hollow_box(MAP_SCREEN_WIDTH, interactable_menu_y, INTERACT_MENU_WIDTH - 2, interaction_menu_height, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
+            ctx.print_color(MAP_SCREEN_WIDTH + 1, interactable_menu_y + 1, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), "Interactables:");
+            
+            let mut y = 3;
+            let mut count = 0;
+            let mut prev_id = MAX;
 
-        for (_interaction_id, interaction_name, listing_id, entity_id) in interactables.iter() {
-            let interactable_entity = entities.entity(*entity_id);
-            let renderable = renderables.get(interactable_entity);
-            let name = names.get(interactable_entity);
+            for (_interaction_id, interaction_name, listing_id, entity_id) in interactables.iter() {
+                let interactable_entity = entities.entity(*entity_id);
+                let renderable = renderables.get(interactable_entity);
+                let name = names.get(interactable_entity);
 
-            if y < 100 {
-                if *listing_id != prev_id {
-                    let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
-                    let mut entity_name = "{unknown}".to_string();
+                if y < 50 {
+                    if *listing_id != prev_id {
+                        let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                        let mut entity_name = "{unknown}".to_string();
 
-                    if let Some(renderable) = renderable {
-                        color = renderable.foreground;
+                        if let Some(renderable) = renderable {
+                            color = renderable.foreground;
+                        }
+                        if let Some(name) = name {
+                            entity_name = name.name.to_string();
+                        }
+                        y += 1;
+                            ctx.print_color(MAP_SCREEN_WIDTH + 1, 
+                                interactable_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}:", entity_name));
+
+                        y += 2;
+                        prev_id = *listing_id;
+                            
                     }
-                    if let Some(name) = name {
-                        entity_name = name.name.to_string();
-                    }
+                    ctx.print(MAP_SCREEN_WIDTH + 2, interactable_menu_y + y, format!("<{}> {}", to_char(97 + count), format!("{}", interaction_name)));
                     y += 1;
-                        ctx.print_color(MAP_SCREEN_WIDTH + 1, 
-                            interactable_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}:", entity_name));
-
-                    y += 2;
-                    prev_id = *listing_id;
-                        
+                    count += 1;
                 }
-                ctx.print(MAP_SCREEN_WIDTH + 2, interactable_menu_y + y, format!("<{}> {}", to_char(97 + count), format!("{}", interaction_name)));
-                y += 1;
-                count += 1;
             }
         }
     }

@@ -265,10 +265,11 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     }
 
     const ENTITY_FIELDS: usize = 20;
+    const MAX_ENTITY_MENU_HEIGHT: usize = 30;
 
     if tile_entities.len() > 0 {
         let mut render_menu = false;
-        let entity_menu_height = tile_entities.len() * ENTITY_FIELDS;    
+        let entity_menu_height = (tile_entities.len() * ENTITY_FIELDS).min(MAX_ENTITY_MENU_HEIGHT);    
         let mut y = 3;
         let mut prev_id = MAX;
 
@@ -276,64 +277,93 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
             let renderable = renderables.get(*entity);
             let name = names.get(*entity);
 
-            if entity.id() != prev_id {
-                let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
+            if y < MAX_ENTITY_MENU_HEIGHT as i32 - 5 {
 
-                if let Some(renderable) = renderable {
-                    color = renderable.foreground;
+                if entity.id() != prev_id {
+                    let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
 
-                    if color.r < 0.1 && color.g < 0.1 && color.b < 0.1 {
-                        color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                    if let Some(renderable) = renderable {
+                        color = renderable.foreground;
+
+                        if color.r < 0.1 && color.g < 0.1 && color.b < 0.1 {
+                            color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                        }
                     }
-                }
-                if let Some(name) = name {
-                    let entity_name = name.name.to_string();
+                    if let Some(name) = name {
+                        let entity_name = name.name.to_string();
 
+                        y += 1;
+                        ctx.print_color(MAP_SCREEN_WIDTH + 1, 
+                            entity_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}", entity_name));
+                        y += 2;
+
+                        render_menu = true;
+                    }
+
+                    prev_id = entity.id();
+                        
+                }
+                if let Some(renderable) = renderables.get(*entity) {
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Glyphs: {}, {}", to_char(renderable.top_glyph as u8), to_char(renderable.side_glyph as u8)));
                     y += 1;
-                    ctx.print_color(MAP_SCREEN_WIDTH + 1, 
-                        entity_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}", entity_name));
-                    y += 2;
-
-                    render_menu = true;
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Color: ({:.2},{:.2},{:.2})", renderable.foreground.r, renderable.foreground.g, renderable.foreground.b));
+                    y += 1;
                 }
+                if let Some(powered_state) = power_states.get(*entity) {
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power on: {}", powered_state.state_description()));
+                    y += 1;
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", powered_state.available_wattage));
+                    y += 1;
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power draw: {}", powered_state.wattage));
+                    y += 1;
 
-                prev_id = entity.id();
-                    
+                }
+                if let Some(wire) = wires.get(*entity) {
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", wire.available_wattage));
+                    y += 1;
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power load: {}", wire.power_load));
+                    y += 1;
+                }
+                if let Some(power_switch) = power_switches.get(*entity) {
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power switch: {}", power_switch.state_description()));
+                    y += 1;
+                }
+                if let Some(power_source) = power_sources.get(*entity) {
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power capacity: {}", power_source.max_wattage));
+                    y += 1;
+                }
+                if let Some(node) = nodes.get(*entity) {
+                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Network: {}", node.network_id));
+                    y += 1;
+                }
             }
-            if let Some(renderable) = renderables.get(*entity) {
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Glyphs: {}, {}", to_char(renderable.top_glyph as u8), to_char(renderable.side_glyph as u8)));
-                y += 1;
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Color: ({:.2},{:.2},{:.2})", renderable.foreground.r, renderable.foreground.g, renderable.foreground.b));
-                y += 1;
-            }
-            if let Some(powered_state) = power_states.get(*entity) {
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power on: {}", powered_state.state_description()));
-                y += 1;
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", powered_state.available_wattage));
-                y += 1;
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power draw: {}", powered_state.wattage));
-                y += 1;
+            else {
+                //If the list gets too long just print the entity name
+                if entity.id() != prev_id {
+                    let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
 
+                    if let Some(renderable) = renderable {
+                        color = renderable.foreground;
+
+                        if color.r < 0.1 && color.g < 0.1 && color.b < 0.1 {
+                            color = RGB::named(rltk::WHITE).to_rgba(1.0);
+                        }
+                    }
+                    if let Some(name) = name {
+                        let entity_name = name.name.to_string();
+
+                        y += 1;
+                        ctx.print_color(MAP_SCREEN_WIDTH + 1, 
+                            entity_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}", entity_name));
+                        y += 2;
+
+                        render_menu = true;
+                    }
+
+                    prev_id = entity.id();
+                        
+                }
             }
-            if let Some(wire) = wires.get(*entity) {
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", wire.available_wattage));
-                y += 1;
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power load: {}", wire.power_load));
-                y += 1;
-            }
-            if let Some(power_switch) = power_switches.get(*entity) {
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power switch: {}", power_switch.state_description()));
-                y += 1;
-            }
-            if let Some(power_source) = power_sources.get(*entity) {
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power capacity: {}", power_source.max_wattage));
-                y += 1;
-            }
-            if let Some(node) = nodes.get(*entity) {
-                ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Network: {}", node.network_id));
-                y += 1;
-            }
-            
         }
 
         if render_menu {

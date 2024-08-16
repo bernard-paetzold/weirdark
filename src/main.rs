@@ -1,4 +1,6 @@
 
+use entities::atmospherics::Atmosphere;
+use entities::biology::Breather;
 use entities::power_components::{BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use graphics::render_map;
 use rltk::{GameState, Rltk};
@@ -222,6 +224,10 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<PowerSwitch>();
     game_state.ecs.register::<PowerNode>();
     game_state.ecs.register::<BreakerBox>();
+
+    //Atmospherics
+    game_state.ecs.register::<Atmosphere>();
+    game_state.ecs.register::<Breather>();
 
 
     let player_start_position = Vector3i::new(0, 0, 10);

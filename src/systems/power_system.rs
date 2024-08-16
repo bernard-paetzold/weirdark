@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use rltk::RandomNumberGenerator;
-use specs::{prelude::*, storage::GenericReadStorage};
+use specs::prelude::*;
 
 use crate::{
-    entities::power_components::BreakerBox, vectors::{utils::{get_cardinal_neighbours_with_z, position_in_over_under}, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire
+    entities::power_components::BreakerBox, vectors::{utils::get_cardinal_neighbours_with_z, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire
 };
 
 pub struct PowerSystem {}
@@ -81,17 +81,7 @@ impl<'a> System<'a> for PowerSystem {
 
                 for neighbour in neighbours.into_iter() {
                     if !visited_wire_positions.contains(&neighbour) {
-                        for (wire, position, node) in (&wires, &positions, &nodes).join().filter(|(_, x, _)| **x == neighbour) {                   
-                            /*if let Some((breaker_box, switch, _)) = (&breaker_boxes, &power_switches, &positions).join().filter(|(_, _, x)| *x == position).next() {
-                                if switch.on {
-                                    unchanged_wires.push(neighbour);
-                                    prev_color = wire.color_name.clone();
-                                }
-                            }
-                            else if wire.color_name == prev_color {
-                                unchanged_wires.push(neighbour);
-                                prev_color = wire.color_name.clone();
-                            }*/
+                        for (_, _, _) in (&wires, &positions, &nodes).join().filter(|(_, x, _)| **x == neighbour) {                   
                             unchanged_wires.push(neighbour);
                         }    
                     }
@@ -225,7 +215,7 @@ impl<'a> System<'a> for PowerSystem {
                         prev_colors.insert(start_wire.color_name.clone());
                 
                         while let Some(wire_position) = unchanged_wires.pop() {
-                            for (current_wire, current_position, _) in (&wires, &positions, &entities).join()
+                            for (_, current_position, _) in (&wires, &positions, &entities).join()
                             .filter(|(wire, x, entity)| **x == wire_position && prev_colors.contains(&wire.color_name)
                             && wire_entites.contains(entity)) {
                                 visited_power_wires.insert(current_position);
@@ -328,43 +318,4 @@ pub fn get_devices_on_network(ecs: &World, network_entity: Entity) -> Vec<(usize
         }
     }
     interactables
-}
-
-pub fn get_connected_wires(start_wire: Wire, position: Vector3i) {
-    /*let mut unchanged_wires = vec!(position);
-                
-    let mut prev_color = HashSet::new();
-    prev_color.insert(start_wire.color_name.clone());
-
-    let mut visited_power_wires = HashSet::new();
-
-    while let Some(wire_position) = unchanged_wires.pop() {
-
-        //Add all wires on the current position
-        for (current_wire, current_position) in (&mut wires, &positions).join()
-        .filter(|(_, x)| **x == wire_position) {
-            total_draw += current_wire.power_load;
-            visited_power_wires.insert(current_position);
-        }
-
-        let neighbours = get_cardinal_neighbours_with_z(wire_position);
-
-        for neighbour in neighbours.into_iter() {
-            if !visited_power_wires.contains(&neighbour) {
-
-                for (wire, position) in (&wires, &positions).join().filter(|(_, x)| **x == neighbour) {
-                    if let Some((_, switch, _)) = (&breaker_boxes, &power_switches, &positions).join().filter(|(_, _, x)| *x == position).next() {
-                        if switch.on {
-                            unchanged_wires.push(neighbour);
-                            prev_color.insert(wire.color_name.clone());
-                        }
-                    }
-                    else if prev_color.contains(&wire.color_name) {
-                        unchanged_wires.push(neighbour);
-                        prev_color.insert(wire.color_name.clone());
-                    }
-                }    
-            }
-        }                        
-    }*/
 }

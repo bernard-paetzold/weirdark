@@ -1,3 +1,4 @@
+use crate::entities::atmospherics::Atmosphere;
 use crate::graphics::char_to_glyph;
 use crate::Renderable;
 use crate::Photometry;
@@ -15,25 +16,38 @@ pub struct Tile {
     pub renderable: Renderable, 
     pub name: String,
     pub photometry: Photometry,
+    pub atmosphere: Atmosphere,
 }
 
 impl Tile {
-    pub fn new(passable: bool, opaque: bool, top_glyph: u16, side_glyph: u16, foreground: RGBA, background: RGBA, name: String) -> Tile {
+    pub fn new(passable: bool, opaque: bool, top_glyph: u16, side_glyph: u16, foreground: RGBA, background: RGBA, atmosphere: Atmosphere, name: String) -> Tile {  
         Tile {
             passable,
             opaque,
             renderable: Renderable::new(top_glyph, side_glyph, foreground, background),
             photometry: Photometry::new(),
+            atmosphere,
             name,
         }
     }
-    pub fn new_empty() -> Tile {
+    pub fn new_empty_stp() -> Tile {
         Tile {
             passable: true,
             opaque: false,
             renderable: Renderable::new(char_to_glyph(' '), char_to_glyph(' '), RGB::named(rltk::WHITE).to_rgba(0.0), RGB::named(rltk::WHITE).to_rgba(0.0)),
             photometry: Photometry::new(),
-            name: "empty space".to_string(),
+            atmosphere: Atmosphere::new_stp(),
+            name: "Empty space".to_string(),
+        }
+    }
+    pub fn new_vacuume() -> Tile {
+        Tile {
+            passable: true,
+            opaque: false,
+            renderable: Renderable::new(char_to_glyph(' '), char_to_glyph(' '), RGB::named(rltk::WHITE).to_rgba(0.0), RGB::named(rltk::WHITE).to_rgba(0.0)),
+            photometry: Photometry::new(),
+            atmosphere: Atmosphere::new_vacuume(),
+            name: "Vacuume".to_string(),
         }
     }
 }

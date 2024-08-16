@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Mutex};
 use rltk::prelude::*;
-use crate::{graphics::char_to_glyph, Tile};
+use crate::{entities::atmospherics::Atmosphere, graphics::char_to_glyph, Tile};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -14,6 +14,7 @@ pub fn initalise() {
         char_to_glyph('█'),
         RGB::named(rltk::SKYBLUE).to_rgba(0.5),
         RGB::named(rltk::BLACK).to_rgba(1.0),
+        Atmosphere::new_vacuume(),
         "Glass hull section".to_string()));
 
     TILES.lock().unwrap().insert("hull".to_string(), 
@@ -24,10 +25,11 @@ pub fn initalise() {
         char_to_glyph('█'),
         RGB::named(rltk::WHITE).to_rgba(1.0),
         RGB::named(rltk::BLACK).to_rgba(1.0),
+        Atmosphere::new_vacuume(),
         "Hull section".to_string(),
     ));
     
-    TILES.lock().unwrap().insert("open_space".to_string(), 
+    TILES.lock().unwrap().insert("breathable_atmosphere".to_string(), 
     Tile::new(
         true,
         false,
@@ -35,7 +37,19 @@ pub fn initalise() {
         char_to_glyph(' '),
         RGB::named(rltk::WHITE).to_rgba(0.0),
         RGB::named(rltk::BLACK).to_rgba(0.0),
-        "Open space".to_string()));
+        Atmosphere::new_stp(),
+        "Empty space".to_string()));
+
+    TILES.lock().unwrap().insert("vacuume".to_string(), 
+    Tile::new(
+        true,
+        false,
+        char_to_glyph(' '),
+        char_to_glyph(' '),
+        RGB::named(rltk::WHITE).to_rgba(0.0),
+        RGB::named(rltk::BLACK).to_rgba(0.0),
+        Atmosphere::new_vacuume(),
+        "Vacuume".to_string()));
 }
 
 pub fn get_tile(tile_type: &str) -> Option<Tile> {

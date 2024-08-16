@@ -262,6 +262,14 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 2, format!("Glyphs: {}, {}", to_char(target_tile.renderable.top_glyph as u8), to_char(target_tile.renderable.side_glyph as u8)));
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 3, format!("Light level: {:.2}", target_tile.photometry.light_level));
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 4, format!("Color: ({:.2},{:.2},{:.2})", target_tile.renderable.foreground.r, target_tile.renderable.foreground.g, target_tile.renderable.foreground.b));
+        
+        let mut count = 0;
+        for (gas, mols) in &target_tile.atmosphere.gasses {
+            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.5}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            count += 1;
+        }
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2}", target_tile.atmosphere.get_pressure()));
     }
 
     const ENTITY_FIELDS: usize = 20;
@@ -376,7 +384,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
     if interactables.len() > 0 {
         let interaction_menu_height = (tile_entities.len() * 4) + (interactables.len());
 
-        if interactable_menu_y < TERMINAL_HEIGHT - entity_menu_y {
+        if interactable_menu_y < TERMINAL_HEIGHT {
             
         
             ctx.draw_hollow_box(MAP_SCREEN_WIDTH, interactable_menu_y, INTERACT_MENU_WIDTH - 2, interaction_menu_height, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));

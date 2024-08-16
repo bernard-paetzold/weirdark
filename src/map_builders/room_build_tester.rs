@@ -21,13 +21,13 @@ impl RoomTestMapBuilder {
     }
 
     pub fn build_room(&mut self, size: Vector3i) {
-        let mut hull = Tile::new_empty();
+        let mut hull = Tile::new_empty_stp();
         if let Some(tile) = crate::tile_blueprints::get_tile("hull") { hull = tile; }
 
         //let mut glass_hull= Tile::new_empty();
         //if let Some(tile) = crate::tile_blueprints::get_tile("glass_hull") { glass_hull = tile; }
 
-        let mut open_space= Tile::new_empty();
+        let mut open_space= Tile::new_empty_stp();
         if let Some(tile) = crate::tile_blueprints::get_tile("open_space") { open_space = tile; }
 
         let x_lower_limit = self.start_position.x - size.x / 2;

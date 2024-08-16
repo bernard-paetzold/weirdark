@@ -23,33 +23,14 @@ impl SystemTestMapBuilder {
     }
 
     pub fn rooms_and_corridor(&mut self) {
-        let glass_wall: Tile = Tile::new(false,false,
-            char_to_glyph('█'),
-            char_to_glyph('█'),
-            RGB::named(rltk::SKYBLUE).to_rgba(0.5),
-            RGB::named(rltk::BLACK).to_rgba(1.0),
-            "Glass hull section".to_string(),
-        );
-        
-        let hull_section: Tile = Tile::new(
-            false,
-            true,
-            char_to_glyph('░'),
-            char_to_glyph('█'),
-            RGB::named(rltk::WHITE).to_rgba(1.0),
-            RGB::named(rltk::BLACK).to_rgba(1.0),
-            "Hull section".to_string(),
-        );
+        let mut hull_section = Tile::new_empty_stp();
+        if let Some(tile) = crate::tile_blueprints::get_tile("hull") { hull_section = tile; }
 
-        let open_space = Tile::new(
-            true,
-            false,
-            char_to_glyph(' '),
-            char_to_glyph(' '),
-            RGB::named(rltk::WHITE).to_rgba(0.0),
-            RGB::named(rltk::BLACK).to_rgba(0.0),
-            "Open space".to_string(),
-        );
+        let mut glass_hull= Tile::new_empty_stp();
+        if let Some(tile) = crate::tile_blueprints::get_tile("glass_hull") { glass_hull = tile; }
+
+        let mut open_space= Tile::new_empty_stp();
+        if let Some(tile) = crate::tile_blueprints::get_tile("open_space") { open_space = tile; }
 
         //Rooms
         for x in self.start_position.x - ROOM_SIZE / 2..self.start_position.x + ROOM_SIZE / 2 + 1 {
@@ -115,12 +96,12 @@ impl SystemTestMapBuilder {
                     if (x > self.start_position.x + ROOM_SIZE / 2 && x < self.start_position.x + ROOM_SIZE / 2 + CORRIDOR_LENGTH) && (y == self.start_position.y - CORRIDOR_WIDTH / 2 || y == self.start_position.y + CORRIDOR_WIDTH / 2) {
                         self.map.tiles.insert(
                             Vector3i::new(x, y, z),
-                            glass_wall.clone(),
+                            glass_hull.clone(),
                         );
                         
                         self.map.tiles.insert(
                             Vector3i::new(x, y, z + 1),
-                            glass_wall.clone(),
+                            glass_hull.clone(),
                         );
                     }
                     else if z == self.start_position.z {
@@ -162,27 +143,27 @@ impl SystemTestMapBuilder {
             let target_position = Vector3i::new(self.start_position.x + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
             );
 
             let target_position = Vector3i::new(self.start_position.x + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
 
             );
 
             let target_position = Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
 
             );
 
             let target_position = Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
 
             );
         }
@@ -191,28 +172,28 @@ impl SystemTestMapBuilder {
             let target_position = Vector3i::new(self.start_position.x + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
 
             );
 
             let target_position = Vector3i::new(self.start_position.x + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
 
             );
 
             let target_position = Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
 
             );
 
             let target_position = Vector3i::new(self.start_position.x + CORRIDOR_LENGTH + ROOM_SIZE / 2, self.start_position.y + y, self.start_position.z + 1);
             self.map.tiles.insert(
                 target_position,
-                glass_wall.clone(),
+                glass_hull.clone(),
 
             );
         }

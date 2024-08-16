@@ -1,10 +1,13 @@
 pub use lighting_system::LightingSystem;
-use map_index_system::MapIndexSystem;
+//use map_index_system::MapIndexSystem;
 use power_system::PowerSystem;
 use specs::prelude::World;
 use state_align_system::StateAlignSystem;
 use visibility_system::VisibilitySystem;
 use interaction_system::InteractionSystem;
+
+use atmosphere_system::AtmosphereSystem;
+use biology_system::BiologySystem;
 
 use super::*;
 
@@ -18,7 +21,9 @@ pub trait UnifiedDispatcher {
 }
 
 construct_dispatcher!(
-    (MapIndexSystem, "map_index", &[]),
+    //(MapIndexSystem, "map_index", &[]),
+    (AtmosphereSystem, "atmosphere", &[]),
+    (BiologySystem, "biology", &[]),
     (InteractionSystem, "interaction", &[]),
     (StateAlignSystem, "state_align", &[]),
     (PowerSystem, "power", &[]),

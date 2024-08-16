@@ -28,7 +28,7 @@ impl RoomTestMapBuilder {
         //if let Some(tile) = crate::tile_blueprints::get_tile("glass_hull") { glass_hull = tile; }
 
         let mut open_space= Tile::new_empty_stp();
-        if let Some(tile) = crate::tile_blueprints::get_tile("open_space") { open_space = tile; }
+        if let Some(tile) = crate::tile_blueprints::get_tile("vacuume") { open_space = tile; }
 
         let x_lower_limit = self.start_position.x - size.x / 2;
         let x_upper_limit = self.start_position.x + size.x / 2;
@@ -55,7 +55,7 @@ impl RoomTestMapBuilder {
             }
         }
     }
-    pub fn spawn_room_entities(&mut self, ecs: &mut World, size: Vector3i, power_systems: bool, ceiling_lights: bool, power_source: bool) {
+    pub fn spawn_room_entities(&mut self, ecs: &mut World, size: Vector3i, power_systems: bool, ceiling_lights: bool, power_source: bool, heater: bool) {
         let x_lower_limit = self.start_position.x - size.x / 2 + 1;
         //let x_upper_limit = self.start_position.x + size.x / 2 - 1;
 
@@ -77,16 +77,17 @@ impl RoomTestMapBuilder {
             occupied_tiles.insert(breaker_position);
 
             if ceiling_lights {
-                let columns = size.x / (CEILING_LAMP_RANGE / 2) as i32;
+                let ceiling_light_position = Vector3i::new(self.start_position.x, self.start_position.y, z_upper_limit);
+                spawner::ceiling_lamp(ecs, ceiling_light_position, 1.0, RGB::named(rltk::WHITE).to_rgba(1.0), true);
+                device_positions.push(ceiling_light_position);
+                /*let columns = size.x / (CEILING_LAMP_RANGE / 2) as i32;
                 let rows = size.y / (CEILING_LAMP_RANGE / 2) as i32;
 
                 for x in 0..columns{
                     for y in 0..rows {
                         let ceiling_light_position = Vector3i::new(x * (size.x / columns) - self.start_position.x / 3, y * (size.y / rows) - self.start_position.y / 3, z_upper_limit);
-                        spawner::ceiling_lamp(ecs, ceiling_light_position, 1.0, RGB::named(rltk::WHITE).to_rgba(1.0), true);
-                        device_positions.push(ceiling_light_position);
                     }
-                }
+                }*/
             }
 
             if power_source {
@@ -96,15 +97,19 @@ impl RoomTestMapBuilder {
                     power_source_position = rand_wall_adj_tile(self.start_position, size);
                     if !occupied_tiles.contains(&power_source_position) { break; }
                 } 
-                spawner::power_source(ecs, power_source_position, true, 100.0);
+                spawner::power_source(ecs, power_source_position, true, 1100.0);
                 lay_wiring(ecs, self.get_map(), power_source_position, breaker_position, RGB::named(rltk::BLUE).to_rgba(1.0), "blue".to_string(), true);
+            }
+
+            if heater {
+                let mut heater_position;
 
                 loop  {
-                    power_source_position = rand_wall_adj_tile(self.start_position, size);
-                    if !occupied_tiles.contains(&power_source_position) { break; }
+                    heater_position = rand_wall_adj_tile(self.start_position, size);
+                    if !device_positions.contains(&heater_position) { break; }
                 } 
-                spawner::power_source(ecs, power_source_position, true, 50.0);
-                lay_wiring(ecs, self.get_map(), power_source_position, breaker_position, RGB::named(rltk::ORANGE).to_rgba(1.0), "orange".to_string(), true);
+                //spawner::heater(ecs, heater_position, 300.0, true);
+                //lay_wiring(ecs, self.get_map(), heater_position, breaker_position, RGB::named(rltk::RED).to_rgba(1.0), "red".to_string(), true);
             }
 
             while let  Some(position) = device_positions.pop() {
@@ -116,11 +121,11 @@ impl RoomTestMapBuilder {
 
 impl MapBuilder for RoomTestMapBuilder {
     fn build_map(&mut self) {
-        self.build_room(Vector3i::new(30, 30, 4));
+        self.build_room(Vector3i::new(11, 11, 4));
     }
 
     fn spawn_entities(&mut self, ecs: &mut World) {
-        self.spawn_room_entities(ecs, Vector3i::new(15, 15, 4), true, true, true);
+        self.spawn_room_entities(ecs, Vector3i::new(5, 5, 4), true, true, true, true);
     }
 
     fn get_map(&mut self) -> Map {

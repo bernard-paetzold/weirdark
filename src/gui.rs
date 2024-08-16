@@ -44,6 +44,8 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
         y += 1;
     }
 
+    let viewport_position = get_viewport_position(&ecs);
+
     if draw_pointer {
         let mouse_position = ctx.mouse_pos();
 
@@ -61,10 +63,87 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
         }
 
         let player_pos = ecs.fetch::<Vector3i>();
-        let viewport_position = get_viewport_position(&ecs);
 
         let map_mouse_position = Vector3i::new(mouse_pos.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_pos.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, player_pos.z);
         draw_tooltips(ecs, ctx, map_mouse_position);
+    }
+
+    let target = ecs.read_resource::<Vector3i>();
+
+    //Draw interact menu
+
+    ctx.draw_box(
+        MAP_SCREEN_WIDTH - 1,
+        0,
+        INTERACT_MENU_WIDTH,
+        MAP_SCREEN_HEIGHT - 1,
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
+
+    let map = ecs.fetch::<Map>();
+
+    
+    let players = ecs.read_storage::<Player>();
+    let renderables = ecs.read_storage::<Renderable>();
+    let names = ecs.read_storage::<Name>();
+    let viewsheds = ecs.read_storage::<Viewshed>();
+    let positions = ecs.read_storage::<Vector3i>();
+    let power_states = ecs.read_storage::<PoweredState>();
+    let power_switches = ecs.read_storage::<PowerSwitch>();
+    let power_sources = ecs.read_storage::<PowerSource>();
+    let wires = ecs.read_storage::<Wire>();
+    let nodes = ecs.read_storage::<PowerNode>();
+    let breaker_boxes = ecs.read_storage::<BreakerBox>();
+    let entities = ecs.entities();
+
+    let player = get_player_entity(&entities, &players);
+
+    let mut interactables: Vec<(usize, String, u32, u32)> = Vec::new();
+    let mut tile_entities: Vec<Entity> = Vec::new();
+
+    let target_tile = map.tiles.get(&target);
+
+    if let Some(player_entity) = player {
+        if let Some(player_viewshed) = viewsheds.get(player_entity) {
+            for (entity, position) in (&entities, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
+                //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {                
+                if position.x == target.x && position.y == target.y && (position.z == target.z) {               
+                    interactables.append(&mut get_entity_interactions(&ecs, entity));
+                    tile_entities.push(entity);
+
+                    //Handle breaker boxes or other entities that control interactions off tile
+                    if let Some(_) = breaker_boxes.get(entity) {
+                        interactables.append(&mut get_devices_on_network(&ecs, entity));
+                    }
+                }
+            }
+        }
+    }
+
+    let mut entity_menu_y = 0;
+    let mut interactable_menu_y = 0;
+
+    let tile_info_y = 1;
+    const TILE_INFORMATION_MENU_HEIGHT: i32 = 10;
+
+    if let Some(target_tile) = target_tile {
+        entity_menu_y = TILE_INFORMATION_MENU_HEIGHT + 2;
+        interactable_menu_y = TILE_INFORMATION_MENU_HEIGHT + 2;
+
+        ctx.draw_hollow_box(MAP_SCREEN_WIDTH, tile_info_y, INTERACT_MENU_WIDTH - 2, TILE_INFORMATION_MENU_HEIGHT, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 1, format!("{}", target_tile.name.clone()));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 2, format!("Glyphs: {}, {}", to_char(target_tile.renderable.top_glyph as u8), to_char(target_tile.renderable.side_glyph as u8)));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 3, format!("Light level: {:.2}", target_tile.photometry.light_level));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 4, format!("Color: ({:.2},{:.2},{:.2})", target_tile.renderable.foreground.r, target_tile.renderable.foreground.g, target_tile.renderable.foreground.b));
+        
+        let mut count = 0;
+        for (gas, mols) in &target_tile.atmosphere.gasses {
+            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.5}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            count += 1;
+        }
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2}", target_tile.atmosphere.get_pressure()));
     }
 }
 

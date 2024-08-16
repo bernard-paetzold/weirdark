@@ -1,7 +1,7 @@
 
 use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
-use entities::power_components::{BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
+use entities::power_components::{BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use graphics::render_map;
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
@@ -228,6 +228,9 @@ fn main() -> rltk::BError {
     //Atmospherics
     game_state.ecs.register::<Atmosphere>();
     game_state.ecs.register::<Breather>();
+
+    //Temperature
+    game_state.ecs.register::<ElectronicHeater>();
 
 
     let player_start_position = Vector3i::new(0, 0, 10);

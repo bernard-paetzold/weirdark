@@ -4,7 +4,7 @@ use rltk::RandomNumberGenerator;
 use specs::prelude::*;
 
 use crate::{
-    entities::power_components::BreakerBox, vectors::{utils::get_cardinal_neighbours_with_z, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire
+    entities::{atmospherics::R, power_components::{BreakerBox, ElectronicHeater}}, vectors::{utils::get_cardinal_neighbours_with_z, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire
 };
 
 pub struct PowerSystem {}
@@ -21,12 +21,13 @@ impl<'a> System<'a> for PowerSystem {
         WriteStorage<'a, Wire>,
         WriteStorage<'a, PowerNode>,
         WriteStorage<'a, BreakerBox>,
+        WriteStorage<'a, ElectronicHeater>,
         Entities<'a>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (
-            _map,
+            mut map,
             mut power_states,
             mut power_sources,
             power_switches,
@@ -36,10 +37,45 @@ impl<'a> System<'a> for PowerSystem {
             mut wires,
             mut nodes,
             breaker_boxes,
+            mut electronic_heaters,
             entities
         ) = data;
 
         let mut random = RandomNumberGenerator::new();
+
+        //Align powered on state with switches
+        for (power_switch, entity, _) in (&power_switches, &entities, &nodes).join() {
+            if let Some(power_state) = power_states.get_mut(entity) {
+                power_state.on = power_switch.on;
+            }
+
+            if let Some(power_source) = power_sources.get_mut(entity) {
+                power_source.on = power_switch.on;
+            }
+        }
+
+        //Check if heaters must turn on
+        for (electronic_heater, power_state, position, node) in (&mut electronic_heaters, &mut power_states, &positions, &mut nodes).join() {
+            if let Some(tile) = map.tiles.get_mut(position) {
+                let on = electronic_heater.check_status(tile.atmosphere.temperature);
+
+                let prev_state = power_state.on;
+                
+                if on {
+                    //Produce heat
+                    
+                    power_state.on = true;
+                    tile.atmosphere.update_temperature((2.0 * power_state.wattage) / (3.0 * tile.atmosphere.get_total_mols() * R));
+                }
+                else {
+                    power_state.on = false;
+                }
+
+                if power_state.on != prev_state {
+                    node.dirty = true;
+                }
+            }
+        }
 
         let mut dirty_networks = HashSet::new();
         for (node, _) in (&mut nodes, &entities).join().filter(|(node, _)| node.dirty) {
@@ -109,18 +145,6 @@ impl<'a> System<'a> for PowerSystem {
             .filter(|(_, x, node)| node.network_id == *network_id && !visited_wire_positions.contains(*x)) {
                 node.network_id = random.rand();
                 node.dirty = true;
-            }
-
-            //Align powered on state with switches
-            for (power_switch, entity, _) in (&power_switches, &entities, &nodes).join()
-            .filter(|(_, _, node)| node.network_id == *network_id) {
-                if let Some(power_state) = power_states.get_mut(entity) {
-                    power_state.on = power_switch.on;
-                }
-
-                if let Some(power_source) = power_sources.get_mut(entity) {
-                    power_source.on = power_switch.on;
-                }
             }
 
             //Calculate power draw of wire segments
@@ -261,10 +285,10 @@ impl<'a> System<'a> for PowerSystem {
             }
 
             //Align powered components with powered state
-            for (power, entity, _) in (&mut power_states, &entities, &nodes).join()
-            .filter(|(_, _, node)| node.network_id == *network_id) {
+            for (power, entity, _, position) in (&mut power_states, &entities, &nodes, &positions).join()
+            .filter(|(_, _, node, _)| node.network_id == *network_id) {
 
-                let power_state = power.on && (power.available_wattage >= power.wattage);
+                let power_state = power.on && (power.available_wattage > 0.0);
                 //Illuminant
                 if let Some(illuminant) = illuminants.get_mut(entity) {
                     illuminant.set_state(power_state);
@@ -274,6 +298,9 @@ impl<'a> System<'a> for PowerSystem {
                     }
                 }
 
+                if let Some(electronic_heater) = electronic_heaters.get_mut(entity) {
+                    electronic_heater.set_state(power_state);
+                }
                 //TODO: Add any other powered systems here
             }
         }

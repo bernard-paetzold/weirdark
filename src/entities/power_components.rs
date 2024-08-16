@@ -138,3 +138,29 @@ impl Wire {
         }
     }
 }
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Debug)]
+pub struct ElectronicHeater {
+    pub target_temperature: f32,
+    pub on: bool,
+}
+
+#[allow(dead_code)]
+impl ElectronicHeater {
+    pub fn new(target_temperature: f32, on: bool) -> Self {
+        Self {
+            target_temperature,
+            on,
+        }
+    }
+
+    pub fn check_status(&mut self, current_temperature: f32) -> bool {
+        self.on = current_temperature < self.target_temperature;
+
+        self.on
+    }
+
+    pub fn set_state(&mut self, on: bool) {
+        self.on = on;
+    }
+}

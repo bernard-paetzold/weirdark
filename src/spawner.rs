@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use rltk::{RGB, RGBA};
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
 
-use crate::{entities::{biology::Breather, power_components::BreakerBox}, graphics::char_to_glyph, pathfinding::{find_walkable_path, wall_climb_path}, vectors::Vector3i, Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed, VisionBlocker, Wire};
+use crate::{entities::{biology::Breather, power_components::{BreakerBox, ElectronicHeater}}, graphics::char_to_glyph, pathfinding::{find_walkable_path, wall_climb_path}, vectors::Vector3i, Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed, VisionBlocker, Wire};
 
 pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
     //Add player camera
@@ -448,4 +448,31 @@ pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_posit
 
         prev_position = *position;
     }
+}
+
+pub fn heater(ecs: &mut World, position: Vector3i, target_temperature: f32, on: bool) -> Entity {
+    ecs.create_entity()
+        .with(position)
+        .with(Renderable::new(
+            char_to_glyph('H'),
+            char_to_glyph('H'),
+            RGB::named(rltk::BLACK).to_rgba(1.0),
+            RGB::named(rltk::GRAY).to_rgba(1.0),
+        ))
+        .with(Viewshed::new(2, 1, 1.0))
+        .with(Photometry::new())
+        .with(Illuminant::new(
+            0.5,
+            2,
+            RGB::named(rltk::DARK_ORANGE).to_rgba(1.0),
+            PI * 2.0,
+            true,
+        ))
+        .with(Name::new("Heater".to_string()))
+        .with(PoweredState::new(true, 10.0))
+        .with(PowerSwitch::new(on))
+        .with(PowerNode::new())
+        .with(ElectronicHeater::new(target_temperature, on))
+        .marked::<SimpleMarker<SerializeThis>>()
+        .build()
 }

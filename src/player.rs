@@ -4,6 +4,7 @@ use rltk::{Rltk, VirtualKeyCode};
 use specs::shred::FetchMut;
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
+use crate::entities::biology::Breather;
 use crate::graphics::get_viewport_position;
 use crate::{mouse_to_map, set_camera_position, update_camera_position, Blocker, TERMINAL_WIDTH};
 use crate::{gamelog::GameLog, vectors::Vector3i, Illuminant, Map, Photometry, RunState, State, Viewshed};
@@ -130,6 +131,15 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Space | VirtualKeyCode::Numpad5 => {
                 let game_log = game_state.ecs.fetch_mut::<GameLog>();
                 return skip_turn(game_log)
+            },
+
+            VirtualKeyCode::B => {
+                let mut breathers = game_state.ecs.write_storage::<Breather>();
+                let players = game_state.ecs.read_storage::<Player>();
+
+                for (_player, breather) in (&players, &mut breathers).join() {
+                    breather.trigger_breath = true;
+                }
             },
 
             //Look gui

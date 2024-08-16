@@ -60,11 +60,11 @@ impl Atmosphere {
     }
     pub fn new_stp() -> Self {
         let mut gasses = HashMap::new();
-        gasses.insert(Gas::Oxygen,  0.00888153);
-        gasses.insert(Gas::Nitrogen, 0.03298854);
+        gasses.insert(Gas::Oxygen,  0.0045593898);
+        gasses.insert(Gas::Nitrogen, 0.0171519902);
 
         Self { 
-            pressure: 101.325,
+            pressure: 0.0,
             temperature: 288.15,
             gasses,
             space_id: crate::rng::random_int() as usize,
@@ -101,15 +101,46 @@ impl Atmosphere {
 
         //Recalculate pressure
         self.recalculate_pressure();
+        self.dirty = true;
+    }
+    pub fn set_gasses(&mut self, gasses: &HashMap<Gas, f32>, incoming_temperature: f32) {
+        //Apply new gas
+        self.gasses = gasses.clone();
+
+        //Recalculate pressure
+        self.temperature = incoming_temperature;
+        self.recalculate_pressure();
+        self.dirty = true;
+    }
+    pub fn set_gas(&mut self, gas: &Gas, mols: f32,  incoming_temperature: f32) {
+        //Apply new gas
+        self.gasses.insert(*gas, mols);
+
+        //Recalculate pressure
+        self.temperature = incoming_temperature;
+        self.recalculate_pressure();
+        self.dirty = true;
     }
     pub fn transfer_gas(&self, other: &mut Self, delta_mols: f32) {
         let mut delta_gasses = HashMap::new();
-
-        for (gas, _) in &self.gasses {
-            delta_gasses.insert(*gas, delta_mols * self.get_gas_ratio(*gas));
+        let mut total_transferred = 0.0;
+        let gases: Vec<_> = self.gasses.keys().cloned().collect();
+        
+        for (i, gas) in gases.iter().enumerate() {
+            let ratio = self.get_gas_ratio(*gas);
+            let transfer = if i == gases.len() - 1 {
+                // For the last gas, transfer the remaining amount
+                delta_mols - total_transferred
+            } else {
+                delta_mols * ratio
+            };
+            
+            delta_gasses.insert(*gas, transfer);
+            total_transferred += transfer;
         }
-
+    
         other.update_gas(&delta_gasses, self.temperature);
+        other.dirty = true;
     }
     pub fn transfer_single_gas(&self, other: &mut Self, gas: Gas, delta_mols: f32) {
         let mut delta_gasses = HashMap::new();
@@ -117,6 +148,7 @@ impl Atmosphere {
         delta_gasses.insert(gas, delta_mols * self.get_gas_ratio(gas));
 
         other.update_gas(&delta_gasses, self.temperature);
+        other.dirty = true;
     }
     pub fn remove_gas(&mut self, delta_mols: f32) {
         let mut delta_gasses = HashMap::new();
@@ -126,6 +158,7 @@ impl Atmosphere {
         }
 
         self.update_gas(&delta_gasses, self.temperature);
+        self.dirty = true;
     }
     pub fn remove_single_gas(&mut self, gas: Gas, delta_mols: f32) {
         let mut delta_gasses = HashMap::new();
@@ -133,11 +166,13 @@ impl Atmosphere {
         delta_gasses.insert(gas.clone(), - delta_mols.clone() * self.get_gas_ratio(gas));
         
         self.update_gas(&delta_gasses, self.temperature);
+        self.dirty = true;
     }
     pub fn update_temperature(&mut self, delta_t: f32) {
         //Apply new temperature
         self.temperature += delta_t;
 
+        self.dirty = true;
         //Recalculate pressure
         self.recalculate_pressure();
     }
@@ -147,8 +182,13 @@ impl Atmosphere {
 
         total_mols
     }
-    fn recalculate_pressure(&mut self) {
+    pub fn recalculate_pressure(&mut self) {
         self.pressure = self.get_total_mols() * R * self.temperature;
+        self.dirty = true;
+    }
+    pub fn recalculate_temperature(&mut self) {
+        self.temperature = self.pressure / (self.get_total_mols() * R);
+        self.dirty = true;
     }
     pub fn get_gas_ratio(&self, gas: Gas) -> f32 {
         self.gasses.get(&gas).unwrap_or(&0.0) / self.get_total_mols()

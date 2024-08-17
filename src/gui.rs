@@ -2,6 +2,7 @@
 use std::u32::MAX;
 
 use rltk::{to_char, Point, Rltk, VirtualKeyCode, RGB};
+use crate::entities::intents::InteractIntent;
 use crate::graphics::char_to_glyph;
 use crate::{mouse_to_map, INTERACT_MENU_WIDTH};
 use crate::systems::power_system::get_devices_on_network;
@@ -10,7 +11,7 @@ use crate::entities::power_components::{BreakerBox, PowerNode, PowerSource, Powe
 use specs::prelude::*;
 
 use crate::{
-    gamelog::GameLog, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, InteractIntent, Map, Name, Player, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
+    gamelog::GameLog, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, Map, Name, Player, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
 };
 
 #[derive(PartialEq, Copy, Clone)]
@@ -85,15 +86,8 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
 
     
     let players = ecs.read_storage::<Player>();
-    let renderables = ecs.read_storage::<Renderable>();
-    let names = ecs.read_storage::<Name>();
     let viewsheds = ecs.read_storage::<Viewshed>();
     let positions = ecs.read_storage::<Vector3i>();
-    let power_states = ecs.read_storage::<PoweredState>();
-    let power_switches = ecs.read_storage::<PowerSwitch>();
-    let power_sources = ecs.read_storage::<PowerSource>();
-    let wires = ecs.read_storage::<Wire>();
-    let nodes = ecs.read_storage::<PowerNode>();
     let breaker_boxes = ecs.read_storage::<BreakerBox>();
     let entities = ecs.entities();
 
@@ -121,16 +115,10 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
         }
     }
 
-    let mut entity_menu_y = 0;
-    let mut interactable_menu_y = 0;
-
     let tile_info_y = 1;
     const TILE_INFORMATION_MENU_HEIGHT: i32 = 10;
 
     if let Some(target_tile) = target_tile {
-        entity_menu_y = TILE_INFORMATION_MENU_HEIGHT + 2;
-        interactable_menu_y = TILE_INFORMATION_MENU_HEIGHT + 2;
-
         ctx.draw_hollow_box(MAP_SCREEN_WIDTH, tile_info_y, INTERACT_MENU_WIDTH - 2, TILE_INFORMATION_MENU_HEIGHT, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 1, format!("{}", target_tile.name.clone()));
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 2, format!("Glyphs: {}, {}", to_char(target_tile.renderable.top_glyph as u8), to_char(target_tile.renderable.side_glyph as u8)));
@@ -139,7 +127,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
         
         let mut count = 0;
         for (gas, mols) in &target_tile.atmosphere.gasses {
-            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.5}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
             count += 1;
         }
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));
@@ -344,7 +332,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         
         let mut count = 0;
         for (gas, mols) in &target_tile.atmosphere.gasses {
-            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.5}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
             count += 1;
         }
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));
@@ -518,10 +506,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         Some(key) => {
             match key {
                 VirtualKeyCode::Escape => { 
-                    return RunState::AwaitingInput 
+                    return RunState::AwaitingInput { turn_time: 0.0 }
                 },
                 VirtualKeyCode::I => { 
-                    return RunState::AwaitingInput 
+                    return RunState::AwaitingInput { turn_time: 0.0 }
                 },
                 VirtualKeyCode::Period => {
                     return check_range(range, source, target, Vector3i::DOWN, mouse_position);

@@ -5,9 +5,9 @@ use crate::{gui, vectors::Vector3i};
 #[allow(dead_code)]
 #[derive(PartialEq, Clone)]
 pub enum RunState { 
-    AwaitingInput, 
+    AwaitingInput { turn_time:  f32 }, 
     PreRun,
-    PlayerTurn,
+    PlayerTurn { turn_time:  f32 },
     NPCTurn, 
     MainMenu { menu_selection: gui::MainMenuSelection },
     SaveGame,

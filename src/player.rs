@@ -1,3 +1,4 @@
+use std::f32::consts::SQRT_2;
 use std::usize;
 
 use rltk::{Rltk, VirtualKeyCode};
@@ -26,7 +27,7 @@ impl Player {
     }
 }
 
-pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
+pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<(Vector3i, f32)> {
     let mut positions = ecs.write_storage::<Vector3i>();
     let mut players = ecs.write_storage::<Player>();
     let mut viewsheds = ecs.write_storage::<Viewshed>();
@@ -97,10 +98,19 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<Vector3i> {
     stored_player_position.y = target_position.y;
     stored_player_position.z = target_position.z;
 
-    return Some(target_position)
+    let time;
+    //Calculate time taken
+    if delta == Vector3i::N || delta == Vector3i::E || delta == Vector3i::S || delta == Vector3i::W {
+        time = 1.0;
+    }
+    else {
+        time = SQRT_2;
+    }
+
+    return Some((target_position, time))
 }
 
-pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
+pub fn player_input(game_state: &mut State, ctx: &mut Rltk, mut turn_time: f32) -> RunState {
     // Player movement
     let mut delta = Vector3i::new_equi(0);
     let mut delta_camera = Vector3i::new_equi(0);
@@ -113,7 +123,7 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
 
     match ctx.key {
         //If there is no input, set runstate to paused
-        None => { return RunState::AwaitingInput }
+        None => { return RunState::AwaitingInput { turn_time } }
         Some(key) => match key {
             VirtualKeyCode::Period => delta = Vector3i::new(0, 0, -1),
             VirtualKeyCode::Comma => delta = Vector3i::new(0, 0, 1),
@@ -182,18 +192,19 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             },
             //If there is no valid input, set runstate to paused
             _ => {
-                return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::AwaitingInput), key }
+                return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::AwaitingInput { turn_time }), key }
             }
         },
     }
 
     if delta.x != 0 || delta.y != 0 || delta.z != 0 {
 
-        let new_player_position = try_move_player(delta, &mut game_state.ecs);
+        let result = try_move_player(delta, &mut game_state.ecs);
 
-        match new_player_position {
-            Some(_) => {
+        match result {
+            Some((_, time)) => {
                 //TODO: Change this to prevent camera always moving with player
+                turn_time += time;
                 update_camera_position(delta, &mut game_state.ecs);
             },
             None => {}
@@ -201,10 +212,10 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     }
 
     if reset_camera {
-        let new_player_position = try_move_player(Vector3i::new_equi(0), &mut game_state.ecs);
+        let result = try_move_player(Vector3i::new_equi(0), &mut game_state.ecs);
 
-        match new_player_position {
-            Some(new_position) => {
+        match result {
+            Some((new_position, _)) => {
                 set_camera_position(new_position, &mut game_state.ecs);
             },
             None => {}
@@ -213,8 +224,8 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     else if delta_camera.x != 0 || delta_camera.y != 0 || delta_camera.z != 0 {
         update_camera_position(delta_camera, &mut game_state.ecs);
     }
-    //Set run state to running
-    RunState::PlayerTurn
+    //Set run state to player turn
+    RunState::PlayerTurn { turn_time }
 }
 
 pub fn get_player_entity(entities: &Read<EntitiesRes>, players: &Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {
@@ -224,7 +235,7 @@ pub fn get_player_entity(entities: &Read<EntitiesRes>, players: &Storage<Player,
 fn skip_turn(mut game_log: specs::shred::FetchMut<GameLog>) -> RunState {
     //TODO: Add functionality to heal while waiting etc here.
     game_log.entries.push("Waiting...".to_string());
-    RunState::PlayerTurn
+    RunState::PlayerTurn { turn_time: 1.0 }
 }
 
 fn check_entity_blocking(blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {

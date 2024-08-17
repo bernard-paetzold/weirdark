@@ -1,6 +1,7 @@
 
 use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
+use entities::intents::InteractIntent;
 use entities::power_components::{BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use graphics::render_map;
 use rltk::{GameState, Rltk};
@@ -101,20 +102,24 @@ impl GameState for State {
                 self.run_systems();
                 self.ecs.maintain();
 
-                new_runstate = RunState::AwaitingInput;
+                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
             }
-            RunState::AwaitingInput => {
-                new_runstate = player_input(self, ctx);
+            RunState::AwaitingInput { turn_time } => {
+                new_runstate = player_input(self, ctx, turn_time);
             }
-            RunState::PlayerTurn => {
-                self.run_systems();
-                self.ecs.maintain();
-                new_runstate = RunState::AwaitingInput;
+            RunState::PlayerTurn { turn_time } => {
+                //Run systems depending on player turn time
+                println!("Turn time: {}", turn_time);
+                for t in 0..turn_time as i32 {
+                    self.run_systems();
+                    self.ecs.maintain();
+                }
+                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
             }
             RunState::NPCTurn => {
                 self.run_systems();
                 self.ecs.maintain();
-                new_runstate = RunState::AwaitingInput;
+                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
             }
             RunState::MainMenu { .. } => {
                 let result = menu::main_menu(self, ctx);
@@ -130,7 +135,7 @@ impl GameState for State {
                             gui::MainMenuSelection::NewGame => new_runstate = RunState::PreRun,
                             gui::MainMenuSelection::LoadGame => {
                                 save_load_system::load_game(&mut self.ecs, ctx);
-                                new_runstate = RunState::AwaitingInput;
+                                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
                                 //save_load_system::delete_save();
                             }
                             gui::MainMenuSelection::Quit => {

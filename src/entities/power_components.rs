@@ -4,7 +4,7 @@ use serde::Serialize;
 use specs::prelude::*;
 use specs_derive::*;
 
-use crate::Interactable;
+use super::intents::Interactable;
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct PowerNode {

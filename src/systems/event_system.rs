@@ -1,10 +1,10 @@
 use specs::prelude::*;
 
-use crate::{entities::intents::InteractIntent, entities::intents::Interactable, gamelog::GameLog, Door, Name, PowerNode, PowerSwitch};
+use crate::{entities::intents::InteractIntent, gamelog::GameLog,  entities::intents::Interactable, Door, Name, PowerNode, PowerSwitch};
 
-pub struct InteractionSystem {}
+pub struct EventSystem {}
 
-impl<'a> System<'a> for InteractionSystem {
+impl<'a> System<'a> for EventSystem {
     type SystemData = ( Entities<'a>,
                         WriteExpect<'a, GameLog>,
                         WriteStorage<'a, InteractIntent>,

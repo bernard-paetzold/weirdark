@@ -23,10 +23,10 @@ impl Breather {
         in_gasses.insert(Gas::Oxygen, (0.0011, 0.21));
 
         let mut out_gasses = HashMap::new();
-        //out_gasses.insert(Gas::CarbonDioxide, 0.0012);        
-        out_gasses.insert(Gas::CarbonDioxide, 0.01);        
-        out_gasses.insert(Gas::Oxygen, 0.01);        
-        out_gasses.insert(Gas::Nitrogen, 0.02);        
+        out_gasses.insert(Gas::CarbonDioxide, 0.0012);        
+        //out_gasses.insert(Gas::CarbonDioxide, 0.01);        
+        //out_gasses.insert(Gas::Oxygen, 0.01);        
+        //out_gasses.insert(Gas::Nitrogen, 0.02);        
 
         Self {
             in_gasses,

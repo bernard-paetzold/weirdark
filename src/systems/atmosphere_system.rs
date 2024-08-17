@@ -11,7 +11,7 @@ use crate::{
     Map,
 };
 
-const DISSIPATION_THRESHOLD: f32 = 0.00000000001;
+const DISSIPATION_THRESHOLD: f32 = 0.00000001;
 
 pub struct AtmosphereSystem {}
 
@@ -36,6 +36,8 @@ impl<'a> System<'a> for AtmosphereSystem {
             tile.atmosphere.dirty = false;
         }
 
+        println!("Updating atmos {}", dirty_atmospheres.len());
+
         for position in dirty_atmospheres.iter() {
             let neighbours = get_accessible_neighbours(&map, position).clone();
 
@@ -50,7 +52,7 @@ impl<'a> System<'a> for AtmosphereSystem {
             let mut total_delta = 0.0;
             let mut total_pressure = 0.0;
 
-            let mut neighbour_heat_deltas: HashMap<Vector3i, f32> = HashMap::new();
+            let mut clean_tiles = Vec::new();
 
             let mut higher_pressure_neighbours = Vec::new();
 
@@ -77,6 +79,9 @@ impl<'a> System<'a> for AtmosphereSystem {
                                             if delta > DISSIPATION_THRESHOLD {
                                                 *total_gas_deltas.entry(*gas).or_insert(0.0) += delta;
                                             }
+                                            else {
+                                                clean_tiles.push(neighbour);
+                                            }
                                         }
                                     }
                                     else if *mols > DISSIPATION_THRESHOLD {
@@ -86,6 +91,9 @@ impl<'a> System<'a> for AtmosphereSystem {
                                             .insert(*gas, *mols);
     
                                         *total_gas_deltas.entry(*gas).or_insert(0.0) += *mols;                 
+                                    }
+                                    else {
+                                        clean_tiles.push(neighbour);
                                     }
                                 }
                             }
@@ -123,6 +131,11 @@ impl<'a> System<'a> for AtmosphereSystem {
                 let proportion: f32 = *delta / total_delta;
                 let mols_to_transfer = (excess_pressure * proportion) / (temperature * R);
 
+                if mols_to_transfer < DISSIPATION_THRESHOLD {
+                    clean_tiles.push(neighbour);
+                    continue;
+                }
+
                 //Add gas to neighbouring tile
                 let mut current_tile = None;
                 if let Some(tile) = map.tiles.get(&position) {
@@ -134,14 +147,14 @@ impl<'a> System<'a> for AtmosphereSystem {
                         current_tile
                             .atmosphere
                             .transfer_gas(&mut neighbour_tile.atmosphere, mols_to_transfer);
-                        neighbour_tile.atmosphere.dirty = true;
+                        //neighbour_tile.atmosphere.dirty = true;
                     }
                 }
 
                 //Remove gas from current tile
                 if let Some(current_tile) = map.tiles.get_mut(&position) {
                     current_tile.atmosphere.remove_gas(mols_to_transfer);
-                    current_tile.atmosphere.dirty = true;
+                    //current_tile.atmosphere.dirty = true;
                 }
             }
 
@@ -164,6 +177,7 @@ impl<'a> System<'a> for AtmosphereSystem {
                     }
 
                     if current_mols == 0.0 {
+                        clean_tiles.push(neighbour);
                         continue;
                     }
 
@@ -182,6 +196,7 @@ impl<'a> System<'a> for AtmosphereSystem {
                     let excess_mols = (current_mols - average_mols).max(0.0);
 
                     if excess_mols == 0.0 {
+                        clean_tiles.push(neighbour);
                         continue;
                     }
 
@@ -195,6 +210,7 @@ impl<'a> System<'a> for AtmosphereSystem {
                     let mols_to_swap = excess_mols * proportion;
 
                     if mols_to_swap < DISSIPATION_THRESHOLD {
+                        clean_tiles.push(neighbour);
                         continue;
                     }
 
@@ -211,7 +227,7 @@ impl<'a> System<'a> for AtmosphereSystem {
                                 *gas,
                                 mols_to_swap,
                             );
-                            neighbour_tile.atmosphere.dirty = true;
+                            //neighbour_tile.atmosphere.dirty = true;
                         }
                     }
 
@@ -225,10 +241,10 @@ impl<'a> System<'a> for AtmosphereSystem {
                 }
             }
 
-            //Get neighbours with higher pressures to be recalculated
-            for neighbour in higher_pressure_neighbours.iter() {
-                if let Some(tile) = map.tiles.get_mut(&neighbour) {
-                    tile.atmosphere.dirty = true;
+            //Set clean tiles
+            for position in clean_tiles.iter() {
+                if let Some(tile) = map.tiles.get_mut(&position) {
+                    tile.atmosphere.dirty = false;
                 }
             }
         }

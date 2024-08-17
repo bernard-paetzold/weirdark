@@ -10,6 +10,8 @@ use specs::prelude::*;
 use specs::saveload::{ConvertSaveload, Marker};
 use specs_derive::*;
 
+use super::intents::Interactable;
+
 #[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
 pub enum Direction {
     #[default] N,
@@ -197,34 +199,6 @@ pub struct SerializeThis;
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct SerializationHelper {
     pub map: map::Map,
-}
-
-#[allow(dead_code)]
-#[derive(Component, Clone)]
-pub struct InteractIntent {
-    pub initiator: Entity,
-    pub target: Entity,
-    pub interaction_id: usize,
-    pub interaction_description: String,
-}
-
-impl InteractIntent {
-    pub fn new(initiator: Entity, target: Entity, interaction_id: usize, interaction_description: String) -> InteractIntent {
-        InteractIntent {
-            initiator,
-            target,
-            interaction_id,
-            interaction_description,
-        }
-    }
-}
-
-#[allow(dead_code)]
-pub trait Interactable {
-    fn interaction_id(&self) -> usize;
-    fn interaction_description(&self) -> String;
-    fn state_description(&self) -> String;
-    fn interact(&mut self);
 }
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]

@@ -35,16 +35,12 @@ pub fn add_camera(position: Vector3i, ecs: &mut World, is_active: bool) {
 }
 
 
-pub fn update_camera_position(delta: Vector3i, ecs: &mut World) -> Option<&Camera> {
-    let cameras = ecs.read_storage::<Camera>();
-    let mut camera_positions = ecs.write_storage::<Vector3i>();
-
-    for (position, camera) in (&mut camera_positions, &cameras).join() {
+pub fn update_camera_position(delta: Vector3i, cameras: &Storage<Camera, specs::shred::Fetch<specs::storage::MaskedStorage<Camera>>>, camera_positions: &mut Storage<Vector3i, specs::shred::FetchMut<specs::storage::MaskedStorage<Vector3i>>>) {
+    for (position, camera) in (camera_positions, cameras).join() {
         if camera.is_active {
             *position += delta;
         }
     }
-    None
 }
 
 pub fn set_camera_position(new_position: Vector3i, ecs: &mut World) {

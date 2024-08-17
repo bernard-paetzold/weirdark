@@ -75,6 +75,7 @@ pub struct PowerSwitch {
     pub on: bool,
     pub interaction_description: String,
     pub interaction_id: usize,
+    pub cost: f32,
 }
 
 impl PowerSwitch {
@@ -87,6 +88,7 @@ impl PowerSwitch {
             on,
             interaction_description: description.to_string(),
             interaction_id: crate::rng::random_int() as usize,
+            cost: 0.5,
         }
     }
 
@@ -103,6 +105,9 @@ impl PowerSwitch {
 }
 
 impl Interactable for PowerSwitch {
+    fn get_cost(&self) -> f32 {
+        self.cost
+    }
     fn interact(&mut self) {
         self.toggle();
     }

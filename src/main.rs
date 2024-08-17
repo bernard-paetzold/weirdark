@@ -1,7 +1,7 @@
 
 use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
-use entities::intents::InteractIntent;
+use entities::intents::{Initiative, InteractIntent, MoveIntent};
 use entities::power_components::{BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use graphics::render_map;
 use rltk::{GameState, Rltk};
@@ -73,6 +73,10 @@ impl State {
 
         self.ecs.maintain();
     }
+    fn run_simulation(&mut self) {
+        self.dispatcher.run_now(&mut self.ecs);
+        self.ecs.maintain();
+    }
 }
 
 impl GameState for State {
@@ -102,24 +106,19 @@ impl GameState for State {
                 self.run_systems();
                 self.ecs.maintain();
 
-                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
+                new_runstate = RunState::AwaitingInput;
             }
-            RunState::AwaitingInput { turn_time } => {
-                new_runstate = player_input(self, ctx, turn_time);
+            RunState::AwaitingInput => {
+                new_runstate = player_input(self, ctx);
             }
-            RunState::PlayerTurn { turn_time } => {
-                //Run systems depending on player turn time
-                println!("Turn time: {}", turn_time);
-                for t in 0..turn_time as i32 {
-                    self.run_systems();
-                    self.ecs.maintain();
-                }
-                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
-            }
-            RunState::NPCTurn => {
+            RunState::Ticking => {
                 self.run_systems();
                 self.ecs.maintain();
-                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
+                
+                match *self.ecs.fetch::<RunState>() {
+                    RunState::AwaitingInput => new_runstate = RunState::AwaitingInput,
+                    _ => new_runstate = RunState::Ticking
+                } 
             }
             RunState::MainMenu { .. } => {
                 let result = menu::main_menu(self, ctx);
@@ -135,7 +134,7 @@ impl GameState for State {
                             gui::MainMenuSelection::NewGame => new_runstate = RunState::PreRun,
                             gui::MainMenuSelection::LoadGame => {
                                 save_load_system::load_game(&mut self.ecs, ctx);
-                                new_runstate = RunState::AwaitingInput { turn_time: 0.0 };
+                                new_runstate = RunState::AwaitingInput;
                                 //save_load_system::delete_save();
                             }
                             gui::MainMenuSelection::Quit => {
@@ -169,6 +168,11 @@ impl GameState for State {
             },
             RunState::HandleOtherInput { next_runstate, key } => {
                 new_runstate = handle_other_input(&mut self.ecs, key, (*next_runstate).clone());
+            }
+            RunState::Simulation { steps } => {
+                for t in 0..steps {
+                    self.run_simulation();
+                }
             }
         }
 
@@ -215,7 +219,6 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Photometry>();
     game_state.ecs.register::<SimpleMarker<SerializeThis>>();
     game_state.ecs.register::<SerializationHelper>();
-    game_state.ecs.register::<InteractIntent>();
     game_state.ecs.register::<Blocker>();
     game_state.ecs.register::<VisionBlocker>();
     game_state.ecs.register::<Door>();
@@ -236,6 +239,11 @@ fn main() -> rltk::BError {
 
     //Temperature
     game_state.ecs.register::<ElectronicHeater>();
+
+    //Intents
+    game_state.ecs.register::<Initiative>();
+    game_state.ecs.register::<InteractIntent>();
+    game_state.ecs.register::<MoveIntent>();
 
 
     let player_start_position = Vector3i::new(0, 0, 10);

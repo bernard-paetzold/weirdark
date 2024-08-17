@@ -121,11 +121,11 @@ impl RoomTestMapBuilder {
 
 impl MapBuilder for RoomTestMapBuilder {
     fn build_map(&mut self) {
-        self.build_room(Vector3i::new(11, 11, 4));
+        self.build_room(Vector3i::new(31, 31, 4));
     }
 
     fn spawn_entities(&mut self, ecs: &mut World) {
-        self.spawn_room_entities(ecs, Vector3i::new(5, 5, 4), true, true, true, true);
+        self.spawn_room_entities(ecs, Vector3i::new(15, 15, 4), true, true, true, true);
     }
 
     fn get_map(&mut self) -> Map {

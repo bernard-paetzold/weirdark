@@ -4,8 +4,12 @@ use rltk::RandomNumberGenerator;
 use specs::prelude::*;
 
 use crate::{
-    entities::{atmospherics::R, power_components::{BreakerBox, ElectronicHeater}}, vectors::{utils::get_cardinal_neighbours_with_z, Vector3i}, Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire
+    entities::{atmospherics::R, power_components::{BreakerBox, ElectronicHeater}}, 
+    vectors::{utils::get_cardinal_neighbours_with_z, Vector3i}, 
+    Illuminant, Map, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
+
+use crate::entities::intents::Interactable;
 
 pub struct PowerSystem {}
 
@@ -307,7 +311,7 @@ impl<'a> System<'a> for PowerSystem {
     }
 }
 
-pub fn get_devices_on_network(ecs: &World, network_entity: Entity) -> Vec<(usize, String, u32, u32)> {
+pub fn get_devices_on_network(ecs: &World, network_entity: Entity) -> Vec<(usize, String, u32, u32, f32)> {
     let names = ecs.read_storage::<crate::Name>();
     let nodes = ecs.read_storage::<crate::PowerNode>();
     let entities = ecs.entities();
@@ -332,7 +336,8 @@ pub fn get_devices_on_network(ecs: &World, network_entity: Entity) -> Vec<(usize
                                     interactable.interaction_id,
                                     format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
                                     network_entity.id(),
-                                    entity.id()
+                                    entity.id(),
+                                    interactable.get_cost()
                                 ));
                             }
                         )*

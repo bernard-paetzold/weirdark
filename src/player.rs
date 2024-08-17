@@ -6,8 +6,9 @@ use specs::shred::FetchMut;
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
 use crate::entities::biology::Breather;
+use crate::entities::intents::MoveIntent;
 use crate::graphics::get_viewport_position;
-use crate::{mouse_to_map, set_camera_position, update_camera_position, Blocker, TERMINAL_WIDTH};
+use crate::{mouse_to_map, set_camera_position, update_camera_position, Blocker, Camera, TERMINAL_WIDTH};
 use crate::{gamelog::GameLog, vectors::Vector3i, Illuminant, Map, Photometry, RunState, State, Viewshed};
 
 use serde::Serialize;
@@ -27,90 +28,15 @@ impl Player {
     }
 }
 
-pub fn try_move_player(delta: Vector3i, ecs: &mut World) -> Option<(Vector3i, f32)> {
-    let mut positions = ecs.write_storage::<Vector3i>();
-    let mut players = ecs.write_storage::<Player>();
-    let mut viewsheds = ecs.write_storage::<Viewshed>();
-    let entities = ecs.entities();
-    let mut photometria = ecs.write_storage::<Photometry>();
-    let mut illuminants = ecs.write_storage::<Illuminant>();
-    let blockers = ecs.read_storage::<Blocker>();
-
-    let mut target_position = Vector3i::new_equi(0);
-
-    let mut log = ecs.fetch_mut::<GameLog>();
-
-    let mut player_position = Vector3i::new_equi(0);
-
-    for (_player, position, _entity) in (&mut players, &mut positions, &entities).join() {
-        let map = ecs.fetch::<Map>();
-        let tile = map.tiles.get(&(*position + delta));
-
-        player_position = *position;
-
-        //Check tile blockers
-        match tile {
-            Some(tile) => {
-                //TODO: Add exceptions here for if a player might need to move through solid tiles
-                if !tile.passable {
-                    return None;
-                }
-            },
-            _ => {
-                return None
-            }
-        }
-
-        target_position = *position + delta;
-    }
-
-    
-    //If the movement is diagonal, blocks of four entites must be checked since the player passes through all four
-    if check_entity_blocking(&blockers, &positions, player_position, target_position) {return None}
-
-
-    log.entries.push(target_position.to_string());
-
+pub fn try_move_player(delta: Vector3i, ecs: &mut World) {
+    let mut move_intents = ecs.write_storage::<MoveIntent>();
     let player = ecs.write_resource::<Entity>();
+    let player_position = ecs.write_resource::<Vector3i>();
 
-    //Update player position
-    for (_player, position) in (&mut players, &mut positions).join() {
-        *position = target_position;
-    }
-
-
-
-    if let Some(viewshed) = viewsheds.get_mut(*player) {
-        viewshed.dirty = true;
-    }
-
-    if let Some(photometry) = photometria.get_mut(*player) {
-        photometry.dirty = true;
-    }
-
-    if let Some(illuminant) = illuminants.get_mut(*player) {
-        illuminant.dirty = true;
-    }
-
-    //Update player position tracker  
-    let mut stored_player_position = ecs.write_resource::<Vector3i>();     
-    stored_player_position.x = target_position.x;
-    stored_player_position.y = target_position.y;
-    stored_player_position.z = target_position.z;
-
-    let time;
-    //Calculate time taken
-    if delta == Vector3i::N || delta == Vector3i::E || delta == Vector3i::S || delta == Vector3i::W {
-        time = 1.0;
-    }
-    else {
-        time = SQRT_2;
-    }
-
-    return Some((target_position, time))
+    move_intents.insert(*player, MoveIntent::new(*player_position, delta)).expect("Player move intent error");
 }
 
-pub fn player_input(game_state: &mut State, ctx: &mut Rltk, mut turn_time: f32) -> RunState {
+pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     // Player movement
     let mut delta = Vector3i::new_equi(0);
     let mut delta_camera = Vector3i::new_equi(0);
@@ -123,18 +49,18 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk, mut turn_time: f32) 
 
     match ctx.key {
         //If there is no input, set runstate to paused
-        None => { return RunState::AwaitingInput { turn_time } }
+        None => { return RunState::AwaitingInput}
         Some(key) => match key {
-            VirtualKeyCode::Period => delta = Vector3i::new(0, 0, -1),
-            VirtualKeyCode::Comma => delta = Vector3i::new(0, 0, 1),
-            VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => delta = Vector3i::new(0, -1, 0),
-            VirtualKeyCode::Numpad9 => delta = Vector3i::new(1, -1, 0),
-            VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => delta = Vector3i::new(1, 0, 0),
-            VirtualKeyCode::Numpad3 => delta = Vector3i::new(1, 1, 0),
-            VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => delta = Vector3i::new(0, 1, 0),
-            VirtualKeyCode::Numpad1 => delta = Vector3i::new(-1, 1, 0),
-            VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => delta = Vector3i::new(-1, 0, 0),
-            VirtualKeyCode::Numpad7 => delta = Vector3i::new(-1, -1, 0),
+            VirtualKeyCode::Period => delta = Vector3i::DOWN,
+            VirtualKeyCode::Comma => delta = Vector3i::UP,
+            VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => delta = Vector3i::N,
+            VirtualKeyCode::Numpad9 => delta = Vector3i::NE,
+            VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => delta = Vector3i::E,
+            VirtualKeyCode::Numpad3 => delta = Vector3i::SE,
+            VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => delta = Vector3i::S,
+            VirtualKeyCode::Numpad1 => delta = Vector3i::SW,
+            VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => delta = Vector3i::W,
+            VirtualKeyCode::Numpad7 => delta = Vector3i::NW,
             
             //Pass turn
             
@@ -192,40 +118,32 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk, mut turn_time: f32) 
             },
             //If there is no valid input, set runstate to paused
             _ => {
-                return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::AwaitingInput { turn_time }), key }
+                return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::AwaitingInput), key }
             }
         },
     }
 
     if delta.x != 0 || delta.y != 0 || delta.z != 0 {
-
-        let result = try_move_player(delta, &mut game_state.ecs);
-
-        match result {
-            Some((_, time)) => {
-                //TODO: Change this to prevent camera always moving with player
-                turn_time += time;
-                update_camera_position(delta, &mut game_state.ecs);
-            },
-            None => {}
-        }
+        try_move_player(delta, &mut game_state.ecs);
     }
 
     if reset_camera {
-        let result = try_move_player(Vector3i::new_equi(0), &mut game_state.ecs);
+        let player_position;
+        {
+            player_position = *game_state.ecs.read_resource::<Vector3i>();
+        }
 
-        match result {
-            Some((new_position, _)) => {
-                set_camera_position(new_position, &mut game_state.ecs);
-            },
-            None => {}
-        }  
+        set_camera_position(player_position, &mut game_state.ecs);
+
     }
     else if delta_camera.x != 0 || delta_camera.y != 0 || delta_camera.z != 0 {
-        update_camera_position(delta_camera, &mut game_state.ecs);
+        let cameras = game_state.ecs.read_storage::<Camera>();
+        let mut positions = game_state.ecs.write_storage::<Vector3i>();
+
+        update_camera_position(delta_camera, &cameras, &mut positions);
     }
     //Set run state to player turn
-    RunState::PlayerTurn { turn_time }
+    RunState::Ticking
 }
 
 pub fn get_player_entity(entities: &Read<EntitiesRes>, players: &Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {
@@ -235,82 +153,7 @@ pub fn get_player_entity(entities: &Read<EntitiesRes>, players: &Storage<Player,
 fn skip_turn(mut game_log: specs::shred::FetchMut<GameLog>) -> RunState {
     //TODO: Add functionality to heal while waiting etc here.
     game_log.entries.push("Waiting...".to_string());
-    RunState::PlayerTurn { turn_time: 1.0 }
-}
-
-fn check_entity_blocking(blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {
-    let delta = (target_position - player_position).normalize_delta();
-
-    if is_entity_blocked(&blockers, &positions, player_position, target_position) { return true }
-
-    if delta == Vector3i::NW {
-        //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::N, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::W, target_position) { return true }
-
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::N) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::W) { return true }
-    }
-    else if delta == Vector3i::SW {
-        //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::S, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::W, target_position) { return true }
-
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::S) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::W) { return true }       
-    }
-    else if delta == Vector3i::SE {
-        //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::S, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::E, target_position) { return true }
-
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::S) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position , player_position + Vector3i::E) { return true }        
-    }
-    else if delta == Vector3i::NE {
-        //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::N, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::E, target_position) { return true }
-
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::N) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::E) { return true }        
-    }
-    false
-}
-
-fn is_entity_blocked(blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {
-    //Check tile entity is in
-    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == player_position) {
-        let delta = (target_position - player_position).normalize_delta();
-
-        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) { return true; }
-        else if delta == Vector3i::NW && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::W))  { return true; }
-        else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W)  { return true; }
-        else if delta == Vector3i::SW && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::W)) { return true; }
-        else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S)  { return true; }
-        else if delta == Vector3i::SE && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E)  { return true; }
-        else if delta == Vector3i::NE && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP)  { return true; }
-        else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN)  { return true; }
-    }
-
-    //Check tile entity is going to
-    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == target_position) {
-        let delta = (player_position - target_position).normalize_delta();
-
-        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) { return true; }
-        else if delta == Vector3i::NW && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::W))  { return true; }
-        else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W)  { return true; }
-        else if delta == Vector3i::SW && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::W)) { return true; }
-        else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S)  { return true; }
-        else if delta == Vector3i::SE && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E)  { return true; }
-        else if delta == Vector3i::NE && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP)  { return true; }
-        else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN)  { return true; }
-    }
-    return false;
+    RunState::Ticking
 }
 
 pub fn toggle_power_overlay(ecs: &mut World) {

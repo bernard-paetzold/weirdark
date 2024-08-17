@@ -40,6 +40,7 @@ impl Tile {
             name: "Empty space".to_string(),
         }
     }
+    #[allow(dead_code)]
     pub fn new_vacuume() -> Tile {
         Tile {
             passable: true,

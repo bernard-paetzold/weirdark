@@ -1,7 +1,9 @@
 use crate::vectors::Vector3i;
 use serde::Deserialize;
 use serde::Serialize;
+use specs::error::NoError;
 use specs::prelude::*;
+use specs::saveload::{ConvertSaveload, Marker};
 use specs_derive::*;
 
 #[derive(Component, Clone)]
@@ -47,11 +49,12 @@ impl Intent for MoveIntent {
     }
 }
 
-#[derive(Component, Debug, Serialize, Deserialize, Clone)]
+#[derive(Component, Debug, ConvertSaveload, Clone)]
 pub struct Initiative {
     pub current : f32,
 }
 
+#[allow(dead_code)]
 impl Initiative {
     pub fn new(default: f32) -> Self {
         Self {
@@ -111,6 +114,7 @@ pub trait Interactable {
     fn get_cost(&self) -> f32;
 }
 
+#[allow(dead_code)]
 pub trait Intent {
     fn get_cost(&self) -> f32;
     fn get_remaining_cost(&self) -> f32;

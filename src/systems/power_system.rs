@@ -289,7 +289,7 @@ impl<'a> System<'a> for PowerSystem {
             }
 
             //Align powered components with powered state
-            for (power, entity, _, position) in (&mut power_states, &entities, &nodes, &positions).join()
+            for (power, entity, _, _) in (&mut power_states, &entities, &nodes, &positions).join()
             .filter(|(_, _, node, _)| node.network_id == *network_id) {
 
                 let power_state = power.on && (power.available_wattage > 0.0);

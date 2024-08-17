@@ -1,9 +1,8 @@
 use std::{cmp::Ordering, collections::BinaryHeap};
 
-use serde::{Deserialize, Serialize};
-use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::{GenericReadStorage, MaskedStorage}};
+use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::MaskedStorage};
 
-use crate::{entities::intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent}, gamelog::GameLog, states::RunState, update_camera_position, vectors::Vector3i, Blocker, Camera, Door, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSwitch, Viewshed};
+use crate::{entities::intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent}, gamelog::GameLog, states::RunState, update_camera_position, vectors::Vector3i, Blocker, Camera, Door, Illuminant, Map, Name, Photometry, PowerNode, PowerSwitch, Viewshed};
 
 pub struct EventSystem {}
 
@@ -24,7 +23,6 @@ impl<'a> System<'a> for EventSystem {
                         ReadStorage<'a, Name>,
                         WriteStorage<'a, Door>,
                         WriteStorage<'a, Vector3i>,
-                        WriteStorage<'a, Player>,
                         WriteStorage<'a, Viewshed>,
                         WriteStorage<'a, Photometry>,
                         WriteStorage<'a, Illuminant>,
@@ -35,20 +33,19 @@ impl<'a> System<'a> for EventSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (
             entities,
-            mut map,
+            map,
             mut run_state,
             mut game_log,
-            mut player,
+            player,
             mut stored_player_position,
             mut interact_intents,
             mut move_intents,
             mut power_switches,
             mut power_nodes,
-            mut initiatives,
+            initiatives,
             names,
             mut doors,
             mut positions,
-            mut players,
             mut viewsheds,
             mut photometria,
             mut illuminants,
@@ -68,13 +65,8 @@ impl<'a> System<'a> for EventSystem {
 
         for intent_state in entities_to_handle.iter() {
             let entity = intent_state.entity;
-            let initiative = intent_state.initiative;
 
             let is_player = entity == *player;
-
-            //let name = names.get(entity).unwrap_or(&Name::new("{unknown}".to_string())).name.clone();
-
-            //println!("Handling intents for: {}", name);
 
             //Handle possible interactions
             {
@@ -119,7 +111,6 @@ impl<'a> System<'a> for EventSystem {
                 }
             }
 
-            
             //Handle possible movement
             {
                 //let mut cleared_intents = Vec::new();
@@ -128,51 +119,42 @@ impl<'a> System<'a> for EventSystem {
                     move_intent.update_remaining_cost(-TIME_PER_TURN);
 
                     if move_intent.get_remaining_cost() <= 0.0 {
+                        let current_position = move_intent.current_position;
                         let delta = move_intent.delta;
                         let mut target_position = Vector3i::new_equi(0);
                     
                         let mut movement_possible = true;
                     
-                        let mut player_position = Vector3i::new_equi(0);
-                    
-                        for (_player, position, _entity) in (&mut players, &mut positions, &entities).join() {
+                        let tile = map.tiles.get(&(current_position + delta));
 
-                            let tile = map.tiles.get(&(*position + delta));
-                    
-                            player_position = *position;
-                    
-                            //Check tile blockers
-                            match tile {
-                                Some(tile) => {
-                                    //TODO: Add exceptions here for if a player might need to move through solid tiles
-                                    if !tile.passable {
-                                        movement_possible = false;
-                                    }
-                                },
-                                _ => {
+                        //Check tile blockers
+                        match tile {
+                            Some(tile) => {
+                                //TODO: Add exceptions here for if a player might need to move through solid tiles
+                                if !tile.passable {
                                     movement_possible = false;
                                 }
+                            },
+                            _ => {
+                                movement_possible = false;
                             }
-                    
-                            if movement_possible {
-                                target_position = *position + delta;
-                            }
+                        }
+
+                        if movement_possible {
+                            target_position = current_position + delta;
                         }
                         
                         //If the movement is diagonal, blocks of four entites must be checked since the player passes through all four
-                        if check_entity_blocking(&blockers, &positions, player_position, target_position) { movement_possible = false; }
+                        if check_entity_blocking(&blockers, &positions, current_position, target_position) { movement_possible = false; }
                     
                         if movement_possible {
                             game_log.entries.push(target_position.to_string());
-                        
-                        
-                            //Update player position
-                            for (_player, position) in (&mut players, &mut positions).join() {
-                                *position = target_position;
+                          
+                            //Update position
+                            if let Some(new_position) = positions.get_mut(entity) {
+                                *new_position = target_position;
                             }
-                        
-                        
-                        
+                                 
                             if let Some(viewshed) = viewsheds.get_mut(*player) {
                                 viewshed.dirty = true;
                             }

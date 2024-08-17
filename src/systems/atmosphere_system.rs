@@ -5,7 +5,7 @@ use specs::prelude::*;
 use crate::{
     entities::atmospherics::{Gas, R},
     vectors::{
-        utils::{get_neighbours, get_neighbours_with_z},
+        utils::get_neighbours,
         Vector3i,
     },
     Map,
@@ -19,7 +19,7 @@ impl<'a> System<'a> for AtmosphereSystem {
     type SystemData = (WriteExpect<'a, Map>,);
 
     fn run(&mut self, data: Self::SystemData) {
-        let now = std::time::Instant::now();
+        //let now = std::time::Instant::now();
         let (mut map,) = data;
 
         let mut dirty_atmospheres = HashSet::new();
@@ -104,19 +104,6 @@ impl<'a> System<'a> for AtmosphereSystem {
                         } else {
                             higher_pressure_neighbours.push(neighbour);
                         }
-
-                        /*for (gas, mols) in current_tile.atmosphere.gasses.iter() {
-                            if let Some(neighbour_mols) = neighbour_tile.atmosphere.gasses.get(gas)
-                            {
-                                let delta = mols - neighbour_mols;
-                                    neighbour_mol_deltas
-                                        .entry(*neighbour)
-                                        .or_insert_with(HashMap::new)
-                                        .insert(*gas, delta);
-
-                                    *total_gas_deltas.entry(*gas).or_insert(0.0) += delta;
-                            }
-                        }*/
                     }
                 }
             }

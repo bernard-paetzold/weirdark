@@ -10,6 +10,7 @@ use specs::{Entity, Join};
 use specs::{saveload::{MarkedBuilder, SimpleMarker}, Builder, World, WorldExt};
 
 use crate::entities::biology::Breather;
+use crate::entities::intents::Initiative;
 use crate::entities::power_components::{BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use crate::{Atmosphere, Camera, EntityDirection, TERMINAL_HEIGHT, TERMINAL_WIDTH};
 use crate::{vectors::Vector3i, Illuminant, Name, Photometry, Player, Renderable, SerializationHelper, SerializeThis, Tile, Viewshed};
@@ -63,6 +64,7 @@ pub fn save_game(ecs: &mut World) {
             Atmosphere,
             Breather,
             ElectronicHeater,
+            Initiative,
             SerializationHelper
         );
     }
@@ -130,6 +132,7 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             Atmosphere,
             Breather,
             ElectronicHeater,
+            Initiative,
             SerializationHelper
         );
     }

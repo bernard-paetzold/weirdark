@@ -1,15 +1,13 @@
-use std::f32::consts::SQRT_2;
 use std::usize;
 
 use rltk::{Rltk, VirtualKeyCode};
-use specs::shred::FetchMut;
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
 use crate::entities::biology::Breather;
 use crate::entities::intents::MoveIntent;
 use crate::graphics::get_viewport_position;
-use crate::{mouse_to_map, set_camera_position, update_camera_position, Blocker, Camera, TERMINAL_WIDTH};
-use crate::{gamelog::GameLog, vectors::Vector3i, Illuminant, Map, Photometry, RunState, State, Viewshed};
+use crate::{mouse_to_map, set_camera_position, update_camera_position, Camera, TERMINAL_WIDTH};
+use crate::{gamelog::GameLog, vectors::Vector3i, Illuminant, Photometry, RunState, State, Viewshed};
 
 use serde::Serialize;
 use serde::Deserialize;

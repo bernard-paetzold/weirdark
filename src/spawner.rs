@@ -451,6 +451,7 @@ pub fn lay_wiring(ecs: &mut World, map: Map, start_position: Vector3i, end_posit
     }
 }
 
+#[allow(dead_code)]
 pub fn heater(ecs: &mut World, position: Vector3i, target_temperature: f32, on: bool) -> Entity {
     ecs.create_entity()
         .with(position)

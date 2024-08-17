@@ -170,7 +170,7 @@ impl GameState for State {
                 new_runstate = handle_other_input(&mut self.ecs, key, (*next_runstate).clone());
             }
             RunState::Simulation { steps } => {
-                for t in 0..steps {
+                for _ in 0..steps {
                     self.run_simulation();
                 }
             }

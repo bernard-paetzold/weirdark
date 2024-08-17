@@ -208,6 +208,7 @@ pub struct Door {
     pub interaction_id: usize,
     pub open_glyph: u16,
     pub closed_glyph: u16,
+    pub cost: f32,
 }
 
 impl Door {
@@ -220,7 +221,8 @@ impl Door {
             interaction_description: description.to_string(),
             interaction_id: crate::rng::random_int() as usize,
             open_glyph,
-            closed_glyph
+            closed_glyph,
+            cost: 1.0,
         }
     }
 
@@ -237,6 +239,9 @@ impl Door {
 }
 
 impl Interactable for Door {
+    fn get_cost(&self) -> f32 {
+        self.cost
+    }
     fn interact(&mut self) {
         self.open_close();
     }

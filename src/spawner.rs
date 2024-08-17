@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use rltk::{RGB, RGBA};
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
 
-use crate::{entities::{biology::Breather, power_components::{BreakerBox, ElectronicHeater}}, graphics::char_to_glyph, pathfinding::{find_walkable_path, wall_climb_path}, vectors::Vector3i, Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed, VisionBlocker, Wire};
+use crate::{entities::{biology::Breather, intents::Initiative, power_components::{BreakerBox, ElectronicHeater}}, graphics::char_to_glyph, pathfinding::{find_walkable_path, wall_climb_path}, vectors::Vector3i, Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed, VisionBlocker, Wire};
 
 pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
     //Add player camera
@@ -30,6 +30,7 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
         ))
         .with(Name::new("Player".to_string()))
         .with(Breather::new_humanlike())
+        .with(Initiative::new(0.0))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }

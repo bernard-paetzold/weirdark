@@ -6,7 +6,7 @@ use crate::entities::intents::InteractIntent;
 use crate::graphics::char_to_glyph;
 use crate::{mouse_to_map, INTERACT_MENU_WIDTH};
 use crate::systems::power_system::get_devices_on_network;
-use crate::{systems::interaction_system::get_entity_interactions, Renderable};
+use crate::{systems::event_system::get_entity_interactions, Renderable};
 use crate::entities::power_components::{BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
 use specs::prelude::*;
 
@@ -93,7 +93,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
 
     let player = get_player_entity(&entities, &players);
 
-    let mut interactables: Vec<(usize, String, u32, u32)> = Vec::new();
+    let mut interactables: Vec<(usize, String, u32, u32, f32)> = Vec::new();
     let mut tile_entities: Vec<Entity> = Vec::new();
 
     let target_tile = map.tiles.get(&target);
@@ -292,7 +292,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
 
     let player = get_player_entity(&entities, &players);
 
-    let mut interactables: Vec<(usize, String, u32, u32)> = Vec::new();
+    let mut interactables: Vec<(usize, String, u32, u32, f32)> = Vec::new();
     let mut tile_entities: Vec<Entity> = Vec::new();
 
     let target_tile = map.tiles.get(&target);
@@ -461,7 +461,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
             let mut count = 0;
             let mut prev_id = MAX;
 
-            for (_interaction_id, interaction_name, listing_id, entity_id) in interactables.iter() {
+            for (_interaction_id, interaction_name, listing_id, entity_id, _) in interactables.iter() {
                 let interactable_entity = entities.entity(*entity_id);
                 let renderable = renderables.get(interactable_entity);
                 let name = names.get(interactable_entity);
@@ -506,10 +506,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         Some(key) => {
             match key {
                 VirtualKeyCode::Escape => { 
-                    return RunState::AwaitingInput { turn_time: 0.0 }
+                    return RunState::AwaitingInput
                 },
                 VirtualKeyCode::I => { 
-                    return RunState::AwaitingInput { turn_time: 0.0 }
+                    return RunState::AwaitingInput
                 },
                 VirtualKeyCode::Period => {
                     return check_range(range, source, target, Vector3i::DOWN, mouse_position);
@@ -546,10 +546,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let interactable = interactables[0].clone();
                         let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
-                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
                         
-                            return RunState::PreRun; 
+                            return RunState::Ticking; 
                         }       
                     }
                     return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
@@ -559,10 +559,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let interactable = interactables[1].clone();
                         let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
-                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
                         
-                            return RunState::PreRun; 
+                            return RunState::Ticking; 
                         }       
                     }
                     return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
@@ -572,10 +572,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let interactable = interactables[2].clone();
                         let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
-                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
                         
-                            return RunState::PreRun; 
+                            return RunState::Ticking; 
                         }       
                     }
                     return RunState::InteractGUI { range, source, target, prev_mouse_position }
@@ -585,10 +585,10 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let interactable = interactables[3].clone();
                         let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
-                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
                         
-                            return RunState::PreRun; 
+                            return RunState::Ticking; 
                         }       
                     }
                     return RunState::InteractGUI { range, source, target, prev_mouse_position }
@@ -598,23 +598,23 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let interactable = interactables[4].clone();
                         let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
-                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
                         
-                            return RunState::PreRun; 
+                            return RunState::Ticking; 
                         }       
                     }
                     return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
                 },
                 VirtualKeyCode::Return => {
-                    if interactables.len() > 4 {
-                        let interactable = interactables[4].clone();
+                    if interactables.len() > 40 {
+                        let interactable = interactables[0].clone();
                         let entity = entities.entity(interactable.3);
                         if let Some(player) = player {
-                            let mut interaction = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interaction.insert(entity, InteractIntent::new(player, entity, interactable.0, interactable.1.clone()));
+                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
                         
-                            return RunState::PreRun; 
+                            return RunState::Ticking; 
                         }       
                     }
                     return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }

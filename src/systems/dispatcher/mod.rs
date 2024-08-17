@@ -1,11 +1,10 @@
+use event_system::EventSystem;
 pub use lighting_system::LightingSystem;
 //use map_index_system::MapIndexSystem;
 use power_system::PowerSystem;
 use specs::prelude::World;
 use state_align_system::StateAlignSystem;
 use visibility_system::VisibilitySystem;
-use interaction_system::InteractionSystem;
-
 use atmosphere_system::AtmosphereSystem;
 use biology_system::BiologySystem;
 
@@ -20,11 +19,12 @@ pub trait UnifiedDispatcher {
     fn run_now(&mut self, ecs : *mut World);
 }
 
+
 construct_dispatcher!(
     //(MapIndexSystem, "map_index", &[]),
     (AtmosphereSystem, "atmosphere", &[]),
     (BiologySystem, "biology", &[]),
-    (InteractionSystem, "interaction", &[]),
+    (EventSystem, "events", &[]),
     (StateAlignSystem, "state_align", &[]),
     (PowerSystem, "power", &[]),
     (VisibilitySystem, "visibility", &[]),

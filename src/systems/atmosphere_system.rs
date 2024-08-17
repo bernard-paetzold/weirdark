@@ -36,8 +36,6 @@ impl<'a> System<'a> for AtmosphereSystem {
             tile.atmosphere.dirty = false;
         }
 
-        println!("Updating atmos {}", dirty_atmospheres.len());
-
         for position in dirty_atmospheres.iter() {
             let neighbours = get_accessible_neighbours(&map, position).clone();
 

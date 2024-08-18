@@ -20,19 +20,20 @@ pub struct Breather {
 impl Breather {
     pub fn new_humanlike() -> Self {
         let mut in_gasses = HashMap::new();
-        in_gasses.insert(Gas::Oxygen, (0.0011, 0.21));
+        //in_gasses.insert(Gas::Oxygen, (0.004125723, 0.21));
+        //in_gasses.insert(Gas::Nitrogen, (0.015324114, 0.78));
 
         let mut out_gasses = HashMap::new();
-        out_gasses.insert(Gas::CarbonDioxide, 0.0012);        
-        //out_gasses.insert(Gas::CarbonDioxide, 0.01);        
-        //out_gasses.insert(Gas::Oxygen, 0.01);        
-        //out_gasses.insert(Gas::Nitrogen, 0.02);        
+        //out_gasses.insert(Gas::CarbonDioxide, 0.000785852);             
+        out_gasses.insert(Gas::CarbonDioxide, 10.0);             
+        //out_gasses.insert(Gas::Oxygen, 0.003143408);        
+        //out_gasses.insert(Gas::Nitrogen, 0.015324114);        
 
         Self {
             in_gasses,
             out_gasses,
             trigger_breath: true,
-            temperature: 37.0 + super::atmospherics::K,
+            temperature: 288.15,
         }
     }
     pub fn breath(&mut self, atmosphere: &mut Atmosphere) {

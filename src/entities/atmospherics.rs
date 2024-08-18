@@ -60,19 +60,27 @@ impl Atmosphere {
     }
     pub fn new_stp() -> Self {
         let mut gasses = HashMap::new();
-        gasses.insert(Gas::Oxygen,  0.0045593898);
-        gasses.insert(Gas::Nitrogen, 0.0171519902);
+        gasses.insert(Gas::Oxygen,  9.3043588);
+        gasses.insert(Gas::Nitrogen, 32.9881812);
 
+        let mut atmosphere =
         Self { 
             pressure: 0.0,
             temperature: 288.15,
             gasses,
             space_id: crate::rng::random_int() as usize,
             dirty: true,
-        }
+        };
+
+        atmosphere.recalculate_pressure();
+
+        atmosphere
     }
     pub fn get_pressure(&self) -> f32 {
         self.pressure
+    }
+    pub fn get_pressure_kpa(&self) -> f32 {
+        self.pressure * 0.001
     }
     pub fn get_temperature(&self) -> f32 {
         self.temperature
@@ -142,10 +150,46 @@ impl Atmosphere {
         other.update_gas(&delta_gasses, self.temperature);
         other.dirty = true;
     }
+    pub fn transfer_gas_except(&self, other: &mut Self, delta_mols: f32, exclude_gas: Gas) {
+        let mut delta_gasses = HashMap::new();
+        let mut total_transferred = 0.0;
+        let gases: Vec<_> = self.gasses.keys().cloned().filter(|&g| g != exclude_gas).collect();
+        
+        for (i, gas) in gases.iter().enumerate() {
+            let ratio = self.get_gas_ratio_except(*gas, exclude_gas);
+            let transfer = if i == gases.len() - 1 {
+                // For the last gas, transfer the remaining amount
+                delta_mols - total_transferred
+            } else {
+                delta_mols * ratio
+            };
+            
+            delta_gasses.insert(*gas, transfer);
+            total_transferred += transfer;
+        }
+    
+        other.update_gas(&delta_gasses, self.temperature);
+        other.dirty = true;
+    }
+    
+    pub fn get_gas_ratio_except(&self, gas: Gas, exclude_gas: Gas) -> f32 {
+        let total_mols_except = self.get_total_mols_except(exclude_gas);
+        if total_mols_except == 0.0 {
+            return 0.0;
+        }
+        self.gasses.get(&gas).unwrap_or(&0.0) / total_mols_except
+    }
+    
+    pub fn get_total_mols_except(&self, exclude_gas: Gas) -> f32 {
+        self.gasses.iter()
+            .filter(|&(&g, _)| g != exclude_gas)
+            .map(|(_, &mols)| mols)
+            .sum()
+    }
     pub fn transfer_single_gas(&self, other: &mut Self, gas: Gas, delta_mols: f32) {
         let mut delta_gasses = HashMap::new();
 
-        delta_gasses.insert(gas, delta_mols * self.get_gas_ratio(gas));
+        delta_gasses.insert(gas, delta_mols);
 
         other.update_gas(&delta_gasses, self.temperature);
         other.dirty = true;
@@ -160,10 +204,26 @@ impl Atmosphere {
         self.update_gas(&delta_gasses, self.temperature);
         self.dirty = true;
     }
+    pub fn remove_gas_except(&mut self, delta_mols: f32, exclude_gas: Gas) {
+        let mut delta_gasses = HashMap::new();
+        let total_mols_except = self.get_total_mols_except(exclude_gas);
+    
+        if total_mols_except > 0.0 {
+            for (gas, mols) in &self.gasses {
+                if *gas != exclude_gas {
+                    let ratio = *mols / total_mols_except;
+                    delta_gasses.insert(*gas, -delta_mols * ratio);
+                }
+            }
+    
+            self.update_gas(&delta_gasses, self.temperature);
+            self.dirty = true;
+        }
+    }
     pub fn remove_single_gas(&mut self, gas: Gas, delta_mols: f32) {
         let mut delta_gasses = HashMap::new();
 
-        delta_gasses.insert(gas.clone(), - delta_mols.clone() * self.get_gas_ratio(gas));
+        delta_gasses.insert(gas.clone(), - delta_mols.clone());
         
         self.update_gas(&delta_gasses, self.temperature);
         self.dirty = true;

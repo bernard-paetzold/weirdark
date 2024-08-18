@@ -30,6 +30,9 @@ impl RoomTestMapBuilder {
         let mut open_space= Tile::new_empty_stp();
         if let Some(tile) = crate::tile_blueprints::get_tile("vacuume") { open_space = tile; }
 
+        let mut breathable_atmosphere = Tile::new_empty_stp();
+        if let Some(tile) = crate::tile_blueprints::get_tile("breathable_atmosphere") { breathable_atmosphere = tile; }
+
         let x_lower_limit = self.start_position.x - size.x / 2;
         let x_upper_limit = self.start_position.x + size.x / 2;
 
@@ -49,11 +52,13 @@ impl RoomTestMapBuilder {
                         self.map.tiles.insert(current_position, hull.clone());
                     }
                     else {
-                        self.map.tiles.insert(current_position, open_space.clone());
+                        self.map.tiles.insert(current_position, breathable_atmosphere.clone());
                     }
                 }
             }
         }
+
+        self.map.tiles.insert(self.start_position + Vector3i::DOWN, breathable_atmosphere);
     }
     pub fn spawn_room_entities(&mut self, ecs: &mut World, size: Vector3i, power_systems: bool, ceiling_lights: bool, power_source: bool, heater: bool) {
         //let x_lower_limit = self.start_position.x - size.x / 2 + 1;

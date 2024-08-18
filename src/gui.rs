@@ -130,8 +130,8 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
             ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
             count += 1;
         }
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2}", target_tile.atmosphere.get_pressure()));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2} C", target_tile.atmosphere.get_celcius_temperature()));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2} kpa", target_tile.atmosphere.get_pressure_kpa()));
     }
 }
 
@@ -336,7 +336,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
             count += 1;
         }
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2}", target_tile.atmosphere.get_pressure()));
+        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2} kpa", target_tile.atmosphere.get_pressure_kpa()));
     }
 
     const ENTITY_FIELDS: usize = 20;

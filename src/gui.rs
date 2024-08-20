@@ -127,7 +127,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
         
         let mut count = 0;
         for (gas, mols) in &target_tile.atmosphere.gasses {
-            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.3}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
             count += 1;
         }
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2} C", target_tile.atmosphere.get_celcius_temperature()));
@@ -332,7 +332,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         
         let mut count = 0;
         for (gas, mols) in &target_tile.atmosphere.gasses {
-            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.5}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.3}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
             count += 1;
         }
         ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));

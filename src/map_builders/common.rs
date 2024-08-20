@@ -2,11 +2,11 @@ use crate::{rng, vectors::Vector3i};
 
 
 pub fn rand_wall_adj_tile(room_center: Vector3i, size: Vector3i) -> Vector3i {
-    let x_lower_limit = room_center.x - size.x / 2;
-    let x_upper_limit = room_center.x + size.x / 2;
+    let x_lower_limit = room_center.x - size.x / 2 + 1;
+    let x_upper_limit = room_center.x + size.x / 2 - 1;
 
-    let y_lower_limit = room_center.y - size.y / 2;
-    let y_upper_limit = room_center.y + size.y / 2;
+    let y_lower_limit = room_center.y - size.y / 2 + 1;
+    let y_upper_limit = room_center.y + size.y / 2 - 1;
 
     let z_lower_limit = room_center.z - size.z / 2 + 1;
     //let z_upper_limit = room_center.z + size.z / 2 - 1;
@@ -28,4 +28,20 @@ pub fn rand_wall_adj_tile(room_center: Vector3i, size: Vector3i) -> Vector3i {
         target_postion = Vector3i::new(x_upper_limit, rng::range(y_lower_limit, y_upper_limit), z_lower_limit);
     }
     target_postion
+}
+
+pub struct Room {
+    pub centre: Vector3i,
+    pub size: Vector3i,
+    pub door_sides: Vec<Vector3i>,
+}
+
+impl Room {
+    pub fn new(centre: Vector3i, size: Vector3i, door_sides: Vec<Vector3i>) -> Self {
+        Self {
+            centre,
+            size,
+            door_sides,
+        }
+    }
 }

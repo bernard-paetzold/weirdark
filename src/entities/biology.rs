@@ -32,7 +32,7 @@ impl Breather {
         Self {
             in_gasses,
             out_gasses,
-            trigger_breath: true,
+            trigger_breath: false,
             temperature: 288.15,
         }
     }

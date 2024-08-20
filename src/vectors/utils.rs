@@ -33,6 +33,17 @@ pub fn get_cardinal_neighbours(position: Vector3i) -> Vec<Vector3i> {
         position + Vector3i::new(-1, 0, 0)]
 }
 
+pub fn get_cardinal_neighbours_with_range(position: Vector3i, range: usize) -> Vec<Vector3i> {
+    let mut neighbours = Vec::new();
+
+    for x in -((range / 2) as i32)..(range / 2) as i32 + 1 {
+        for y in -((range / 2) as i32)..(range / 2) as i32 + 1 {
+            neighbours.push(position + Vector3i::new(x, y, 0));    
+        }
+    }
+    neighbours
+}
+
 pub fn get_cardinal_neighbours_with_z(position: Vector3i) -> Vec<Vector3i> {
     vec![position + Vector3i::new(0, 0, -1),
         position + Vector3i::new(0, 0, 1),

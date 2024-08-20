@@ -105,6 +105,14 @@ impl Mul<i32> for Vector3i {
     }
 }
 
+impl Mul<Vector3i> for Vector3i {
+    type Output = Self;
+
+    fn mul(self, other: Vector3i) -> Self {
+        return Vector3i::new(self.x * other.x, self.y * other.y, self.z * other.z)
+    }
+}
+
 impl Mul<Vector3i> for i32 {
     type Output = Vector3i;
 

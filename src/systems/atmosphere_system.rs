@@ -11,9 +11,8 @@ use crate::{
     Map,
 };
 
-const PRESSURE_THRESHOLD: f32 = 0.000001;
-//const PRESSURE_THRESHOLD: f32 = 0.000001;
-const DISSIPATION_THRESHOLD: f32 = 0.000001;
+const PRESSURE_THRESHOLD: f32 = 0.00001;
+const DISSIPATION_THRESHOLD: f32 = 0.00001;
 const DIFFUSION_SMOOTHING: f32 = 0.8;
 const PRESSURE_SMOOTHING: f32 = 0.6;
 
@@ -44,7 +43,6 @@ impl<'a> System<'a> for AtmosphereSystem {
 
 
         for position in dirty_atmospheres.iter() {
-            println!("Updating atmos: {}", dirty_atmospheres.len());
             let neighbours = get_accessible_neighbours(&map, position).clone();
 
             let mut temperature = 0.0;

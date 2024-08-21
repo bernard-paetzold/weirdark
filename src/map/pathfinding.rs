@@ -1,6 +1,10 @@
-use std::{cmp::{Ordering, Reverse}, collections::{BinaryHeap, HashMap, HashSet}, f32::consts::SQRT_2};
+use std::{
+    cmp::{Ordering, Reverse},
+    collections::{BinaryHeap, HashMap, HashSet},
+    f32::consts::SQRT_2,
+};
 
-use crate::vectors::{utils::{get_cardinal_neighbours, get_cardinal_neighbours_with_range}, Vector3i};
+use crate::vectors::{utils::get_cardinal_neighbours, Vector3i};
 
 use super::Map;
 
@@ -8,24 +12,32 @@ use super::Map;
 pub fn find_walkable_path(map: Map, start_position: Vector3i, target: Vector3i) -> Vec<Vector3i> {
     if let Some(path) = a_star(&map, start_position, target) {
         path
-    }
-    else {
+    } else {
         println!("Failed");
         vec![start_position]
     }
 }
 
-pub fn find_path_with_width(map: Map, start_position: Vector3i, target: Vector3i, width: usize) -> Vec<Vector3i> {
+pub fn find_path_with_width(
+    map: Map,
+    start_position: Vector3i,
+    target: Vector3i,
+    width: usize,
+) -> Vec<Vector3i> {
     if let Some(path) = a_star_with_width(&map, start_position, target, width) {
         path
-    }
-    else {
+    } else {
         println!("Failed");
         vec![start_position]
     }
 }
 
-pub fn wall_climb_path(map: Map, mut start_position: Vector3i, mut target: Vector3i, roof_preferred: bool) -> Vec<Vector3i> {
+pub fn wall_climb_path(
+    map: Map,
+    mut start_position: Vector3i,
+    mut target: Vector3i,
+    roof_preferred: bool,
+) -> Vec<Vector3i> {
     let mut path: Vec<Vector3i> = Vec::new();
     let direction: i32;
 
@@ -35,15 +47,12 @@ pub fn wall_climb_path(map: Map, mut start_position: Vector3i, mut target: Vecto
         target = temp;
     }
 
-
     if start_position.z > target.z {
         direction = 1;
-    }
-    else {
-        direction = -1; 
+    } else {
+        direction = -1;
     }
 
-    
     // Find nearest wall to crawl up
     let mut wall_found = false;
     let mut wall_position = Vector3i::new_equi(0);
@@ -80,12 +89,17 @@ pub fn wall_climb_path(map: Map, mut start_position: Vector3i, mut target: Vecto
                                 if down_neighbour_tile.passable {
                                     invalid_walls += 1;
                                 }
-                            }                
+                            }
                         }
 
                         if invalid_walls < 4 {
-                            wall_climb.push(Vector3i::new(test_position.x, test_position.y, test_wall_position.z));
-                            test_wall_position = test_wall_position + Vector3i::new(0, 0, -direction);
+                            wall_climb.push(Vector3i::new(
+                                test_position.x,
+                                test_position.y,
+                                test_wall_position.z,
+                            ));
+                            test_wall_position =
+                                test_wall_position + Vector3i::new(0, 0, -direction);
                         } else {
                             wall_invalid = true;
                         }
@@ -127,7 +141,7 @@ pub fn wall_climb_path(map: Map, mut start_position: Vector3i, mut target: Vecto
     path
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 struct State {
     g_score: i32,
     position: Vector3i,
@@ -135,7 +149,9 @@ struct State {
 
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.g_score.cmp(&other.g_score).then_with(|| self.position.cmp(&other.position))
+        self.g_score
+            .cmp(&other.g_score)
+            .then_with(|| self.position.cmp(&other.position))
     }
 }
 
@@ -147,27 +163,35 @@ impl PartialOrd for State {
 
 fn a_star(map: &Map, start_position: Vector3i, target: Vector3i) -> Option<Vec<Vector3i>> {
     let mut open_set = BinaryHeap::new();
-    open_set.push(Reverse(State { g_score: 0, position: start_position, }));
-    
+    open_set.push(Reverse(State {
+        g_score: 0,
+        position: start_position,
+    }));
+
     let mut came_from: HashMap<Vector3i, Vector3i> = HashMap::new();
     let mut g_score: HashMap<Vector3i, i32> = HashMap::new();
     g_score.insert(start_position, 0);
     let mut f_score: HashMap<Vector3i, f32> = HashMap::new();
     f_score.insert(start_position, heuristic(start_position, target));
 
-    while let Some(Reverse(State { g_score: _current_g_score, position: current_position })) = open_set.pop() {
+    while let Some(Reverse(State {
+        g_score: _current_g_score,
+        position: current_position,
+    })) = open_set.pop()
+    {
         if current_position == target {
             return Some(reconstruct_path(&came_from, current_position));
         }
 
         let neighbours = get_accessible_neighbours(map, current_position);
-        
+
         for neighbour in neighbours {
-            let move_cost = if current_position.x != neighbour.x && current_position.y != neighbour.y {
-                (SQRT_2 * 100.0) as i32 // Diagonal move
-            } else {
-                100 // Cardinal move
-            };
+            let move_cost =
+                if current_position.x != neighbour.x && current_position.y != neighbour.y {
+                    (SQRT_2 * 100.0) as i32 // Diagonal move
+                } else {
+                    100 // Cardinal move
+                };
 
             let tentative_g_score = g_score[&current_position] + move_cost;
             let tentative_f_score = tentative_g_score as f32 + heuristic(neighbour, target);
@@ -177,17 +201,28 @@ fn a_star(map: &Map, start_position: Vector3i, target: Vector3i) -> Option<Vec<V
                 g_score.insert(neighbour, tentative_g_score);
                 f_score.insert(neighbour, tentative_f_score);
 
-                open_set.push(Reverse(State { g_score: tentative_g_score, position: neighbour, }));
+                open_set.push(Reverse(State {
+                    g_score: tentative_g_score,
+                    position: neighbour,
+                }));
             }
         }
     }
     None
 }
 
-fn a_star_with_width(map: &Map, start_position: Vector3i, target: Vector3i, width: usize) -> Option<Vec<Vector3i>> {
+fn a_star_with_width(
+    map: &Map,
+    start_position: Vector3i,
+    target: Vector3i,
+    width: usize,
+) -> Option<Vec<Vector3i>> {
     let mut open_set = BinaryHeap::new();
-    open_set.push(Reverse(State { g_score: 0, position: start_position, }));
-    
+    open_set.push(Reverse(State {
+        g_score: 0,
+        position: start_position,
+    }));
+
     let mut came_from: HashMap<Vector3i, Vector3i> = HashMap::new();
     let mut g_score: HashMap<Vector3i, i32> = HashMap::new();
     g_score.insert(start_position, 0);
@@ -196,7 +231,11 @@ fn a_star_with_width(map: &Map, start_position: Vector3i, target: Vector3i, widt
 
     let mut count = 0;
 
-    while let Some(Reverse(State { g_score: _current_g_score, position: current_position })) = open_set.pop() {
+    while let Some(Reverse(State {
+        g_score: _current_g_score,
+        position: current_position,
+    })) = open_set.pop()
+    {
         if current_position == target {
             return Some(reconstruct_path(&came_from, current_position));
         }
@@ -206,13 +245,14 @@ fn a_star_with_width(map: &Map, start_position: Vector3i, target: Vector3i, widt
         } else {
             get_accessible_neighbours_with_width(map, current_position, width)
         };
-        
+
         for neighbour in neighbours {
-            let move_cost = if current_position.x != neighbour.x && current_position.y != neighbour.y {
-                (SQRT_2 * 100.0) as i32 // Diagonal move
-            } else {
-                100 // Cardinal move
-            };
+            let move_cost =
+                if current_position.x != neighbour.x && current_position.y != neighbour.y {
+                    (SQRT_2 * 100.0) as i32 // Diagonal move
+                } else {
+                    100 // Cardinal move
+                };
             let tentative_g_score = g_score[&current_position] + move_cost;
 
             let tentative_f_score = tentative_g_score as f32 + heuristic(neighbour, target);
@@ -222,7 +262,10 @@ fn a_star_with_width(map: &Map, start_position: Vector3i, target: Vector3i, widt
                 g_score.insert(neighbour, tentative_g_score);
                 f_score.insert(neighbour, tentative_f_score);
 
-                open_set.push(Reverse(State { g_score: tentative_g_score, position: neighbour, }));
+                open_set.push(Reverse(State {
+                    g_score: tentative_g_score,
+                    position: neighbour,
+                }));
             }
         }
         count += 1;
@@ -235,15 +278,14 @@ pub fn get_accessible_neighbours(map: &Map, position: Vector3i) -> Vec<Vector3i>
     let mut accessible_neighbours = Vec::new();
 
     while neighbours.len() > 0 {
-        let neighbour = neighbours.pop();  
+        let neighbour = neighbours.pop();
 
         if let Some(tile_position) = neighbour {
             if let Some(tile) = map.tiles.get(&tile_position) {
                 if tile.passable {
                     accessible_neighbours.push(tile_position);
                 }
-            }
-            else {
+            } else {
                 accessible_neighbours.push(tile_position);
             }
         }
@@ -251,12 +293,16 @@ pub fn get_accessible_neighbours(map: &Map, position: Vector3i) -> Vec<Vector3i>
     accessible_neighbours
 }
 
-pub fn get_accessible_neighbours_with_width(map: &Map, position: Vector3i, range: usize) -> Vec<Vector3i> {
+pub fn get_accessible_neighbours_with_width(
+    map: &Map,
+    position: Vector3i,
+    range: usize,
+) -> Vec<Vector3i> {
     let mut neighbours = get_cardinal_neighbours(position);
     let mut accessible_neighbours = Vec::new();
 
     while neighbours.len() > 0 {
-        let neighbour = neighbours.pop();  
+        let neighbour = neighbours.pop();
 
         let mut valid_tile = true;
 
@@ -269,7 +315,7 @@ pub fn get_accessible_neighbours_with_width(map: &Map, position: Vector3i, range
                         if !tile.passable && !(x.abs() == half_range || y.abs() == half_range) {
                             valid_tile = false;
                         }
-                    }       
+                    }
                 }
             }
 
@@ -300,4 +346,3 @@ fn reconstruct_path(came_from: &HashMap<Vector3i, Vector3i>, target: Vector3i) -
     total_path.insert(0, current_position);
     total_path
 }
-

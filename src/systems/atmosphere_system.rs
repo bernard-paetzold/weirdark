@@ -4,10 +4,7 @@ use specs::prelude::*;
 
 use crate::{
     entities::atmospherics::{Gas, R},
-    vectors::{
-        utils::get_neighbours,
-        Vector3i,
-    },
+    vectors::{utils::get_neighbours, Vector3i},
     Map,
 };
 
@@ -15,7 +12,6 @@ const PRESSURE_THRESHOLD: f32 = 0.00001;
 const DISSIPATION_THRESHOLD: f32 = 0.00001;
 const DIFFUSION_SMOOTHING: f32 = 0.8;
 const PRESSURE_SMOOTHING: f32 = 0.6;
-
 
 pub struct AtmosphereSystem {}
 
@@ -40,8 +36,6 @@ impl<'a> System<'a> for AtmosphereSystem {
             tile.atmosphere.dirty = false;
         }
 
-
-
         for position in dirty_atmospheres.iter() {
             let neighbours = get_accessible_neighbours(&map, position).clone();
 
@@ -62,7 +56,6 @@ impl<'a> System<'a> for AtmosphereSystem {
             let mut higher_pressure_neighbours = Vec::new();
 
             if let Some(current_tile) = map.tiles.get(position) {
-
                 temperature = current_tile.atmosphere.temperature;
                 pressure = current_tile.atmosphere.pressure;
 
@@ -74,40 +67,40 @@ impl<'a> System<'a> for AtmosphereSystem {
                         if neighbour_pressure <= pressure {
                             if neighbour_pressure == pressure {
                                 for (gas, mols) in current_tile.atmosphere.gasses.iter() {
-                                    if let Some(neighbour_mols) = neighbour_tile.atmosphere.gasses.get(gas) {
+                                    if let Some(neighbour_mols) =
+                                        neighbour_tile.atmosphere.gasses.get(gas)
+                                    {
                                         if mols > neighbour_mols {
                                             let delta = mols - neighbour_mols;
-                                            
+
                                             if delta > DISSIPATION_THRESHOLD {
                                                 neighbour_mol_deltas
-                                                .entry(*gas)
-                                                .or_insert_with(HashMap::new)
-                                                .insert(*neighbour, delta);
-        
+                                                    .entry(*gas)
+                                                    .or_insert_with(HashMap::new)
+                                                    .insert(*neighbour, delta);
+
                                                 *neighbour_count.entry(*gas).or_insert(0) += 1;
-                                                *total_mols_by_gas.entry(*gas).or_insert(0.0) += delta;
+                                                *total_mols_by_gas.entry(*gas).or_insert(0.0) +=
+                                                    delta;
                                             }
                                         }
-                                    }
-                                    else if *mols > DISSIPATION_THRESHOLD {
+                                    } else if *mols > DISSIPATION_THRESHOLD {
                                         neighbour_mol_deltas
                                             .entry(*gas)
                                             .or_insert_with(HashMap::new)
                                             .insert(*neighbour, *mols);
-        
+
                                         *neighbour_count.entry(*gas).or_insert(0) += 1;
-        
-                                        //*total_mols_by_gas.entry(*gas).or_insert(0.0) += *mols;                 
+
+                                        //*total_mols_by_gas.entry(*gas).or_insert(0.0) += *mols;
                                     }
                                 }
-                            }
-                            else if (pressure - neighbour_pressure) > PRESSURE_THRESHOLD {
+                            } else if (pressure - neighbour_pressure) > PRESSURE_THRESHOLD {
                                 let delta = pressure - neighbour_pressure;
                                 neighbour_pressure_deltas.insert(*neighbour, delta);
                                 total_delta += delta;
                                 total_pressure += neighbour_pressure;
-                            }
-                            else {
+                            } else {
                                 clean_tiles.insert(neighbour, true);
                             }
                         } else {
@@ -123,7 +116,9 @@ impl<'a> System<'a> for AtmosphereSystem {
             //Distribute excess between neighbours proportionally to the difference from own
             for (neighbour, delta) in neighbour_pressure_deltas.iter() {
                 let proportion: f32 = *delta / total_delta;
-                let mols_to_transfer = ((excess_pressure * proportion) / (temperature * R)) * (delta / pressure) * PRESSURE_SMOOTHING;
+                let mols_to_transfer = ((excess_pressure * proportion) / (temperature * R))
+                    * (delta / pressure)
+                    * PRESSURE_SMOOTHING;
 
                 if mols_to_transfer < DISSIPATION_THRESHOLD {
                     continue;
@@ -153,90 +148,90 @@ impl<'a> System<'a> for AtmosphereSystem {
 
             if let Some(current_tile) = map.tiles.get(position) {
                 //Get the mols of all the neighbours
-                let pressure = current_tile.atmosphere.pressure;
+                //let pressure = current_tile.atmosphere.pressure;
 
                 for neighbour in neighbours.iter() {
                     if let Some(neighbour_tile) = map.tiles.get(neighbour) {
                         //if pressure - neighbour_tile.atmosphere.pressure <= PRESSURE_THRESHOLD {
-                            for (gas, mols) in current_tile.atmosphere.gasses.iter() {
-                                if let Some(neighbour_mols) = neighbour_tile.atmosphere.gasses.get(gas) {
-                                    if mols > neighbour_mols {
-                                        let delta = mols - neighbour_mols;
-                                        
-                                        if delta > DISSIPATION_THRESHOLD {
-                                            neighbour_mol_deltas
+                        for (gas, mols) in current_tile.atmosphere.gasses.iter() {
+                            if let Some(neighbour_mols) = neighbour_tile.atmosphere.gasses.get(gas)
+                            {
+                                if mols > neighbour_mols {
+                                    let delta = mols - neighbour_mols;
+
+                                    if delta > DISSIPATION_THRESHOLD {
+                                        neighbour_mol_deltas
                                             .entry(*gas)
                                             .or_insert_with(HashMap::new)
                                             .insert(*neighbour, delta);
-    
-                                            *neighbour_count.entry(*gas).or_insert(0) += 1;
-                                            *total_mols_by_gas.entry(*gas).or_insert(0.0) += delta;
-                                        }
+
+                                        *neighbour_count.entry(*gas).or_insert(0) += 1;
+                                        *total_mols_by_gas.entry(*gas).or_insert(0.0) += delta;
                                     }
                                 }
-                                else if *mols > DISSIPATION_THRESHOLD {
-                                    neighbour_mol_deltas
-                                        .entry(*gas)
-                                        .or_insert_with(HashMap::new)
-                                        .insert(*neighbour, *mols);
-    
-                                    *neighbour_count.entry(*gas).or_insert(0) += 1;
-    
-                                    //*total_mols_by_gas.entry(*gas).or_insert(0.0) += *mols;                 
-                                }
+                            } else if *mols > DISSIPATION_THRESHOLD {
+                                neighbour_mol_deltas
+                                    .entry(*gas)
+                                    .or_insert_with(HashMap::new)
+                                    .insert(*neighbour, *mols);
+
+                                *neighbour_count.entry(*gas).or_insert(0) += 1;
+
+                                //*total_mols_by_gas.entry(*gas).or_insert(0.0) += *mols;
                             }
+                        }
                         //}
                     }
                 }
             }
 
-            for (gas, gas_deltas) in neighbour_mol_deltas.iter() {
-                for (neighbour, delta) in gas_deltas.iter() {
+            for (_, gas_deltas) in neighbour_mol_deltas.iter() {
+                for (neighbour, _) in gas_deltas.iter() {
                     clean_tiles.insert(neighbour, true);
                 }
             }
 
             //If neighbours are missing gasses current tile has, share them
             for (gas, gas_deltas) in neighbour_mol_deltas.iter() {
-                    let current_tile = map.tiles.get(&position);
+                let current_tile = map.tiles.get(&position);
 
-                    let mut current_mols = 0.0;
+                let mut current_mols = 0.0;
 
-                    if let Some(current_tile) = current_tile {
-                        current_mols = current_tile
-                            .atmosphere
-                            .gasses
-                            .get(&gas)
-                            .unwrap_or(&0.0)
-                            .clone();
-                    }
+                if let Some(current_tile) = current_tile {
+                    current_mols = current_tile
+                        .atmosphere
+                        .gasses
+                        .get(&gas)
+                        .unwrap_or(&0.0)
+                        .clone();
+                }
 
-                    if current_mols == 0.0 {
-                        continue;
-                    }
+                if current_mols == 0.0 {
+                    continue;
+                }
 
-                    let count = *neighbour_count.get(gas).unwrap_or(&0) + 1;
+                let count = *neighbour_count.get(gas).unwrap_or(&0) + 1;
 
-                    
+                let total_mols: f32 = *total_mols_by_gas.get(&gas).unwrap_or(&0.0) + current_mols;
 
-                    let total_mols: f32 = *total_mols_by_gas.get(&gas).unwrap_or(&0.0) + current_mols;
+                let average_mols = total_mols / count as f32;
 
-                    let average_mols = total_mols / count as f32;
+                let excess_mols = current_mols - average_mols;
 
-                    let excess_mols = current_mols - average_mols;
+                if excess_mols == 0.0 {
+                    continue;
+                }
 
-                    if excess_mols == 0.0 {
-                        continue;
-                    }
-
-                    let total_delta: f32 = neighbour_mol_deltas.values()
+                let total_delta: f32 = neighbour_mol_deltas
+                    .values()
                     .flat_map(|deltas: &HashMap<Vector3i, f32>| deltas.values())
                     .sum();
 
                 for (neighbour, delta) in gas_deltas.iter() {
                     let proportion = *delta / total_delta;
 
-                    let mols_to_swap = excess_mols * proportion * (delta / current_mols) * DIFFUSION_SMOOTHING;
+                    let mols_to_swap =
+                        excess_mols * proportion * (delta / current_mols) * DIFFUSION_SMOOTHING;
 
                     if mols_to_swap < DISSIPATION_THRESHOLD {
                         continue;
@@ -266,8 +261,7 @@ impl<'a> System<'a> for AtmosphereSystem {
                         neighbour_tile = Some(tile.clone());
                     }
 
-
-                    if let Some(neighbour_tile) = neighbour_tile {
+                    if let Some(_) = neighbour_tile {
                         if let Some(current_tile) = map.tiles.get_mut(&position) {
                             //neighbour_tile.atmosphere.transfer_gas_except(&mut current_tile.atmosphere, mols_to_swap, *gas);
                             current_tile
@@ -298,7 +292,7 @@ impl<'a> System<'a> for AtmosphereSystem {
         for (_, tile) in map.tiles.iter() {
             for (gas, mols) in tile.atmosphere.gasses.iter() {
                 *total_gasses.entry(*gas).or_insert(0.0) += mols;
-            }     
+            }
         }
         for (gas, mols) in total_gasses.iter() {
             println!("{}: {}", gas, mols);
@@ -315,7 +309,7 @@ pub fn get_accessible_neighbours(map: &Map, position: &Vector3i) -> Vec<Vector3i
             if tile.passable {
                 accessible_neighbours.push(neighbour);
             }
-        }   
+        }
     }
     accessible_neighbours
 }

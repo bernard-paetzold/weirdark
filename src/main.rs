@@ -1,8 +1,9 @@
-
 use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
 use entities::intents::{Initiative, InteractIntent, MoveIntent};
-use entities::power_components::{BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
+use entities::power_components::{
+    BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
+};
 use graphics::render_map;
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
@@ -48,11 +49,11 @@ mod map;
 mod map_builders;
 mod menu;
 mod player;
+pub mod rng;
 pub mod save_load_system;
 mod spawner;
 mod states;
 mod vectors;
-pub mod rng;
 
 mod systems;
 pub struct State {
@@ -66,7 +67,6 @@ impl State {
         //let now = Instant::now();
 
         self.dispatcher.run_now(&mut self.ecs);
-
 
         //let elapsed = now.elapsed();
         //println!("Elapsed: {:.2?}", elapsed);
@@ -114,11 +114,11 @@ impl GameState for State {
             RunState::Ticking => {
                 self.run_systems();
                 self.ecs.maintain();
-                
+
                 match *self.ecs.fetch::<RunState>() {
                     RunState::AwaitingInput => new_runstate = RunState::AwaitingInput,
-                    _ => new_runstate = RunState::Ticking
-                } 
+                    _ => new_runstate = RunState::Ticking,
+                }
             }
             RunState::MainMenu { .. } => {
                 let result = menu::main_menu(self, ctx);
@@ -156,7 +156,8 @@ impl GameState for State {
                 target,
                 prev_mouse_position,
             } => {
-                new_runstate = gui::interact_gui(self, ctx, range, source, target, prev_mouse_position);
+                new_runstate =
+                    gui::interact_gui(self, ctx, range, source, target, prev_mouse_position);
 
                 //If the gui exits snap the camera position to the player
                 match new_runstate {
@@ -165,7 +166,7 @@ impl GameState for State {
                     }
                     _ => {}
                 }
-            },
+            }
             RunState::HandleOtherInput { next_runstate, key } => {
                 new_runstate = handle_other_input(&mut self.ecs, key, (*next_runstate).clone());
             }
@@ -185,7 +186,6 @@ impl GameState for State {
         }
     }
 }
-
 
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
@@ -245,21 +245,22 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<InteractIntent>();
     game_state.ecs.register::<MoveIntent>();
 
-
     let player_start_position = Vector3i::new(0, 0, 10);
 
     tile_blueprints::initalise();
     rng::reseed(0);
 
-    game_state.ecs.insert(SimpleMarkerAllocator::<SerializeThis>::new());
+    game_state
+        .ecs
+        .insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
     /*let mut builder = map_builders::build_system_test_map(
         Vector3i::new(MAP_SIZE, MAP_SIZE, 5),
         player_start_position + Vector3i::new(0, 0, -1),
     );*/
-    let mut builder = map_builders::build_room_test_map(
+    let mut builder = map_builders::build_small_cargo_ship_map(
         Vector3i::new(MAP_SIZE, MAP_SIZE, 5),
-        player_start_position + Vector3i::new(0, 0, 1),
+        player_start_position,
     );
 
     builder.build_map();
@@ -269,7 +270,6 @@ fn main() -> rltk::BError {
     game_state.ecs.insert(map);
     builder.spawn_entities(&mut game_state.ecs);
 
-    
     game_state.ecs.insert(gamelog::GameLog {
         entries: vec!["Game log".to_string()],
     });

@@ -1,15 +1,17 @@
-
 use rltk::{to_cp437, ColorPair, DrawBatch, Point, Rltk, RGBA};
 use specs::prelude::*;
 
 use crate::{
-    colors::{dim_color, mix_surface_light_colors}, vectors::Vector3i, Camera, Map, Photometry, Player, Renderable, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH
+    colors::{dim_color, mix_surface_light_colors},
+    vectors::Vector3i,
+    Camera, Map, Photometry, Player, Renderable, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH,
 };
 
 pub mod components;
 
 pub fn render_map(ecs: &mut World, ctx: &mut Rltk) {
     //Rendering
+    //let start = std::time::Instant::now();
     let viewport_position = get_viewport_position(&ecs);
 
     ctx.set_active_console(0);
@@ -23,6 +25,9 @@ pub fn render_map(ecs: &mut World, ctx: &mut Rltk) {
 
     draw_entities(ecs, viewport_position);
     rltk::render_draw_buffer(ctx).expect("Draw error");
+
+    //let elapsed = start.elapsed();
+    //println!("Draw time: {:?}", elapsed);
 }
 
 pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
@@ -37,24 +42,36 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
     let map = ecs.fetch::<Map>();
 
     for (_player, viewshed, position) in (&mut players, &viewsheds, &positions).join() {
-        for tile_position in viewshed.discovered_tiles.iter().filter(|tile_position| 
-            (tile_position.x - position.x).abs() < MAP_SCREEN_WIDTH / 2
-                && (tile_position.y - position.y).abs() < MAP_SCREEN_HEIGHT / 2
-                && (tile_position.z - position.z).abs() < viewshed.z_range as i32).filter(|tile_position| tile_position.z <= viewport_position.z) {
+        for tile_position in viewshed
+            .discovered_tiles
+            .iter()
+            .filter(|tile_position| {
+                (tile_position.x - position.x).abs() < MAP_SCREEN_WIDTH / 2
+                    && (tile_position.y - position.y).abs() < MAP_SCREEN_HEIGHT / 2
+                    && (tile_position.z - position.z).abs() < viewshed.z_range as i32
+            })
+            .filter(|tile_position| tile_position.z <= viewport_position.z)
+        {
             let tile = map.tiles.get(&tile_position);
 
             match tile {
-                Some(tile) if tile.renderable.foreground.a > 0.0 || tile.renderable.background.a > 0.0 => {
-                    if viewshed.visible_tiles.contains(&tile_position) && tile.photometry.light_level > 0.0 {
+                Some(tile)
+                    if tile.renderable.foreground.a > 0.0 || tile.renderable.background.a > 0.0 =>
+                {
+                    if viewshed.visible_tiles.contains(&tile_position)
+                        && tile.photometry.light_level > 0.0
+                    {
                         let foreground_color = calculate_lit_color(
                             tile.renderable.foreground,
                             tile.photometry.light_color,
-                            tile.photometry.light_level);
+                            tile.photometry.light_level,
+                        );
 
-                            let background_color = calculate_lit_color(
-                                tile.renderable.background,
-                                tile.photometry.light_color,
-                                tile.photometry.light_level);
+                        let background_color = calculate_lit_color(
+                            tile.renderable.background,
+                            tile.photometry.light_color,
+                            tile.photometry.light_level,
+                        );
 
                         if tile_position.z == viewport_position.z {
                             //Tile is on the same level as the player
@@ -96,12 +113,16 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
                             );
                         }
                     } else {
-                        let foreground =
-                            dim_discovered_tile_color(tile.renderable.foreground, discovered_tile_dimming)
-                                .to_greyscale();
-                        let background =
-                            dim_discovered_tile_color(tile.renderable.background, discovered_tile_dimming)
-                                .to_greyscale();
+                        let foreground = dim_discovered_tile_color(
+                            tile.renderable.foreground,
+                            discovered_tile_dimming,
+                        )
+                        .to_greyscale();
+                        let background = dim_discovered_tile_color(
+                            tile.renderable.background,
+                            discovered_tile_dimming,
+                        )
+                        .to_greyscale();
 
                         if tile_position.z == viewport_position.z {
                             draw_batch.set_with_z(
@@ -164,25 +185,27 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
     for (player, viewshed) in (&mut players, &viewsheds).join() {
         //let mut rendered_entities = HashMap::new();
 
-        for (position, renderable, photometry, entity) in (&positions, &renderables, &photometria, &entities)
-            .join()
-            .filter(|&x|
-            viewshed.visible_tiles.contains(x.0)).filter(|x| x.0.z <= viewport_position.z)
+        for (position, renderable, photometry, entity) in
+            (&positions, &renderables, &photometria, &entities)
+                .join()
+                .filter(|&x| viewshed.visible_tiles.contains(x.0))
+                .filter(|(position, _, _, _)| position.z <= viewport_position.z)
         {
             //If power overlay is disabled don't draw wires
             if !player.power_overlay && wires.get(entity).is_some() {
                 continue;
             }
-            
 
             let foreground_color = calculate_lit_color(
                 renderable.foreground,
                 photometry.light_color,
-                photometry.light_level);
+                photometry.light_level,
+            );
             let mut background_color = calculate_lit_color(
                 renderable.background,
                 photometry.light_color,
-                photometry.light_level);
+                photometry.light_level,
+            );
 
             background_color.a = renderable.background.a;
 
@@ -198,7 +221,11 @@ pub fn draw_entities(ecs: &mut World, viewport_position: Vector3i) {
                 );
             } else if viewport_position.z - position.z == 1 {
                 //First check if opaque tile exists above it
-                if let Some(_) = map.tiles.get(&(*position + Vector3i::new(0, 0, 1))).filter(|tile| !tile.opaque) {
+                if let Some(_) = map
+                    .tiles
+                    .get(&(*position + Vector3i::new(0, 0, 1)))
+                    .filter(|tile| !tile.opaque)
+                {
                     entity_draw_batch.set_with_z(
                         Point::new(
                             position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
@@ -252,7 +279,7 @@ pub fn dim_discovered_tile_color(color: RGBA, factor: f32) -> RGBA {
 
 pub fn char_to_glyph(c: char) -> u16 {
     //if (c as u32) < (FONT_LENGTH as u32) {
-        to_cp437(c)
+    to_cp437(c)
     //}
     //else {
     //    'x' as u16

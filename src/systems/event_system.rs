@@ -1,34 +1,46 @@
 use std::{cmp::Ordering, collections::BinaryHeap};
 
-use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::MaskedStorage};
+use specs::{
+    prelude::*,
+    shred::{Fetch, FetchMut},
+    storage::MaskedStorage,
+};
 
-use crate::{entities::intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent}, gamelog::GameLog, states::RunState, update_camera_position, vectors::Vector3i, Blocker, Camera, Door, Illuminant, Map, Name, Photometry, PowerNode, PowerSwitch, Viewshed};
+use crate::{
+    entities::intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent},
+    gamelog::GameLog,
+    states::RunState,
+    update_camera_position,
+    vectors::Vector3i,
+    Blocker, Camera, Door, Illuminant, Map, Name, Photometry, PowerNode, PowerSwitch, Viewshed,
+};
 
 pub struct EventSystem {}
 
 const TIME_PER_TURN: f32 = 1.0;
 
 impl<'a> System<'a> for EventSystem {
-    type SystemData = ( Entities<'a>,
-                        WriteExpect<'a, Map>,
-                        WriteExpect<'a, RunState>,
-                        WriteExpect<'a, GameLog>,
-                        WriteExpect<'a, Entity>,
-                        WriteExpect<'a, Vector3i>,
-                        WriteStorage<'a, InteractIntent>,
-                        WriteStorage<'a, MoveIntent>,
-                        WriteStorage<'a, PowerSwitch>,
-                        WriteStorage<'a, PowerNode>,
-                        WriteStorage<'a, Initiative>,
-                        ReadStorage<'a, Name>,
-                        WriteStorage<'a, Door>,
-                        WriteStorage<'a, Vector3i>,
-                        WriteStorage<'a, Viewshed>,
-                        WriteStorage<'a, Photometry>,
-                        WriteStorage<'a, Illuminant>,
-                        ReadStorage<'a, Blocker>,
-                        ReadStorage<'a, Camera>,
-                      );
+    type SystemData = (
+        Entities<'a>,
+        WriteExpect<'a, Map>,
+        WriteExpect<'a, RunState>,
+        WriteExpect<'a, GameLog>,
+        WriteExpect<'a, Entity>,
+        WriteExpect<'a, Vector3i>,
+        WriteStorage<'a, InteractIntent>,
+        WriteStorage<'a, MoveIntent>,
+        WriteStorage<'a, PowerSwitch>,
+        WriteStorage<'a, PowerNode>,
+        WriteStorage<'a, Initiative>,
+        ReadStorage<'a, Name>,
+        WriteStorage<'a, Door>,
+        WriteStorage<'a, Vector3i>,
+        WriteStorage<'a, Viewshed>,
+        WriteStorage<'a, Photometry>,
+        WriteStorage<'a, Illuminant>,
+        ReadStorage<'a, Blocker>,
+        ReadStorage<'a, Camera>,
+    );
 
     fn run(&mut self, data: Self::SystemData) {
         let (
@@ -80,7 +92,7 @@ impl<'a> System<'a> for EventSystem {
                                     if let Some(component) = $x.get_mut(interact_intent.target) {
                                         if component.interaction_id == component.interaction_id {
                                             component.interact();
-                        
+
                                             if let Some(name) = names.get(interact_intent.target) {
                                                 game_log.entries.push(format!("{}: {}", name.name, interact_intent.interaction_description.clone()));
                                             }
@@ -90,7 +102,7 @@ impl<'a> System<'a> for EventSystem {
                                             $x.remove(entity);
                                         }
                                     }
-        
+
                                     //If the interactable is powered, rebuild power state
                                     if let Some(power_node) = power_nodes.get_mut(interact_intent.target) {
                                         power_node.dirty = true;
@@ -99,13 +111,12 @@ impl<'a> System<'a> for EventSystem {
                             }
                         };
                     }
-        
+
                     //If the interaction is finished execute it
                     if interact_intent.get_remaining_cost() <= 0.0 {
                         handle_interaction_intent!(power_switches, doors);
-                        interact_intents.remove(entity);     
-                    }
-                    else if is_player {
+                        interact_intents.remove(entity);
+                    } else if is_player {
                         queue_empty = false;
                     }
                 }
@@ -122,9 +133,9 @@ impl<'a> System<'a> for EventSystem {
                         let current_position = move_intent.current_position;
                         let delta = move_intent.delta;
                         let mut target_position = Vector3i::new_equi(0);
-                    
+
                         let mut movement_possible = true;
-                    
+
                         let tile = map.tiles.get(&(current_position + delta));
 
                         //Check tile blockers
@@ -134,7 +145,7 @@ impl<'a> System<'a> for EventSystem {
                                 if !tile.passable {
                                     movement_possible = false;
                                 }
-                            },
+                            }
                             _ => {
                                 movement_possible = false;
                             }
@@ -143,42 +154,48 @@ impl<'a> System<'a> for EventSystem {
                         if movement_possible {
                             target_position = current_position + delta;
                         }
-                        
+
                         //If the movement is diagonal, blocks of four entites must be checked since the player passes through all four
-                        if check_entity_blocking(&blockers, &positions, current_position, target_position) { movement_possible = false; }
-                    
+                        if check_entity_blocking(
+                            &blockers,
+                            &positions,
+                            current_position,
+                            target_position,
+                        ) {
+                            movement_possible = false;
+                        }
+
                         if movement_possible {
                             game_log.entries.push(target_position.to_string());
-                          
+
                             //Update position
                             if let Some(new_position) = positions.get_mut(entity) {
                                 *new_position = target_position;
                             }
-                                 
+
                             if let Some(viewshed) = viewsheds.get_mut(*player) {
                                 viewshed.dirty = true;
                             }
-                        
+
                             if let Some(photometry) = photometria.get_mut(*player) {
                                 photometry.dirty = true;
                             }
-                        
+
                             if let Some(illuminant) = illuminants.get_mut(*player) {
                                 illuminant.dirty = true;
                             }
-                        
-                            //Update player position tracker  
+
+                            //Update player position tracker
                             *stored_player_position = target_position;
 
                             update_camera_position(delta, &cameras, &mut positions);
                         }
-                        move_intents.remove(entity);     
-                    }
-                    else if is_player {
+                        move_intents.remove(entity);
+                    } else if is_player {
                         queue_empty = false;
                     }
                 }
-            }            
+            }
         }
 
         //If all intents ae handled, return to input state
@@ -201,9 +218,9 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, Strin
 
                     if let Some(interactable) = storage.get(entity) {
                         let mut name = "{unknown}".to_string();
-                
+
                         if let Some(entity_name) = names.get(entity) { name = entity_name.name.clone()}
-                
+
                         interactables.push((
                             interactable.interaction_id,
                             format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
@@ -235,22 +252,19 @@ impl PartialEq for IntentState {
     }
 }
 
-impl Eq for IntentState {
-
-}
+impl Eq for IntentState {}
 
 impl IntentState {
     fn new(entity: Entity, initiative: f32) -> Self {
-        Self {
-            entity,
-            initiative
-        }
+        Self { entity, initiative }
     }
 }
 
 impl Ord for IntentState {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.initiative.partial_cmp(&other.initiative).unwrap_or(Ordering::Equal)
+        self.initiative
+            .partial_cmp(&other.initiative)
+            .unwrap_or(Ordering::Equal)
     }
 }
 
@@ -260,77 +274,250 @@ impl PartialOrd for IntentState {
     }
 }
 
-fn check_entity_blocking(blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {
+fn check_entity_blocking(
+    blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>,
+    positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>,
+    player_position: Vector3i,
+    target_position: Vector3i,
+) -> bool {
     let delta = (target_position - player_position).normalize_delta();
 
-    if is_entity_blocked(&blockers, &positions, player_position, target_position) { return true }
+    if is_entity_blocked(&blockers, &positions, player_position, target_position) {
+        return true;
+    }
 
     if delta == Vector3i::NW {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::N, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::W, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::N,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::W,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::N) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::W) { return true }
-    }
-    else if delta == Vector3i::SW {
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::N,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::W,
+        ) {
+            return true;
+        }
+    } else if delta == Vector3i::SW {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::S, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::W, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::S,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::W,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::S) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::W) { return true }       
-    }
-    else if delta == Vector3i::SE {
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::S,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::W,
+        ) {
+            return true;
+        }
+    } else if delta == Vector3i::SE {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::S, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::E, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::S,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::E,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::S) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position , player_position + Vector3i::E) { return true }        
-    }
-    else if delta == Vector3i::NE {
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::S,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::E,
+        ) {
+            return true;
+        }
+    } else if delta == Vector3i::NE {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::N, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::E, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::N,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::E,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::N) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::E) { return true }        
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::N,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::E,
+        ) {
+            return true;
+        }
     }
     false
 }
 
-fn is_entity_blocked(blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {
+fn is_entity_blocked(
+    blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>,
+    positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>,
+    player_position: Vector3i,
+    target_position: Vector3i,
+) -> bool {
     //Check tile entity is in
-    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == player_position) {
+    for (blocker, _) in (blockers, positions)
+        .join()
+        .filter(|x| *x.1 == player_position)
+    {
         let delta = (target_position - player_position).normalize_delta();
 
-        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) { return true; }
-        else if delta == Vector3i::NW && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::W))  { return true; }
-        else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W)  { return true; }
-        else if delta == Vector3i::SW && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::W)) { return true; }
-        else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S)  { return true; }
-        else if delta == Vector3i::SE && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E)  { return true; }
-        else if delta == Vector3i::NE && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP)  { return true; }
-        else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN)  { return true; }
+        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) {
+            return true;
+        } else if delta == Vector3i::NW
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W) {
+            return true;
+        } else if delta == Vector3i::SW
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S) {
+            return true;
+        } else if delta == Vector3i::SE
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E) {
+            return true;
+        } else if delta == Vector3i::NE
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP) {
+            return true;
+        } else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN) {
+            return true;
+        }
     }
 
     //Check tile entity is going to
-    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == target_position) {
+    for (blocker, _) in (blockers, positions)
+        .join()
+        .filter(|x| *x.1 == target_position)
+    {
         let delta = (player_position - target_position).normalize_delta();
 
-        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) { return true; }
-        else if delta == Vector3i::NW && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::W))  { return true; }
-        else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W)  { return true; }
-        else if delta == Vector3i::SW && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::W)) { return true; }
-        else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S)  { return true; }
-        else if delta == Vector3i::SE && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E)  { return true; }
-        else if delta == Vector3i::NE && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP)  { return true; }
-        else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN)  { return true; }
+        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) {
+            return true;
+        } else if delta == Vector3i::NW
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W) {
+            return true;
+        } else if delta == Vector3i::SW
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S) {
+            return true;
+        } else if delta == Vector3i::SE
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E) {
+            return true;
+        } else if delta == Vector3i::NE
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP) {
+            return true;
+        } else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN) {
+            return true;
+        }
     }
     return false;
 }

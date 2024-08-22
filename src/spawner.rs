@@ -34,7 +34,7 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
             RGB::named(rltk::BLACK).to_rgba(1.0),
         ))
         .with(Player::new())
-        .with(Viewshed::new(30, 3, 0.9))
+        .with(Viewshed::new(60, 3, 0.9))
         .with(Photometry::new())
         .with(Illuminant::new(
             1.0,

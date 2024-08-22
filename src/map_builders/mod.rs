@@ -1,5 +1,5 @@
 use common::Area;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 //use room_build_tester::RoomTestMapBuilder;
 use small_cargo_ship::SmallCargoShipMapBuilder;
 use specs::World;

@@ -18,7 +18,6 @@ impl<'a> System<'a> for LightingSystem {
         WriteStorage<'a, Viewshed>,
         WriteStorage<'a, Vector3i>,
         ReadStorage<'a, Player>,
-        ReadStorage<'a, Wire>,
         Entities<'a>,
     );
 
@@ -30,7 +29,6 @@ impl<'a> System<'a> for LightingSystem {
             mut viewsheds,
             positions,
             players,
-            wires,
             entities,
         ) = data;
         let map_tiles = &mut map.tiles;

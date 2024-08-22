@@ -44,6 +44,13 @@ pub fn rand_wall_adj_tile(room_center: Vector3i, size: Vector3i) -> Vector3i {
     target_postion
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AreaType {
+    Corridor,
+    GenericRoom,
+    GeneratorRoom,
+}
+
 pub trait Area {
     fn get_area_id(&self) -> usize;
     fn get_area_name(&self) -> &String;
@@ -53,6 +60,8 @@ pub trait Area {
     fn set_breaker_pos(&mut self, breaker_position: Vector3i);
     fn get_power_connections(&self) -> &Vec<Vector3i>;
     fn update_power_connections(&mut self) -> &mut Vec<Vector3i>;
+    fn get_area_type(&self) -> AreaType;
+    fn set_area_type(&mut self, area_type: AreaType);
 }
 
 #[derive(Clone)]
@@ -61,18 +70,26 @@ pub struct Room {
     pub size: Vector3i,
     pub area_id: usize,
     pub area_name: String,
+    pub area_type: AreaType,
     pub nodes: Vec<Vector3i>,
     pub breaker_position: Option<Vector3i>,
     pub power_connections: Vec<Vector3i>,
 }
 
 impl Room {
-    pub fn new(centre: Vector3i, size: Vector3i, name: String, power_connection: bool) -> Self {
+    pub fn new(
+        centre: Vector3i,
+        size: Vector3i,
+        area_name: String,
+        area_type: AreaType,
+        power_connection: bool,
+    ) -> Self {
         Self {
             centre,
             size,
             area_id: crate::rng::random_int() as usize,
-            area_name: name,
+            area_name,
+            area_type,
             nodes: Vec::new(),
             breaker_position: if power_connection {
                 Some(Vector3i::new_equi(0))
@@ -116,6 +133,14 @@ impl Area for Room {
     fn get_power_connections(&self) -> &Vec<Vector3i> {
         &self.power_connections
     }
+
+    fn get_area_type(&self) -> AreaType {
+        self.area_type
+    }
+
+    fn set_area_type(&mut self, area_type: AreaType) {
+        self.area_type = area_type;
+    }
 }
 
 #[derive(Clone)]
@@ -124,6 +149,7 @@ pub struct Corridor {
     pub end: Vector3i,
     pub area_id: usize,
     pub area_name: String,
+    pub area_type: AreaType,
     pub width: usize,
     pub connected_areas: HashSet<usize>,
     pub nodes: Vec<Vector3i>,
@@ -136,14 +162,16 @@ impl Corridor {
         start: Vector3i,
         end: Vector3i,
         width: usize,
-        name: String,
+        area_name: String,
+        area_type: AreaType,
         power_connection: bool,
     ) -> Self {
         Self {
             start,
             end,
             area_id: crate::rng::random_int() as usize,
-            area_name: name,
+            area_name,
+            area_type,
             width,
             connected_areas: HashSet::new(),
             nodes: Vec::new(),
@@ -188,5 +216,13 @@ impl Area for Corridor {
 
     fn get_power_connections(&self) -> &Vec<Vector3i> {
         &self.power_connections
+    }
+
+    fn get_area_type(&self) -> AreaType {
+        self.area_type
+    }
+
+    fn set_area_type(&mut self, area_type: AreaType) {
+        self.area_type = area_type;
     }
 }

@@ -401,15 +401,14 @@ impl MapBuilder for SmallCargoShipMapBuilder {
             );
 
             let color = RGB::from_hex(color_hex.clone()).unwrap_or(RGB::named(rltk::RED));
-
             lay_wiring(
                 ecs,
                 self.get_map(),
                 generator_breaker.clone(),
                 *position,
                 &breaker_positions,
-                color.to_rgba(1.0),
-                color_hex.clone(),
+                RGB::named(rltk::RED).to_rgba(1.0),
+                "RED".to_string(),
                 true,
             );
 
@@ -420,8 +419,8 @@ impl MapBuilder for SmallCargoShipMapBuilder {
                 lay_wiring(
                     ecs,
                     self.get_map(),
-                    *breaker_position,
                     *device_position,
+                    *breaker_position,
                     &breaker_positions,
                     color.to_rgba(1.0),
                     color_hex.clone(),

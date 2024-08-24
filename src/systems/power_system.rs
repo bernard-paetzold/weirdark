@@ -104,7 +104,6 @@ impl<'a> System<'a> for PowerSystem {
             })
             .collect();
 
-        let now = std::time::Instant::now();
         for network_id in dirty_networks.iter() {
             //Rebuild wire network
             let mut start_position = Vector3i::new_equi(0);
@@ -137,37 +136,31 @@ impl<'a> System<'a> for PowerSystem {
             let mut network_wires = FnvHashSet::default();
 
             while let Some(wire_position) = unchanged_wires.pop() {
-                //For every power state, check if they have a wire attached to them
-                let mut powered_wire = false;
-
-                for (power_state, position, node) in (&mut power_states, &positions, &mut nodes)
+                //For every node, set the id
+                let mut is_load_wire = false;
+                for (position, node, entity) in (&positions, &mut nodes, &entities)
                     .join()
-                    .filter(|(_, x, _)| **x == wire_position)
+                    .filter(|(x, _, _)| **x == wire_position)
                 {
-                    for (wire, _, entity) in (&mut wires, &positions, &entities)
-                        .join()
-                        .filter(|(_, x, _)| *x == position)
-                    {
-                        if power_state.on {
-                            wire.power_load = power_state.wattage;
-                            load_wires.insert(entity, position);
-                        }
+                    node.network_id = *network_id;
+
+                    if let Some(power_state) = power_states.get(entity) {
+                        is_load_wire = true;
                     }
-                    node.network_id = *network_id;
                 }
 
-                for (power_source, position, node) in (&mut power_sources, &positions, &mut nodes)
-                    .join()
-                    .filter(|(_, x, _)| **x == wire_position)
-                {
-                    node.network_id = *network_id;
-                }
                 //Add all wires on the current position
                 for (wire, current_position, entity) in (&mut wires, &positions, &entities)
                     .join()
-                    .filter(|(_, x, _)| *x == &wire_position)
+                    .filter(|(wire, x, _)| {
+                        *x == &wire_position && prev_colors.contains(&wire.color_name.clone())
+                    })
                 {
                     network_wires.insert(entity.id());
+
+                    if is_load_wire {
+                        load_wires.insert(entity, wire_position);
+                    }
                 }
 
                 let neighbours = get_cardinal_neighbours_with_z(wire_position);
@@ -193,24 +186,6 @@ impl<'a> System<'a> for PowerSystem {
                             }
                         }
                     }
-                }
-            }
-
-            //Set all wires found in the network
-            for (_, _, node) in (&wires, &entities, &mut nodes)
-                .join()
-                .filter(|(wire, x, _)| network_wires.contains(&x.id()))
-            {
-                node.network_id = *network_id;
-            }
-
-            //Set the network id of every connected node to that of the network
-            for (_, node, entity) in (&positions, &mut nodes, &entities)
-                .join()
-                .filter(|(wire, _, x)| network_wires.contains(&x.id()))
-            {
-                if let None = wires.get(entity) {
-                    node.network_id = *network_id;
                 }
             }
 
@@ -244,9 +219,10 @@ impl<'a> System<'a> for PowerSystem {
             //let mut visited_power_wires = HashSet::new();
             let now = std::time::Instant::now();
             //Calculate power loads
+
             for (start_wire_entity, position) in load_wires.iter() {
                 if let Some(start_wire) = wires.get(*start_wire_entity).cloned() {
-                    let mut unchanged_wires = vec![**position];
+                    let mut unchanged_wires = vec![*position];
                     let mut wire_entities: FnvHashSet<u32> = HashSet::default();
 
                     let mut total_draw = 0.0;
@@ -301,13 +277,9 @@ impl<'a> System<'a> for PowerSystem {
                         }
                     }
 
-                    for (wire, _, _) in
-                        (&mut wires, &positions, &entities)
-                            .join()
-                            .filter(|(wire, _, entity)| {
-                                wire_entities.contains(&entity.id())
-                                    && prev_colors.contains(&wire.color_name)
-                            })
+                    for (wire, _, _) in (&mut wires, &positions, &entities)
+                        .join()
+                        .filter(|(wire, _, entity)| wire_entities.contains(&entity.id()))
                     {
                         wire.power_load = total_draw;
                     }
@@ -375,12 +347,11 @@ impl<'a> System<'a> for PowerSystem {
                         }
                         power_source.available_wattage =
                             power_source.available_wattage - start_wire.power_load;
-                        println!("{}", power_source.available_wattage);
+
                         for (wire, _) in (&mut wires, &entities)
                             .join()
                             .filter(|(wire, x)| wire_entities.contains(x))
                         {
-                            println!("Wat {}", power_source.available_wattage);
                             wire.available_wattage += power_source.available_wattage;
                         }
                     }
@@ -395,9 +366,7 @@ impl<'a> System<'a> for PowerSystem {
                     .join()
                     .filter(|(_, x)| *x == position)
                 {
-                    if power_state.available_wattage != wire.available_wattage {
-                        power_state.available_wattage = wire.available_wattage;
-                    }
+                    power_state.available_wattage = wire.available_wattage;
                 }
             }
 

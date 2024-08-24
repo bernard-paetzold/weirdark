@@ -141,15 +141,17 @@ pub struct Wire {
     pub available_wattage: f32,
     pub color: RGBA,
     pub color_name: String,
+    pub data: bool,
 }
 
 impl Wire {
-    pub fn new(color: RGBA, color_name: String) -> Wire {
+    pub fn new(color: RGBA, color_name: String, data: bool) -> Wire {
         Wire {
             power_load: 0.0,
             available_wattage: 0.0,
             color,
             color_name,
+            data,
         }
     }
 }

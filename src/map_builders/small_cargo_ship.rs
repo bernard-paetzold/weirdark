@@ -410,6 +410,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
                 RGB::named(rltk::RED).to_rgba(1.0),
                 "RED".to_string(),
                 true,
+                false,
             );
 
             for (breaker_position, device_position) in device_positions
@@ -424,6 +425,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
                     &breaker_positions,
                     color.to_rgba(1.0),
                     color_hex.clone(),
+                    true,
                     true,
                 );
             }

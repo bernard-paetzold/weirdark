@@ -1,24 +1,34 @@
-
 use std::u32::MAX;
 
-use rltk::{to_char, Point, Rltk, VirtualKeyCode, RGB};
 use crate::entities::intents::InteractIntent;
+use crate::entities::power_components::{
+    BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
+};
 use crate::graphics::char_to_glyph;
+use crate::systems::power_system::get_devices_on_subnetwork;
 use crate::{mouse_to_map, INTERACT_MENU_WIDTH};
-use crate::systems::power_system::get_devices_on_network;
 use crate::{systems::event_system::get_entity_interactions, Renderable};
-use crate::entities::power_components::{BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
+use rltk::{to_char, Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 use crate::{
-    gamelog::GameLog, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, Map, Name, Player, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT, TERMINAL_WIDTH
+    gamelog::GameLog, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, Map,
+    Name, Player, RunState, State, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH, TERMINAL_HEIGHT,
+    TERMINAL_WIDTH,
 };
 
 #[derive(PartialEq, Copy, Clone)]
-pub enum MainMenuSelection { NewGame, LoadGame, Quit }
+pub enum MainMenuSelection {
+    NewGame,
+    LoadGame,
+    Quit,
+}
 
 #[derive(PartialEq, Copy, Clone)]
-pub enum MainMenuResult { NoSelection{ selected : MainMenuSelection }, Selected{ selected: MainMenuSelection } }
+pub enum MainMenuResult {
+    NoSelection { selected: MainMenuSelection },
+    Selected { selected: MainMenuSelection },
+}
 
 pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
     ctx.set_active_console(2);
@@ -65,7 +75,11 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
 
         let player_pos = ecs.fetch::<Vector3i>();
 
-        let map_mouse_position = Vector3i::new(mouse_pos.0  - (MAP_SCREEN_WIDTH / 2) + viewport_position.x, mouse_pos.1  - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y, player_pos.z);
+        let map_mouse_position = Vector3i::new(
+            mouse_pos.0 - (MAP_SCREEN_WIDTH / 2) + viewport_position.x,
+            mouse_pos.1 - (MAP_SCREEN_HEIGHT / 2) + viewport_position.y,
+            player_pos.z,
+        );
         draw_tooltips(ecs, ctx, map_mouse_position);
     }
 
@@ -84,7 +98,6 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
 
     let map = ecs.fetch::<Map>();
 
-    
     let players = ecs.read_storage::<Player>();
     let viewsheds = ecs.read_storage::<Viewshed>();
     let positions = ecs.read_storage::<Vector3i>();
@@ -100,15 +113,18 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
 
     if let Some(player_entity) = player {
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
-            for (entity, position) in (&entities, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
-                //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {                
-                if position.x == target.x && position.y == target.y && (position.z == target.z) {               
+            for (entity, position) in (&entities, &positions)
+                .join()
+                .filter(|&x| player_viewshed.visible_tiles.contains(x.1))
+            {
+                //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {
+                if position.x == target.x && position.y == target.y && (position.z == target.z) {
                     interactables.append(&mut get_entity_interactions(&ecs, entity));
                     tile_entities.push(entity);
 
                     //Handle breaker boxes or other entities that control interactions off tile
                     if let Some(_) = breaker_boxes.get(entity) {
-                        interactables.append(&mut get_devices_on_network(&ecs, entity));
+                        interactables.append(&mut get_devices_on_subnetwork(&ecs, entity));
                     }
                 }
             }
@@ -119,19 +135,74 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
     const TILE_INFORMATION_MENU_HEIGHT: i32 = 10;
 
     if let Some(target_tile) = target_tile {
-        ctx.draw_hollow_box(MAP_SCREEN_WIDTH, tile_info_y, INTERACT_MENU_WIDTH - 2, TILE_INFORMATION_MENU_HEIGHT, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 1, format!("{}", target_tile.name.clone()));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 2, format!("Glyphs: {}, {}", to_char(target_tile.renderable.top_glyph as u8), to_char(target_tile.renderable.side_glyph as u8)));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 3, format!("Light level: {:.2}", target_tile.photometry.light_level));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 4, format!("Color: ({:.2},{:.2},{:.2})", target_tile.renderable.foreground.r, target_tile.renderable.foreground.g, target_tile.renderable.foreground.b));
-        
+        ctx.draw_hollow_box(
+            MAP_SCREEN_WIDTH,
+            tile_info_y,
+            INTERACT_MENU_WIDTH - 2,
+            TILE_INFORMATION_MENU_HEIGHT,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 1,
+            format!("{}", target_tile.name.clone()),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 2,
+            format!(
+                "Glyphs: {}, {}",
+                to_char(target_tile.renderable.top_glyph as u8),
+                to_char(target_tile.renderable.side_glyph as u8)
+            ),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 3,
+            format!("Light level: {:.2}", target_tile.photometry.light_level),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 4,
+            format!(
+                "Color: ({:.2},{:.2},{:.2})",
+                target_tile.renderable.foreground.r,
+                target_tile.renderable.foreground.g,
+                target_tile.renderable.foreground.b
+            ),
+        );
+
         let mut count = 0;
         for (gas, mols) in &target_tile.atmosphere.gasses {
-            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.3}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            ctx.print(
+                MAP_SCREEN_WIDTH + 1,
+                tile_info_y + 5 + count,
+                format!(
+                    "{}: {:.3}, {:.2}%",
+                    gas,
+                    mols,
+                    (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)
+                ),
+            );
             count += 1;
         }
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2} C", target_tile.atmosphere.get_celcius_temperature()));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2} kpa", target_tile.atmosphere.get_pressure_kpa()));
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 5 + count + 1,
+            format!(
+                "Temperature: {:.2} C",
+                target_tile.atmosphere.get_celcius_temperature()
+            ),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 5 + count + 2,
+            format!(
+                "Pressure: {:.2} kpa",
+                target_tile.atmosphere.get_pressure_kpa()
+            ),
+        );
     }
 }
 
@@ -144,7 +215,11 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
 
     let viewport_position = get_viewport_position(&ecs);
 
-    let screen_position = Vector3i::new(target.x  + MAP_SCREEN_WIDTH / 2 - viewport_position.x, target.y  + MAP_SCREEN_HEIGHT / 2 - viewport_position.y, target.z);
+    let screen_position = Vector3i::new(
+        target.x + MAP_SCREEN_WIDTH / 2 - viewport_position.x,
+        target.y + MAP_SCREEN_HEIGHT / 2 - viewport_position.y,
+        target.z,
+    );
 
     ctx.set_active_console(2);
     //ctx.set_translation_mode(2, rltk::CharacterTranslationMode::Codepage437);
@@ -153,12 +228,14 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
 
     if let Some(player_entity) = get_player_entity(&entities, &players) {
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
-            for (name, position) in (&names, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
-                if position.x == target.x && position.y == target.y  && (position.z == target.z) {
+            for (name, position) in (&names, &positions)
+                .join()
+                .filter(|&x| player_viewshed.visible_tiles.contains(x.1))
+            {
+                if position.x == target.x && position.y == target.y && (position.z == target.z) {
                     if position.z < viewport_position.z {
                         tooltip.push((name.name.to_string() + " (below)").to_string());
-                    }
-                    else {
+                    } else {
                         tooltip.push(name.name.to_string());
                     }
                 }
@@ -243,7 +320,14 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
     }
 }
 
-pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source: Vector3i, mut target: Vector3i, prev_mouse_position: Vector3i) -> RunState {
+pub fn interact_gui(
+    game_state: &mut State,
+    ctx: &mut Rltk,
+    range: usize,
+    source: Vector3i,
+    mut target: Vector3i,
+    prev_mouse_position: Vector3i,
+) -> RunState {
     crate::set_camera_z(target.z, &mut game_state.ecs);
     let viewport_position = get_viewport_position(&game_state.ecs);
 
@@ -277,7 +361,6 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
 
     let map = game_state.ecs.fetch::<Map>();
 
-    
     let players = game_state.ecs.read_storage::<Player>();
     let renderables = game_state.ecs.read_storage::<Renderable>();
     let names = game_state.ecs.read_storage::<Name>();
@@ -299,15 +382,19 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
 
     if let Some(player_entity) = player {
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
-            for (entity, position) in (&entities, &positions).join().filter(|&x| player_viewshed.visible_tiles.contains(x.1)) {
-                //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {                
-                if position.x == target.x && position.y == target.y && (position.z == target.z) {               
+            for (entity, position) in (&entities, &positions)
+                .join()
+                .filter(|&x| player_viewshed.visible_tiles.contains(x.1))
+            {
+                //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {
+                if position.x == target.x && position.y == target.y && (position.z == target.z) {
                     interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
                     tile_entities.push(entity);
 
                     //Handle breaker boxes or other entities that control interactions off tile
                     if let Some(_) = breaker_boxes.get(entity) {
-                        interactables.append(&mut get_devices_on_network(&game_state.ecs, entity));
+                        interactables
+                            .append(&mut get_devices_on_subnetwork(&game_state.ecs, entity));
                     }
                 }
             }
@@ -324,19 +411,74 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         entity_menu_y = TILE_INFORMATION_MENU_HEIGHT + 2;
         interactable_menu_y = TILE_INFORMATION_MENU_HEIGHT + 2;
 
-        ctx.draw_hollow_box(MAP_SCREEN_WIDTH, tile_info_y, INTERACT_MENU_WIDTH - 2, TILE_INFORMATION_MENU_HEIGHT, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 1, format!("{}", target_tile.name.clone()));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 2, format!("Glyphs: {}, {}", to_char(target_tile.renderable.top_glyph as u8), to_char(target_tile.renderable.side_glyph as u8)));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 3, format!("Light level: {:.2}", target_tile.photometry.light_level));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 4, format!("Color: ({:.2},{:.2},{:.2})", target_tile.renderable.foreground.r, target_tile.renderable.foreground.g, target_tile.renderable.foreground.b));
-        
+        ctx.draw_hollow_box(
+            MAP_SCREEN_WIDTH,
+            tile_info_y,
+            INTERACT_MENU_WIDTH - 2,
+            TILE_INFORMATION_MENU_HEIGHT,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 1,
+            format!("{}", target_tile.name.clone()),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 2,
+            format!(
+                "Glyphs: {}, {}",
+                to_char(target_tile.renderable.top_glyph as u8),
+                to_char(target_tile.renderable.side_glyph as u8)
+            ),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 3,
+            format!("Light level: {:.2}", target_tile.photometry.light_level),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 4,
+            format!(
+                "Color: ({:.2},{:.2},{:.2})",
+                target_tile.renderable.foreground.r,
+                target_tile.renderable.foreground.g,
+                target_tile.renderable.foreground.b
+            ),
+        );
+
         let mut count = 0;
         for (gas, mols) in &target_tile.atmosphere.gasses {
-            ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count, format!("{}: {:.3}, {:.2}%", gas, mols, (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)));
+            ctx.print(
+                MAP_SCREEN_WIDTH + 1,
+                tile_info_y + 5 + count,
+                format!(
+                    "{}: {:.3}, {:.2}%",
+                    gas,
+                    mols,
+                    (target_tile.atmosphere.get_gas_ratio((*gas).clone()) * 100.0)
+                ),
+            );
             count += 1;
         }
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 1, format!("Temperature: {:.2}", target_tile.atmosphere.get_celcius_temperature()));
-        ctx.print(MAP_SCREEN_WIDTH + 1, tile_info_y + 5 + count + 2, format!("Pressure: {:.2} kpa", target_tile.atmosphere.get_pressure_kpa()));
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 5 + count + 1,
+            format!(
+                "Temperature: {:.2}",
+                target_tile.atmosphere.get_celcius_temperature()
+            ),
+        );
+        ctx.print(
+            MAP_SCREEN_WIDTH + 1,
+            tile_info_y + 5 + count + 2,
+            format!(
+                "Pressure: {:.2} kpa",
+                target_tile.atmosphere.get_pressure_kpa()
+            ),
+        );
     }
 
     const ENTITY_FIELDS: usize = 20;
@@ -344,7 +486,7 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
 
     if tile_entities.len() > 0 {
         let mut render_menu = false;
-        let entity_menu_height = (tile_entities.len() * ENTITY_FIELDS).min(MAX_ENTITY_MENU_HEIGHT);    
+        let entity_menu_height = (tile_entities.len() * ENTITY_FIELDS).min(MAX_ENTITY_MENU_HEIGHT);
         let mut y = 3;
         let mut prev_id = MAX;
 
@@ -353,7 +495,6 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
             let name = names.get(*entity);
 
             if y < MAX_ENTITY_MENU_HEIGHT as i32 - 5 {
-
                 if entity.id() != prev_id {
                     let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
 
@@ -368,51 +509,102 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let entity_name = name.name.to_string();
 
                         y += 1;
-                        ctx.print_color(MAP_SCREEN_WIDTH + 1, 
-                            entity_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}", entity_name));
+                        ctx.print_color(
+                            MAP_SCREEN_WIDTH + 1,
+                            entity_menu_y + y,
+                            color,
+                            RGB::named(rltk::BLACK),
+                            format!("{}", entity_name),
+                        );
                         y += 2;
 
                         render_menu = true;
                     }
 
                     prev_id = entity.id();
-                        
                 }
                 if let Some(renderable) = renderables.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Glyphs: {}, {}", to_char(renderable.top_glyph as u8), to_char(renderable.side_glyph as u8)));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!(
+                            "Glyphs: {}, {}",
+                            to_char(renderable.top_glyph as u8),
+                            to_char(renderable.side_glyph as u8)
+                        ),
+                    );
                     y += 1;
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Color: ({:.2},{:.2},{:.2})", renderable.foreground.r, renderable.foreground.g, renderable.foreground.b));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!(
+                            "Color: ({:.2},{:.2},{:.2})",
+                            renderable.foreground.r,
+                            renderable.foreground.g,
+                            renderable.foreground.b
+                        ),
+                    );
                     y += 1;
                 }
                 if let Some(powered_state) = power_states.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power on: {}", powered_state.state_description()));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Power on: {}", powered_state.state_description()),
+                    );
                     y += 1;
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", powered_state.available_wattage));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Power available: {}", powered_state.available_wattage),
+                    );
                     y += 1;
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power draw: {}", powered_state.wattage));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Power draw: {}", powered_state.wattage),
+                    );
                     y += 1;
-
                 }
                 if let Some(wire) = wires.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power available: {}", wire.available_wattage));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Power available: {}", wire.available_wattage),
+                    );
                     y += 1;
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power load: {}", wire.power_load));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Power load: {}", wire.power_load),
+                    );
                     y += 1;
                 }
                 if let Some(power_switch) = power_switches.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power switch: {}", power_switch.state_description()));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Power switch: {}", power_switch.state_description()),
+                    );
                     y += 1;
                 }
                 if let Some(power_source) = power_sources.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Power capacity: {}", power_source.max_wattage));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Power capacity: {}", power_source.max_wattage),
+                    );
                     y += 1;
                 }
                 if let Some(node) = nodes.get(*entity) {
-                    ctx.print(MAP_SCREEN_WIDTH + 1, entity_menu_y + y, format!("Network: {}", node.network_id));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 1,
+                        entity_menu_y + y,
+                        format!("Network: {}", node.network_id),
+                    );
                     y += 1;
                 }
-            }
-            else {
+            } else {
                 //If the list gets too long just print the entity name
                 if entity.id() != prev_id {
                     let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
@@ -428,22 +620,39 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                         let entity_name = name.name.to_string();
 
                         y += 1;
-                        ctx.print_color(MAP_SCREEN_WIDTH + 1, 
-                            entity_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}", entity_name));
+                        ctx.print_color(
+                            MAP_SCREEN_WIDTH + 1,
+                            entity_menu_y + y,
+                            color,
+                            RGB::named(rltk::BLACK),
+                            format!("{}", entity_name),
+                        );
                         y += 2;
 
                         render_menu = true;
                     }
 
                     prev_id = entity.id();
-                        
                 }
             }
         }
 
         if render_menu {
-            ctx.draw_hollow_box(MAP_SCREEN_WIDTH, entity_menu_y, INTERACT_MENU_WIDTH - 2, entity_menu_height, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
-            ctx.print_color(MAP_SCREEN_WIDTH + 1, interactable_menu_y + 1, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK), "Entities:");
+            ctx.draw_hollow_box(
+                MAP_SCREEN_WIDTH,
+                entity_menu_y,
+                INTERACT_MENU_WIDTH - 2,
+                entity_menu_height,
+                RGB::named(rltk::WHITE),
+                RGB::named(rltk::BLACK),
+            );
+            ctx.print_color(
+                MAP_SCREEN_WIDTH + 1,
+                interactable_menu_y + 1,
+                RGB::named(rltk::WHITE),
+                RGB::named(rltk::BLACK),
+                "Entities:",
+            );
             interactable_menu_y += entity_menu_height as i32 + 2;
         }
     }
@@ -452,16 +661,29 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         let interaction_menu_height = (tile_entities.len() * 4) + (interactables.len());
 
         if interactable_menu_y < TERMINAL_HEIGHT {
-            
-        
-            ctx.draw_hollow_box(MAP_SCREEN_WIDTH, interactable_menu_y, INTERACT_MENU_WIDTH - 2, interaction_menu_height, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
-            ctx.print_color(MAP_SCREEN_WIDTH + 1, interactable_menu_y + 1, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), "Interactables:");
-            
+            ctx.draw_hollow_box(
+                MAP_SCREEN_WIDTH,
+                interactable_menu_y,
+                INTERACT_MENU_WIDTH - 2,
+                interaction_menu_height,
+                RGB::named(rltk::WHITE),
+                RGB::named(rltk::BLACK),
+            );
+            ctx.print_color(
+                MAP_SCREEN_WIDTH + 1,
+                interactable_menu_y + 1,
+                RGB::named(rltk::YELLOW),
+                RGB::named(rltk::BLACK),
+                "Interactables:",
+            );
+
             let mut y = 3;
             let mut count = 0;
             let mut prev_id = MAX;
 
-            for (_interaction_id, interaction_name, listing_id, entity_id, _) in interactables.iter() {
+            for (_interaction_id, interaction_name, listing_id, entity_id, _) in
+                interactables.iter()
+            {
                 let interactable_entity = entities.entity(*entity_id);
                 let renderable = renderables.get(interactable_entity);
                 let name = names.get(interactable_entity);
@@ -478,14 +700,26 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
                             entity_name = name.name.to_string();
                         }
                         y += 1;
-                            ctx.print_color(MAP_SCREEN_WIDTH + 1, 
-                                interactable_menu_y + y, color, RGB::named(rltk::BLACK), format!("{}:", entity_name));
+                        ctx.print_color(
+                            MAP_SCREEN_WIDTH + 1,
+                            interactable_menu_y + y,
+                            color,
+                            RGB::named(rltk::BLACK),
+                            format!("{}:", entity_name),
+                        );
 
                         y += 2;
                         prev_id = *listing_id;
-                            
                     }
-                    ctx.print(MAP_SCREEN_WIDTH + 2, interactable_menu_y + y, format!("<{}> {}", to_char(97 + count), format!("{}", interaction_name)));
+                    ctx.print(
+                        MAP_SCREEN_WIDTH + 2,
+                        interactable_menu_y + y,
+                        format!(
+                            "<{}> {}",
+                            to_char(97 + count),
+                            format!("{}", interaction_name)
+                        ),
+                    );
                     y += 1;
                     count += 1;
                 }
@@ -493,147 +727,263 @@ pub fn interact_gui(game_state: &mut State, ctx: &mut Rltk, range: usize, source
         }
     }
 
-    if (mouse_position.x != prev_mouse_position.x || mouse_position.x != prev_mouse_position.x) && (mouse_pos.0 <= MAP_SCREEN_WIDTH && mouse_pos.1 <= MAP_SCREEN_HEIGHT) {
+    if (mouse_position.x != prev_mouse_position.x || mouse_position.x != prev_mouse_position.x)
+        && (mouse_pos.0 <= MAP_SCREEN_WIDTH && mouse_pos.1 <= MAP_SCREEN_HEIGHT)
+    {
         target = Vector3i::new(
-            (mouse_position.x - source.x).abs().min(range as i32) * (mouse_position.x - source.x).signum() + source.x,
-            (mouse_position.y - source.y).abs().min(range as i32) * (mouse_position.y - source.y).signum() + source.y,
-            target.z
+            (mouse_position.x - source.x).abs().min(range as i32)
+                * (mouse_position.x - source.x).signum()
+                + source.x,
+            (mouse_position.y - source.y).abs().min(range as i32)
+                * (mouse_position.y - source.y).signum()
+                + source.y,
+            target.z,
         );
     }
 
     match ctx.key {
-        None => return RunState::InteractGUI { range, source, target, prev_mouse_position },
-        Some(key) => {
-            match key {
-                VirtualKeyCode::Escape => { 
-                    return RunState::AwaitingInput
-                },
-                VirtualKeyCode::I => { 
-                    return RunState::AwaitingInput
-                },
-                VirtualKeyCode::Period => {
-                    return check_range(range, source, target, Vector3i::DOWN, mouse_position);
-                },
-                VirtualKeyCode::Comma => {
-                    return check_range(range, source, target, Vector3i::UP, mouse_position);
-                },
-                VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => {
-                    return check_range(range, source, target, Vector3i::N, mouse_position);
-                },
-                VirtualKeyCode::Numpad9 => {
-                    return check_range(range, source, target, Vector3i::NE, mouse_position);
-                },
-                VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => {
-                    return check_range(range, source, target, Vector3i::E, mouse_position);
-                },
-                VirtualKeyCode::Numpad3 => {
-                    return check_range(range, source, target, Vector3i::SE, mouse_position);
-                },
-                VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => {
-                    return check_range(range, source, target, Vector3i::S, mouse_position);
-                },
-                VirtualKeyCode::Numpad1 => {
-                    return check_range(range, source, target, Vector3i::SW, mouse_position);
-                },
-                VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => {
-                    return check_range(range, source, target, Vector3i::W, mouse_position);
-                },
-                VirtualKeyCode::Numpad7 => {
-                    return check_range(range, source, target, Vector3i::NW, mouse_position);
-                },
-                VirtualKeyCode::A => {
-                    if interactables.len() > 0 {
-                        let interactable = interactables[0].clone();
-                        let entity = entities.entity(interactable.3);
-                        if let Some(player) = player {
-                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
-                        
-                            return RunState::Ticking; 
-                        }       
-                    }
-                    return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
-                },
-                VirtualKeyCode::B => { 
-                    if interactables.len() > 1 {
-                        let interactable = interactables[1].clone();
-                        let entity = entities.entity(interactable.3);
-                        if let Some(player) = player {
-                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
-                        
-                            return RunState::Ticking; 
-                        }       
-                    }
-                    return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
-                },
-                VirtualKeyCode::C => { 
-                    if interactables.len() > 2 {
-                        let interactable = interactables[2].clone();
-                        let entity = entities.entity(interactable.3);
-                        if let Some(player) = player {
-                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
-                        
-                            return RunState::Ticking; 
-                        }       
-                    }
-                    return RunState::InteractGUI { range, source, target, prev_mouse_position }
-                },
-                VirtualKeyCode::D => { 
-                    if interactables.len() > 3 {
-                        let interactable = interactables[3].clone();
-                        let entity = entities.entity(interactable.3);
-                        if let Some(player) = player {
-                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
-                        
-                            return RunState::Ticking; 
-                        }       
-                    }
-                    return RunState::InteractGUI { range, source, target, prev_mouse_position }
-                },
-                VirtualKeyCode::E => { 
-                    if interactables.len() > 4 {
-                        let interactable = interactables[4].clone();
-                        let entity = entities.entity(interactable.3);
-                        if let Some(player) = player {
-                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
-                        
-                            return RunState::Ticking; 
-                        }       
-                    }
-                    return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
-                },
-                VirtualKeyCode::Return => {
-                    if interactables.len() > 40 {
-                        let interactable = interactables[0].clone();
-                        let entity = entities.entity(interactable.3);
-                        if let Some(player) = player {
-                            let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                            let _ = interactions.insert(player, InteractIntent::new(player, entity, interactable.0, interactable.1.clone(), interactable.4));
-                        
-                            return RunState::Ticking; 
-                        }       
-                    }
-                    return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
-                },
-                _ => {
-                    return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }), key }
-                }
-                
+        None => {
+            return RunState::InteractGUI {
+                range,
+                source,
+                target,
+                prev_mouse_position,
             }
         }
+        Some(key) => match key {
+            VirtualKeyCode::Escape => return RunState::AwaitingInput,
+            VirtualKeyCode::I => return RunState::AwaitingInput,
+            VirtualKeyCode::Period => {
+                return check_range(range, source, target, Vector3i::DOWN, mouse_position);
+            }
+            VirtualKeyCode::Comma => {
+                return check_range(range, source, target, Vector3i::UP, mouse_position);
+            }
+            VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => {
+                return check_range(range, source, target, Vector3i::N, mouse_position);
+            }
+            VirtualKeyCode::Numpad9 => {
+                return check_range(range, source, target, Vector3i::NE, mouse_position);
+            }
+            VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => {
+                return check_range(range, source, target, Vector3i::E, mouse_position);
+            }
+            VirtualKeyCode::Numpad3 => {
+                return check_range(range, source, target, Vector3i::SE, mouse_position);
+            }
+            VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => {
+                return check_range(range, source, target, Vector3i::S, mouse_position);
+            }
+            VirtualKeyCode::Numpad1 => {
+                return check_range(range, source, target, Vector3i::SW, mouse_position);
+            }
+            VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => {
+                return check_range(range, source, target, Vector3i::W, mouse_position);
+            }
+            VirtualKeyCode::Numpad7 => {
+                return check_range(range, source, target, Vector3i::NW, mouse_position);
+            }
+            VirtualKeyCode::A => {
+                if interactables.len() > 0 {
+                    let interactable = interactables[0].clone();
+                    let entity = entities.entity(interactable.3);
+                    if let Some(player) = player {
+                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                        let _ = interactions.insert(
+                            player,
+                            InteractIntent::new(
+                                player,
+                                entity,
+                                interactable.0,
+                                interactable.1.clone(),
+                                interactable.4,
+                            ),
+                        );
+
+                        return RunState::Ticking;
+                    }
+                }
+                return RunState::InteractGUI {
+                    range,
+                    source,
+                    target,
+                    prev_mouse_position: mouse_position,
+                };
+            }
+            VirtualKeyCode::B => {
+                if interactables.len() > 1 {
+                    let interactable = interactables[1].clone();
+                    let entity = entities.entity(interactable.3);
+                    if let Some(player) = player {
+                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                        let _ = interactions.insert(
+                            player,
+                            InteractIntent::new(
+                                player,
+                                entity,
+                                interactable.0,
+                                interactable.1.clone(),
+                                interactable.4,
+                            ),
+                        );
+
+                        return RunState::Ticking;
+                    }
+                }
+                return RunState::InteractGUI {
+                    range,
+                    source,
+                    target,
+                    prev_mouse_position: mouse_position,
+                };
+            }
+            VirtualKeyCode::C => {
+                if interactables.len() > 2 {
+                    let interactable = interactables[2].clone();
+                    let entity = entities.entity(interactable.3);
+                    if let Some(player) = player {
+                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                        let _ = interactions.insert(
+                            player,
+                            InteractIntent::new(
+                                player,
+                                entity,
+                                interactable.0,
+                                interactable.1.clone(),
+                                interactable.4,
+                            ),
+                        );
+
+                        return RunState::Ticking;
+                    }
+                }
+                return RunState::InteractGUI {
+                    range,
+                    source,
+                    target,
+                    prev_mouse_position,
+                };
+            }
+            VirtualKeyCode::D => {
+                if interactables.len() > 3 {
+                    let interactable = interactables[3].clone();
+                    let entity = entities.entity(interactable.3);
+                    if let Some(player) = player {
+                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                        let _ = interactions.insert(
+                            player,
+                            InteractIntent::new(
+                                player,
+                                entity,
+                                interactable.0,
+                                interactable.1.clone(),
+                                interactable.4,
+                            ),
+                        );
+
+                        return RunState::Ticking;
+                    }
+                }
+                return RunState::InteractGUI {
+                    range,
+                    source,
+                    target,
+                    prev_mouse_position,
+                };
+            }
+            VirtualKeyCode::E => {
+                if interactables.len() > 4 {
+                    let interactable = interactables[4].clone();
+                    let entity = entities.entity(interactable.3);
+                    if let Some(player) = player {
+                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                        let _ = interactions.insert(
+                            player,
+                            InteractIntent::new(
+                                player,
+                                entity,
+                                interactable.0,
+                                interactable.1.clone(),
+                                interactable.4,
+                            ),
+                        );
+
+                        return RunState::Ticking;
+                    }
+                }
+                return RunState::InteractGUI {
+                    range,
+                    source,
+                    target,
+                    prev_mouse_position: mouse_position,
+                };
+            }
+            VirtualKeyCode::Return => {
+                if interactables.len() > 40 {
+                    let interactable = interactables[0].clone();
+                    let entity = entities.entity(interactable.3);
+                    if let Some(player) = player {
+                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
+                        let _ = interactions.insert(
+                            player,
+                            InteractIntent::new(
+                                player,
+                                entity,
+                                interactable.0,
+                                interactable.1.clone(),
+                                interactable.4,
+                            ),
+                        );
+
+                        return RunState::Ticking;
+                    }
+                }
+                return RunState::InteractGUI {
+                    range,
+                    source,
+                    target,
+                    prev_mouse_position: mouse_position,
+                };
+            }
+            _ => {
+                return RunState::HandleOtherInput {
+                    next_runstate: std::sync::Arc::new(RunState::InteractGUI {
+                        range,
+                        source,
+                        target,
+                        prev_mouse_position: mouse_position,
+                    }),
+                    key,
+                }
+            }
+        },
     }
 }
 
-fn check_range(range: usize, source: Vector3i, target: Vector3i, delta: Vector3i, mouse_position: Vector3i) -> RunState {
+fn check_range(
+    range: usize,
+    source: Vector3i,
+    target: Vector3i,
+    delta: Vector3i,
+    mouse_position: Vector3i,
+) -> RunState {
     let new_target = target + delta;
-    if (source.x - new_target.x).abs() <= range as i32 && (source.y - new_target.y).abs() <= range as i32 && (source.z - new_target.z).abs() <= range as i32 {
-        return RunState::InteractGUI { range, source, target: new_target, prev_mouse_position: mouse_position }
-    }
-    else {
-        return RunState::InteractGUI { range, source, target, prev_mouse_position: mouse_position }
+    if (source.x - new_target.x).abs() <= range as i32
+        && (source.y - new_target.y).abs() <= range as i32
+        && (source.z - new_target.z).abs() <= range as i32
+    {
+        return RunState::InteractGUI {
+            range,
+            source,
+            target: new_target,
+            prev_mouse_position: mouse_position,
+        };
+    } else {
+        return RunState::InteractGUI {
+            range,
+            source,
+            target,
+            prev_mouse_position: mouse_position,
+        };
     }
 }

@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use fnv::FnvHashSet;
 use rltk::RandomNumberGenerator;
-use specs::{prelude::*, storage::GenericWriteStorage};
+use specs::{
+    prelude::*,
+    storage::{GenericReadStorage, GenericWriteStorage},
+};
 
 use crate::{
     entities::{
@@ -110,6 +113,7 @@ impl<'a> System<'a> for PowerSystem {
             let mut start_wire = Wire::new(
                 rltk::RGB::named(rltk::WHITE).to_rgba(1.0),
                 "invalid".to_string(),
+                false,
             );
 
             {
@@ -394,7 +398,7 @@ impl<'a> System<'a> for PowerSystem {
     }
 }
 
-pub fn get_devices_on_network(
+/*pub fn get_devices_on_network(
     ecs: &World,
     network_entity: Entity,
 ) -> Vec<(usize, String, u32, u32, f32)> {
@@ -434,6 +438,113 @@ pub fn get_devices_on_network(
 
             //TODO: Add any other interactable components
             check_for_interactable!(PowerSwitch);
+        }
+    }
+    interactables
+}*/
+
+pub fn get_devices_on_subnetwork(
+    ecs: &World,
+    network_entity: Entity,
+) -> Vec<(usize, String, u32, u32, f32)> {
+    let names = ecs.read_storage::<crate::Name>();
+    let nodes = ecs.read_storage::<crate::PowerNode>();
+    let positions = ecs.read_storage::<crate::Vector3i>();
+    let wires = ecs.read_storage::<crate::Wire>();
+    let entities = ecs.entities();
+
+    let mut interactables = Vec::new();
+
+    let mut start_position = Vector3i::new_equi(0);
+
+    if let Some(position) = positions.get(network_entity) {
+        start_position = *position;
+    }
+    let mut unchanged_wires = vec![start_position];
+
+    let mut start_wire = Wire::new(
+        rltk::RGB::named(rltk::WHITE).to_rgba(1.0),
+        "invalid".to_string(),
+        false,
+    );
+
+    for (wire, _, node) in (&wires, &positions, &nodes)
+        .join()
+        .filter(|(_, x, _)| **x == start_position)
+    {
+        start_wire = wire.clone();
+    }
+
+    let mut prev_colors = HashSet::new();
+    prev_colors.insert(start_wire.color_name);
+
+    let mut network_wires = FnvHashSet::default();
+
+    while let Some(wire_position) = unchanged_wires.pop() {
+        //Add all wires on the current position
+        for (_, _, entity) in (&wires, &positions, &entities)
+            .join()
+            .filter(|(wire, x, _)| {
+                *x == &wire_position && prev_colors.contains(&wire.color_name.clone())
+            })
+        {
+            network_wires.insert(entity.id());
+        }
+
+        let neighbours = get_cardinal_neighbours_with_z(wire_position);
+
+        for neighbour in neighbours.into_iter() {
+            for (wire, _, _, entity) in (&wires, &positions, &nodes, &entities)
+                .join()
+                .filter(|(wire, x, _, _)| wire.data && **x == neighbour)
+            {
+                if !network_wires.contains(&entity.id()) {
+                    if prev_colors.contains(&wire.color_name) {
+                        unchanged_wires.push(neighbour);
+                    }
+                }
+            }
+        }
+    }
+    for entity_id in network_wires {
+        let entity = entities.entity(entity_id);
+        let mut current_position = Vector3i::new_equi(0);
+
+        if let Some(position) = positions.get(entity) {
+            current_position = position.clone();
+        }
+
+        for (entity, _) in (&entities, &positions)
+            .join()
+            .filter(|(entity, x)| **x == current_position && *entity != network_entity)
+        {
+            if let Some(_) = nodes.get(entity) {
+                macro_rules! check_for_interactable {
+                        ($($typ:ty), *) => {
+                            {
+                                $(
+                                    let storage = ecs.read_storage::<$typ>();
+
+                                    if let Some(interactable) = storage.get(entity) {
+                                        let mut name = "{unknown}".to_string();
+
+                                        if let Some(entity_name) = names.get(entity) { name = entity_name.name.clone()}
+
+                                        interactables.push((
+                                            interactable.interaction_id,
+                                            format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
+                                            network_entity.id(),
+                                            entity.id(),
+                                            interactable.get_cost()
+                                        ));
+                                    }
+                                )*
+                            }
+                        };
+                    }
+                //TODO: Add any other interactable components
+                check_for_interactable!(PowerSwitch);
+            }
         }
     }
     interactables

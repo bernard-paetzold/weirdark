@@ -480,6 +480,7 @@ pub fn lay_wiring(
     color: RGBA,
     color_name: String,
     roof_preferred: bool,
+    data: bool,
 ) {
     let path;
     if start_position.z == end_position.z {
@@ -549,7 +550,7 @@ pub fn lay_wiring(
             ))
             .with(Photometry::new())
             .with(Name::new(format!("Wire ({})", color_name.clone())))
-            .with(Wire::new(color, color_name.clone()))
+            .with(Wire::new(color, color_name.clone(), data))
             .with(EntityDirection::new(direction))
             .with(PowerNode::new())
             .marked::<SimpleMarker<SerializeThis>>()

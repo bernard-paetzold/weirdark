@@ -432,11 +432,3 @@ fn pick_best_side(room: &Room, direction: Vector3i) -> Vector3i {
 
     side
 }
-
-fn get_position_on_side(position: Vector3i, side: &Vector3i, size: Vector3i) -> Vector3i {
-    Vector3i::new(
-        position.x + side.x * (size.x / 2),
-        position.y + side.y * (size.y / 2),
-        position.z - 1,
-    )
-}

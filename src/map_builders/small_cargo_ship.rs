@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    common::{rand_wall_adj_tile, Area, AreaType, Corridor, Room},
+    common::{Area, AreaType, Corridor, Room},
     MapBuilder,
 };
 
@@ -177,24 +177,6 @@ impl SmallCargoShipMapBuilder {
                 .tiles
                 .insert(*tile_position + Vector3i::UP * 2, hull.clone());
 
-            //Mirrored room
-            /*self.map.tiles.insert(
-                (*tile_position + Vector3i::DOWN) * Vector3i::new(1, -1, 1),
-                hull.clone(),
-            );
-            self.map.tiles.insert(
-                *tile_position * Vector3i::new(1, -1, 1),
-                breathable_atmosphere.clone(),
-            );
-            self.map.tiles.insert(
-                (*tile_position + Vector3i::UP) * Vector3i::new(1, -1, 1),
-                breathable_atmosphere.clone(),
-            );
-            self.map.tiles.insert(
-                (*tile_position + Vector3i::UP * 2) * Vector3i::new(1, -1, 1),
-                hull.clone(),
-            );*/
-
             //If the tile is at the edge of the room, make it a wall
             let mut neighbours = 0;
 
@@ -209,15 +191,6 @@ impl SmallCargoShipMapBuilder {
                 self.map
                     .tiles
                     .insert(*tile_position + Vector3i::UP, hull.clone());
-
-                //Mirrored walls
-                /*  self.map
-                    .tiles
-                    .insert((*tile_position) * Vector3i::new(1, -1, 1), hull.clone());
-                self.map.tiles.insert(
-                    (*tile_position + Vector3i::UP) * Vector3i::new(1, -1, 1),
-                    hull.clone(),
-                );*/
             }
         }
         //Clear door
@@ -225,20 +198,10 @@ impl SmallCargoShipMapBuilder {
             .tiles
             .insert(corridor_connection, breathable_atmosphere.clone());
 
-        //Mirror
-        /*self.map.tiles.insert(
-            corridor_connection * Vector3i::new(1, -1, 1),
-            breathable_atmosphere.clone(),
-        );*/
-
         for tile_position in room.nodes.iter() {
             self.map
                 .tiles
                 .insert(*tile_position, breathable_atmosphere.clone());
-
-            //Mirror
-            /*self.map.tiles.insert(
-             *tile_position * Vector3i::new(1, -1, 1), breathable_atmosphere.clone(), );*/
         }
 
         room.centre = room_centre;
@@ -275,11 +238,11 @@ impl SmallCargoShipMapBuilder {
             offset = Vector3i::new(1, left_right, 0);
         }
 
-        let breaker_position = side + offset + (direction * 2);
-
-        spawner::breaker_box(ecs, breaker_position);
-        area.set_breaker_pos(breaker_position);
-
+        if area.get_area_type() != AreaType::Corridor {
+            let breaker_position = side + offset + (direction * 2);
+            spawner::breaker_box(ecs, breaker_position);
+            area.set_breaker_pos(breaker_position);
+        }
         let ceiling_lamp_position = *area.get_area_position() + Vector3i::UP;
         spawner::ceiling_lamp(
             ecs,
@@ -351,7 +314,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
             true,
         );
 
-        println!("{}", self.build_room(&mut stern_room));
+        self.build_room(&mut stern_room);
 
         self.areas
             .insert(sterm_room_position, Box::new(stern_room.clone()));
@@ -366,7 +329,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
             true,
         );
 
-        println!("{}", self.build_room(&mut aft_room));
+        self.build_room(&mut aft_room);
 
         self.areas
             .insert(aft_room_position, Box::new(aft_room.clone()));
@@ -403,7 +366,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
     }
 
     fn spawn_entities(&mut self, ecs: &mut specs::World) {
-        let mut breaker_positions = Vec::new();
+        let mut breaker_positions = HashSet::new();
         let mut device_positions = Vec::new();
 
         //Pick a random room to be the power room
@@ -415,7 +378,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
 
         for (_, area) in self.get_areas().iter_mut() {
             if let Some(breaker_position) = area.get_breaker_pos() {
-                breaker_positions.push(breaker_position.clone());
+                breaker_positions.insert(breaker_position.clone());
 
                 if area.get_area_type() == AreaType::GeneratorRoom {
                     generator_breaker = breaker_position.clone();
@@ -444,6 +407,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
                 self.get_map(),
                 generator_breaker.clone(),
                 *position,
+                &breaker_positions,
                 color.to_rgba(1.0),
                 color_hex.clone(),
                 true,
@@ -458,6 +422,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
                     self.get_map(),
                     *breaker_position,
                     *device_position,
+                    &breaker_positions,
                     color.to_rgba(1.0),
                     color_hex.clone(),
                     true,

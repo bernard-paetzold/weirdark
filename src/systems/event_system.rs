@@ -7,7 +7,10 @@ use specs::{
 };
 
 use crate::{
-    entities::intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent},
+    entities::{
+        intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent},
+        power_components::BreakerBox,
+    },
     gamelog::GameLog,
     states::RunState,
     update_camera_position,
@@ -38,6 +41,7 @@ impl<'a> System<'a> for EventSystem {
         WriteStorage<'a, Viewshed>,
         WriteStorage<'a, Photometry>,
         WriteStorage<'a, Illuminant>,
+        WriteStorage<'a, BreakerBox>,
         ReadStorage<'a, Blocker>,
         ReadStorage<'a, Camera>,
     );
@@ -61,6 +65,7 @@ impl<'a> System<'a> for EventSystem {
             mut viewsheds,
             mut photometria,
             mut illuminants,
+            breakers,
             blockers,
             cameras,
         ) = data;
@@ -107,6 +112,17 @@ impl<'a> System<'a> for EventSystem {
                                     if let Some(power_node) = power_nodes.get_mut(interact_intent.target) {
                                         power_node.dirty = true;
                                     }
+
+                                    //If the interactable is a breaker box, rebuild power state of all connected wires
+                                    if let Some(_) = breakers.get(interact_intent.target) {
+                                        if let Some(breaker_position) = positions.get(interact_intent.target) {
+                                            for (power_node, _) in (&mut power_nodes, &positions).join().filter(|(_, x)| *x == breaker_position) {
+                                               power_node.dirty = true;
+                                            }
+                                        }
+                                    }
+
+
                                 )*
                             }
                         };

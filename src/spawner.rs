@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{collections::HashSet, f32::consts::PI};
 
 use rltk::{RGB, RGBA};
 use specs::{
@@ -476,6 +476,7 @@ pub fn lay_wiring(
     map: Map,
     start_position: Vector3i,
     end_position: Vector3i,
+    avoid_positions: &HashSet<Vector3i>,
     color: RGBA,
     color_name: String,
     roof_preferred: bool,
@@ -484,7 +485,13 @@ pub fn lay_wiring(
     if start_position.z == end_position.z {
         path = find_walkable_path(map, start_position, end_position);
     } else {
-        path = wall_climb_path(map, start_position, end_position, roof_preferred);
+        path = wall_climb_path(
+            map,
+            start_position,
+            end_position,
+            avoid_positions,
+            roof_preferred,
+        );
     }
 
     let mut prev_position = start_position;

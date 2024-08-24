@@ -21,7 +21,6 @@ impl PowerNode {
     }
 }
 
-
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct PowerSource {
     pub on: bool,
@@ -43,26 +42,27 @@ impl PowerSource {
 pub struct PoweredState {
     pub on: bool,
     pub wattage: f32,
-    pub available_wattage: f32
+    pub available_wattage: f32,
 }
 
 impl PoweredState {
     pub fn new(on: bool, wattage: f32) -> PoweredState {
-        PoweredState { on, wattage, available_wattage: 0.0 }
+        PoweredState {
+            on,
+            wattage,
+            available_wattage: 0.0,
+        }
     }
 
     pub fn state_description(&self) -> String {
-        if self.on && (self.available_wattage >= self.wattage) { 
-            "on, powered".to_string() 
-        } 
-        else if self.on && (self.available_wattage < self.wattage) { 
-            "on, not powered".to_string() 
-        }
-        else if !self.on && (self.available_wattage >= self.wattage) { 
-            "off, powered".to_string() 
-        }
-        else { 
-            "off, not powered".to_string() 
+        if self.on && (self.available_wattage >= self.wattage) {
+            "on, powered".to_string()
+        } else if self.on && (self.available_wattage < self.wattage) {
+            "on, not powered".to_string()
+        } else if !self.on && (self.available_wattage >= self.wattage) {
+            "off, powered".to_string()
+        } else {
+            "off, not powered".to_string()
         }
     }
 }
@@ -80,9 +80,12 @@ pub struct PowerSwitch {
 
 impl PowerSwitch {
     pub fn new(on: bool) -> PowerSwitch {
-
         let description: String;
-        if on { description = "Turn off".to_string() } else { description = "Turn on".to_string() }
+        if on {
+            description = "Turn off".to_string()
+        } else {
+            description = "Turn on".to_string()
+        }
 
         PowerSwitch {
             on,
@@ -95,12 +98,19 @@ impl PowerSwitch {
     pub fn toggle(&mut self) {
         self.on = !self.on;
 
-        if self.on { self.interaction_description = "Turn off".to_string() } 
-        else { self.interaction_description = "Turn on".to_string() }
+        if self.on {
+            self.interaction_description = "Turn off".to_string()
+        } else {
+            self.interaction_description = "Turn on".to_string()
+        }
     }
 
     pub fn state_description(&self) -> String {
-        if self.on { "on".to_string() } else { "off".to_string() }
+        if self.on {
+            "on".to_string()
+        } else {
+            "off".to_string()
+        }
     }
 }
 
@@ -111,15 +121,15 @@ impl Interactable for PowerSwitch {
     fn interact(&mut self) {
         self.toggle();
     }
-        
+
     fn interaction_id(&self) -> usize {
         self.interaction_id
     }
-    
+
     fn interaction_description(&self) -> String {
         self.interaction_description.clone()
     }
-    
+
     fn state_description(&self) -> String {
         self.state_description()
     }
@@ -139,7 +149,7 @@ impl Wire {
             power_load: 0.0,
             available_wattage: 0.0,
             color,
-            color_name
+            color_name,
         }
     }
 }
@@ -168,4 +178,9 @@ impl ElectronicHeater {
     pub fn set_state(&mut self, on: bool) {
         self.on = on;
     }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Debug)]
+pub struct Wiring {
+    pub end_points: Vec<f32>,
 }

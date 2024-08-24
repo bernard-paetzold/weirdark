@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
-
+use rayon::prelude::*;
 use specs::prelude::*;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     entities::atmospherics::{Gas, R},

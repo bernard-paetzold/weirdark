@@ -1,6 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use specs::{prelude::*, shred::{Fetch, FetchMut}, storage::MaskedStorage};
+use specs::{
+    prelude::*,
+    shred::{Fetch, FetchMut},
+    storage::MaskedStorage,
+};
 
 use crate::{vectors::Vector3i, Illuminant, Map, Player, Tile, Viewshed, VisionBlocker};
 
@@ -18,25 +22,41 @@ impl<'a> System<'a> for VisibilitySystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut map, entities, mut viewshed, positions, _player, vision_blockers, mut illuminants) = data;
+        let (
+            mut map,
+            entities,
+            mut viewsheds,
+            positions,
+            _player,
+            vision_blockers,
+            mut illuminants,
+        ) = data;
         let map_tiles = &mut map.tiles;
 
-        for (entity, viewshed) in (&entities, &mut viewshed).join() {
-            if viewshed.dirty {
-                viewshed.dirty = false;
-                viewshed.visible_tiles.clear();
+        for (entity, viewshed) in (&entities, &mut viewsheds)
+            .join()
+            .filter(|(_, viewshed)| viewshed.dirty)
+        {
+            viewshed.dirty = false;
+            viewshed.visible_tiles.clear();
 
-                //let now = Instant::now();
-                let position = positions.get(entity).clone();
+            //let now = Instant::now();
+            let position = positions.get(entity).clone();
 
-                if let Some(position) = position {
-                    viewshed.visible_tiles =
-                    los(map_tiles, &mut HashSet::new(), *position, viewshed, &vision_blockers, &positions).clone();
-                }
-
-                //let elapsed = now.elapsed();
-                //println!("LOS: {:.2?}", elapsed);
+            if let Some(position) = position {
+                viewshed.visible_tiles = los(
+                    map_tiles,
+                    &mut HashSet::new(),
+                    *position,
+                    viewshed,
+                    &vision_blockers,
+                    &positions,
+                )
+                .clone();
             }
+
+            //let elapsed = now.elapsed();
+            //println!("LOS: {:.2?}", elapsed);
 
             if let Some(illuminant) = illuminants.get_mut(entity) {
                 illuminant.dirty = true;
@@ -51,7 +71,7 @@ fn los<'a>(
     source: Vector3i,
     viewshed: &mut Viewshed,
     vision_blockers: &Storage<'a, VisionBlocker, Fetch<'a, MaskedStorage<VisionBlocker>>>,
-    positions: &Storage<'a, Vector3i, FetchMut<'a, MaskedStorage<Vector3i>>>
+    positions: &Storage<'a, Vector3i, FetchMut<'a, MaskedStorage<Vector3i>>>,
 ) -> &'a HashSet<Vector3i> {
     let octants = [
         (1, 0, 0, 1),   // 0 - East
@@ -63,7 +83,6 @@ fn los<'a>(
         (-1, 0, 0, -1), // 6 - Southwest
         (0, 1, -1, 0),  // 7 - Southeast
     ];
-
 
     for z in -(viewshed.z_range as i32)..(viewshed.z_range as i32) + 1 {
         let current_source = source + Vector3i::new(0, 0, z);
@@ -98,14 +117,19 @@ fn los<'a>(
         if !down_z_blocked {
             let target_position = source + Vector3i::new(0, 0, -(current_z_offset as i32));
             //If there is no tile or the tile is not opaque show the tile below that
-            let tile_below = map_tiles
-                .get_mut(&target_position);
+            let tile_below = map_tiles.get_mut(&target_position);
 
             match tile_below {
                 Some(tile) => {
                     visible_tiles.insert(target_position);
 
-                    if tile.opaque || (vision_blockers, positions).join().filter(|x| *x.1 == target_position).next().is_some() {
+                    if tile.opaque
+                        || (vision_blockers, positions)
+                            .join()
+                            .filter(|x| *x.1 == target_position)
+                            .next()
+                            .is_some()
+                    {
                         down_z_blocked = true;
                     }
                 }
@@ -116,15 +140,19 @@ fn los<'a>(
         if !up_z_blocked {
             let target_position = source + Vector3i::new(0, 0, current_z_offset as i32);
             //Also check tile above
-            let tile_above = map_tiles
-                .get_mut(&target_position);
+            let tile_above = map_tiles.get_mut(&target_position);
 
             match tile_above {
                 Some(tile) => {
-                    visible_tiles
-                        .insert(target_position);
+                    visible_tiles.insert(target_position);
 
-                    if tile.opaque || (vision_blockers, positions).join().filter(|x| *x.1 == target_position).next().is_some() {
+                    if tile.opaque
+                        || (vision_blockers, positions)
+                            .join()
+                            .filter(|x| *x.1 == target_position)
+                            .next()
+                            .is_some()
+                    {
                         up_z_blocked = true;
                     }
                 }
@@ -151,7 +179,7 @@ fn light_cast<'a>(
     visible_tiles: &'a mut HashSet<Vector3i>,
     viewshed_z_range: usize,
     vision_blockers: &Storage<'a, VisionBlocker, Fetch<'a, MaskedStorage<VisionBlocker>>>,
-    positions: &Storage<'a, Vector3i, FetchMut<'a, MaskedStorage<Vector3i>>>
+    positions: &Storage<'a, Vector3i, FetchMut<'a, MaskedStorage<Vector3i>>>,
 ) -> &'a mut HashSet<Vector3i> {
     if start_slope < end_slope {
         return visible_tiles;
@@ -164,7 +192,7 @@ fn light_cast<'a>(
         }
 
         let delta_y = -(distance as i32);
-        for delta_x in -(distance as i32)..= 0 {
+        for delta_x in -(distance as i32)..=0 {
             let current_x = start_position.x + delta_x * xx + delta_y * xy;
             let current_y = start_position.y + delta_x * yx + delta_y * yy;
             let current_position = Vector3i::new(current_x, current_y, start_position.z);
@@ -188,8 +216,15 @@ fn light_cast<'a>(
                     Some(tile) => {
                         visible_tiles.insert(current_position);
 
-                        if !tile.opaque && !check_entity_blocking(vision_blockers, positions, start_position, current_position) {
-                            tile_transparent = true;     
+                        if !tile.opaque
+                            && !check_entity_blocking(
+                                vision_blockers,
+                                positions,
+                                start_position,
+                                current_position,
+                            )
+                        {
+                            tile_transparent = true;
                         }
                     }
                     _ => {}
@@ -197,35 +232,46 @@ fn light_cast<'a>(
 
                 if tile_transparent {
                     let target_position = current_position + Vector3i::new(0, 0, -1);
-                    let tile_below = map_tiles.get_mut(
-                        &(target_position),
-                    );
-    
+                    let tile_below = map_tiles.get_mut(&(target_position));
+
                     match tile_below {
                         Some(_) => {
-                            visible_tiles.insert(target_position);  
+                            visible_tiles.insert(target_position);
                         }
                         _ => {}
                     }
-
                 }
             }
 
             if blocked {
                 if let Some(tile) = map_tiles.get_mut(&current_position) {
-                    if tile.opaque || check_entity_blocking(vision_blockers, positions, start_position, current_position) {
-                        start_slope = right_slope;    
+                    if tile.opaque
+                        || check_entity_blocking(
+                            vision_blockers,
+                            positions,
+                            start_position,
+                            current_position,
+                        )
+                    {
+                        start_slope = right_slope;
 
                         continue;
                     } else {
-                        blocked = false;    
+                        blocked = false;
                     }
                 } else {
                     blocked = false;
                 }
             } else {
                 if let Some(tile) = map_tiles.get_mut(&current_position) {
-                    if tile.opaque || check_entity_blocking(vision_blockers, positions, start_position, current_position) {
+                    if tile.opaque
+                        || check_entity_blocking(
+                            vision_blockers,
+                            positions,
+                            start_position,
+                            current_position,
+                        )
+                    {
                         blocked = true;
 
                         light_cast(
@@ -242,7 +288,7 @@ fn light_cast<'a>(
                             visible_tiles,
                             viewshed_z_range,
                             vision_blockers,
-                            positions
+                            positions,
                         );
                         start_slope = right_slope;
                     }
@@ -253,78 +299,262 @@ fn light_cast<'a>(
     visible_tiles
 }
 
-
-fn check_entity_blocking(blockers: &Storage<VisionBlocker, Fetch<MaskedStorage<VisionBlocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {
+fn check_entity_blocking(
+    blockers: &Storage<VisionBlocker, Fetch<MaskedStorage<VisionBlocker>>>,
+    positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>,
+    player_position: Vector3i,
+    target_position: Vector3i,
+) -> bool {
     let delta = (target_position - player_position).normalize_delta();
 
-    if is_entity_blocked(&blockers, &positions, player_position, target_position) { return true }
+    if is_entity_blocked(&blockers, &positions, player_position, target_position) {
+        return true;
+    }
 
     if delta == Vector3i::NW {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::N, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::W, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::N,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::W,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::N) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::W) { return true }
-    }
-    else if delta == Vector3i::SW {
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::N,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::W,
+        ) {
+            return true;
+        }
+    } else if delta == Vector3i::SW {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::S, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::W, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::S,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::W,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::S) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::W) { return true }       
-    }
-    else if delta == Vector3i::SE {
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::S,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::W,
+        ) {
+            return true;
+        }
+    } else if delta == Vector3i::SE {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::S, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::E, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::S,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::E,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::S) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position , player_position + Vector3i::E) { return true }        
-    }
-    else if delta == Vector3i::NE {
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::S,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::E,
+        ) {
+            return true;
+        }
+    } else if delta == Vector3i::NE {
         //Check two additional tiles player moves through
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::N, target_position) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position + Vector3i::E, target_position) { return true }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::N,
+            target_position,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position + Vector3i::E,
+            target_position,
+        ) {
+            return true;
+        }
 
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::N) { return true }
-        if is_entity_blocked(&blockers, &positions, player_position, player_position + Vector3i::E) { return true }        
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::N,
+        ) {
+            return true;
+        }
+        if is_entity_blocked(
+            &blockers,
+            &positions,
+            player_position,
+            player_position + Vector3i::E,
+        ) {
+            return true;
+        }
     }
     false
 }
 
-fn is_entity_blocked(blockers: &Storage<VisionBlocker, Fetch<MaskedStorage<VisionBlocker>>>, positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>, player_position: Vector3i, target_position: Vector3i) -> bool {
+fn is_entity_blocked(
+    blockers: &Storage<VisionBlocker, Fetch<MaskedStorage<VisionBlocker>>>,
+    positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>,
+    player_position: Vector3i,
+    target_position: Vector3i,
+) -> bool {
     //Check tile entity is in
-    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == player_position) {
+    for (blocker, _) in (blockers, positions)
+        .join()
+        .filter(|x| *x.1 == player_position)
+    {
         let delta = (target_position - player_position).normalize_delta();
 
-        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) { return true; }
-        else if delta == Vector3i::NW && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::W))  { return true; }
-        else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W)  { return true; }
-        else if delta == Vector3i::SW && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::W)) { return true; }
-        else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S)  { return true; }
-        else if delta == Vector3i::SE && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E)  { return true; }
-        else if delta == Vector3i::NE && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP)  { return true; }
-        else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN)  { return true; }
+        if delta == Vector3i::N && blocker.sides.contains(&crate::Direction::N) {
+            return true;
+        } else if delta == Vector3i::NW
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::W && blocker.sides.contains(&crate::Direction::W) {
+            return true;
+        } else if delta == Vector3i::SW
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::S && blocker.sides.contains(&crate::Direction::S) {
+            return true;
+        } else if delta == Vector3i::SE
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::E && blocker.sides.contains(&crate::Direction::E) {
+            return true;
+        } else if delta == Vector3i::NE
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP) {
+            return true;
+        } else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN) {
+            return true;
+        }
     }
 
     //Check tile entity is going to
-    for (blocker, _) in (blockers, positions).join().filter(|x| *x.1 == target_position) {
+    for (blocker, _) in (blockers, positions)
+        .join()
+        .filter(|x| *x.1 == target_position)
+    {
         let delta = (player_position - target_position).normalize_delta();
 
-        if delta == Vector3i::N && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::S)) { return true; }
-        else if delta == Vector3i::NW && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::W))  { return true; }
-        else if delta == Vector3i::W && (blocker.sides.contains(&crate::Direction::E) || blocker.sides.contains(&crate::Direction::W))   {  return true; }
-        else if delta == Vector3i::SW && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::W)) { return true; }
-        else if delta == Vector3i::S && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::S))  { return true; }
-        else if delta == Vector3i::SE && (blocker.sides.contains(&crate::Direction::S) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::E && (blocker.sides.contains(&crate::Direction::E) || blocker.sides.contains(&crate::Direction::W)) { return true; }
-        else if delta == Vector3i::NE && (blocker.sides.contains(&crate::Direction::N) || blocker.sides.contains(&crate::Direction::E))  { return true; }
-        else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP)  { return true; }
-        else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN)  { return true; }
+        if delta == Vector3i::N
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::S))
+        {
+            return true;
+        } else if delta == Vector3i::NW
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::W
+            && (blocker.sides.contains(&crate::Direction::E)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::SW
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::S
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::S))
+        {
+            return true;
+        } else if delta == Vector3i::SE
+            && (blocker.sides.contains(&crate::Direction::S)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::E
+            && (blocker.sides.contains(&crate::Direction::E)
+                || blocker.sides.contains(&crate::Direction::W))
+        {
+            return true;
+        } else if delta == Vector3i::NE
+            && (blocker.sides.contains(&crate::Direction::N)
+                || blocker.sides.contains(&crate::Direction::E))
+        {
+            return true;
+        } else if delta == Vector3i::UP && blocker.sides.contains(&crate::Direction::UP) {
+            return true;
+        } else if delta == Vector3i::DOWN && blocker.sides.contains(&crate::Direction::DOWN) {
+            return true;
+        }
     }
     return false;
 }

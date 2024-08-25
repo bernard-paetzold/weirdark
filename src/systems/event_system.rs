@@ -137,7 +137,9 @@ impl<'a> System<'a> for EventSystem {
                     if interact_intent.get_remaining_cost() <= 0.0 {
                         handle_interaction_intent!(power_switches, doors);
                         interact_intents.remove(entity);
-                    } else if is_player {
+                    }
+                    
+                    if is_player {
                         queue_empty = false;
                     }
                 }
@@ -212,7 +214,9 @@ impl<'a> System<'a> for EventSystem {
                             update_camera_position(delta, &cameras, &mut positions);
                         }
                         move_intents.remove(entity);
-                    } else if is_player {
+                    } 
+                    
+                    if is_player {
                         queue_empty = false;
                     }
                 }
@@ -235,7 +239,13 @@ impl<'a> System<'a> for EventSystem {
                         positions.remove(target);
 
                         //Remove intent
-                        pick_up_intents.remove(target);
+                        pick_up_intents.remove(entity);
+                        
+
+                    }
+
+                    if is_player {
+                        queue_empty = false;
                     }
                 }
             }
@@ -243,6 +253,8 @@ impl<'a> System<'a> for EventSystem {
             //If all intents are handled, return to input state
             if queue_empty {
                 *run_state = RunState::AwaitingInput;
+            } else {
+                *run_state = RunState::Ticking;
             }
         }
     }

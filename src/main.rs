@@ -1,6 +1,6 @@
 use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
-use entities::intents::{Initiative, InteractIntent, MoveIntent};
+use entities::intents::{Initiative, InteractIntent, MoveIntent, PickUpIntent};
 use entities::power_components::{
     BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
@@ -155,9 +155,17 @@ impl GameState for State {
                 source,
                 target,
                 prev_mouse_position,
+                selected_entity,
             } => {
-                new_runstate =
-                    gui::interact_gui(self, ctx, range, source, target, prev_mouse_position);
+                new_runstate = gui::interact_gui(
+                    self,
+                    ctx,
+                    range,
+                    source,
+                    target,
+                    prev_mouse_position,
+                    selected_entity,
+                );
 
                 //If the gui exits snap the camera position to the player
                 match new_runstate {
@@ -173,6 +181,11 @@ impl GameState for State {
             RunState::Simulation { steps } => {
                 for _ in 0..steps {
                     self.run_simulation();
+                }
+            }
+            RunState::ShowInventory => {
+                if gui::show_inventory(self, ctx) == gui::ItemMenuResult::Cancel {
+                    new_runstate = RunState::AwaitingInput;
                 }
             }
         }
@@ -244,11 +257,20 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Initiative>();
     game_state.ecs.register::<InteractIntent>();
     game_state.ecs.register::<MoveIntent>();
+    game_state.ecs.register::<PickUpIntent>();
+
+    //Item
+    game_state.ecs.register::<Installed>();
+
+    //Classification
+    game_state.ecs.register::<Prop>();
+    game_state.ecs.register::<Item>();
+    game_state.ecs.register::<InContainer>();
 
     let player_start_position = Vector3i::new(0, 0, 10);
 
     tile_blueprints::initalise();
-    rng::reseed(0);
+    rng::reseed(1);
 
     game_state
         .ecs

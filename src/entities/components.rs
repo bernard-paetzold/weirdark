@@ -14,7 +14,8 @@ use super::intents::Interactable;
 
 #[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
 pub enum Direction {
-    #[default] N,
+    #[default]
+    N,
     NW,
     W,
     SW,
@@ -58,34 +59,53 @@ pub struct Blocker {
 #[allow(dead_code)]
 impl Blocker {
     pub fn new(sides: Vec<Direction>) -> Blocker {
-        Blocker {
-            sides,
-        }
+        Blocker { sides }
     }
     pub fn new_cardinal_sides() -> Blocker {
         Blocker {
-            sides: vec![Direction::N, Direction::E, Direction::S, Direction::W]
+            sides: vec![Direction::N, Direction::E, Direction::S, Direction::W],
         }
     }
     pub fn new_n_s() -> Blocker {
         Blocker {
-            sides: vec![Direction::N, Direction::NW, Direction::W,
-            Direction::SW, Direction::S, Direction::SE, 
-            Direction::E, Direction::UP, Direction::DOWN],
+            sides: vec![
+                Direction::N,
+                Direction::NW,
+                Direction::W,
+                Direction::SW,
+                Direction::S,
+                Direction::SE,
+                Direction::E,
+                Direction::UP,
+                Direction::DOWN,
+            ],
         }
     }
     pub fn new_e_w() -> Blocker {
         Blocker {
-            sides: vec![Direction::N, Direction::NW, Direction::W,
-            Direction::SW, Direction::S, Direction::SE, 
-            Direction::E, Direction::UP, Direction::DOWN],
+            sides: vec![
+                Direction::N,
+                Direction::NW,
+                Direction::W,
+                Direction::SW,
+                Direction::S,
+                Direction::SE,
+                Direction::E,
+                Direction::UP,
+                Direction::DOWN,
+            ],
         }
     }
     pub fn new_all_sides() -> Blocker {
         Blocker {
-            sides: vec![Direction::N, Direction::W,
-                        Direction::S, Direction::E, 
-                        Direction::UP, Direction::DOWN],
+            sides: vec![
+                Direction::N,
+                Direction::W,
+                Direction::S,
+                Direction::E,
+                Direction::UP,
+                Direction::DOWN,
+            ],
         }
     }
 }
@@ -98,39 +118,56 @@ pub struct VisionBlocker {
 #[allow(dead_code)]
 impl VisionBlocker {
     pub fn new(sides: Vec<Direction>) -> VisionBlocker {
-        VisionBlocker {
-            sides,
-        }
+        VisionBlocker { sides }
     }
     pub fn new_cardinal_sides() -> VisionBlocker {
         VisionBlocker {
-            sides: vec![Direction::N, Direction::E, Direction::S, Direction::W]
+            sides: vec![Direction::N, Direction::E, Direction::S, Direction::W],
         }
     }
     pub fn new_n_s() -> VisionBlocker {
         VisionBlocker {
-            sides: vec![Direction::N, Direction::NW, Direction::W,
-            Direction::SW, Direction::S, Direction::SE, 
-            Direction::E, Direction::UP, Direction::DOWN],
+            sides: vec![
+                Direction::N,
+                Direction::NW,
+                Direction::W,
+                Direction::SW,
+                Direction::S,
+                Direction::SE,
+                Direction::E,
+                Direction::UP,
+                Direction::DOWN,
+            ],
         }
     }
     pub fn new_e_w() -> VisionBlocker {
         VisionBlocker {
-            sides: vec![Direction::N, Direction::NW, Direction::W,
-            Direction::SW, Direction::S, Direction::SE, 
-            Direction::E, Direction::UP, Direction::DOWN],
+            sides: vec![
+                Direction::N,
+                Direction::NW,
+                Direction::W,
+                Direction::SW,
+                Direction::S,
+                Direction::SE,
+                Direction::E,
+                Direction::UP,
+                Direction::DOWN,
+            ],
         }
     }
     pub fn new_all_sides() -> VisionBlocker {
         VisionBlocker {
-            sides: vec![Direction::N, Direction::W,
-                        Direction::S, Direction::E, 
-                        Direction::UP, Direction::DOWN],
+            sides: vec![
+                Direction::N,
+                Direction::W,
+                Direction::S,
+                Direction::E,
+                Direction::UP,
+                Direction::DOWN,
+            ],
         }
     }
 }
-
-
 
 #[derive(Component, ConvertSaveload, Clone)]
 pub struct Illuminant {
@@ -205,7 +242,7 @@ pub struct SerializationHelper {
 pub struct Door {
     pub open: bool,
     pub interaction_description: String,
-    pub interaction_id: usize,
+    pub interaction_id: u32,
     pub open_glyph: u16,
     pub closed_glyph: u16,
     pub cost: f32,
@@ -214,12 +251,16 @@ pub struct Door {
 impl Door {
     pub fn new(open: bool, open_glyph: u16, closed_glyph: u16) -> Door {
         let description: String;
-        if open { description = "Close".to_string() } else { description = "Open".to_string() }
+        if open {
+            description = "Close".to_string()
+        } else {
+            description = "Open".to_string()
+        }
 
         Door {
             open,
             interaction_description: description.to_string(),
-            interaction_id: crate::rng::random_int() as usize,
+            interaction_id: crate::rng::random_int() as u32,
             open_glyph,
             closed_glyph,
             cost: 1.0,
@@ -229,12 +270,19 @@ impl Door {
     pub fn open_close(&mut self) {
         self.open = !self.open;
 
-        if self.open { self.interaction_description = "Close".to_string() } 
-        else { self.interaction_description = "Open".to_string() }
+        if self.open {
+            self.interaction_description = "Close".to_string()
+        } else {
+            self.interaction_description = "Open".to_string()
+        }
     }
 
     pub fn state_description(&self) -> String {
-        if self.open { "open".to_string() } else { "closed".to_string() }
+        if self.open {
+            "open".to_string()
+        } else {
+            "closed".to_string()
+        }
     }
 }
 
@@ -245,15 +293,15 @@ impl Interactable for Door {
     fn interact(&mut self) {
         self.open_close();
     }
-    
-    fn interaction_id(&self) -> usize {
+
+    fn interaction_id(&self) -> u32 {
         self.interaction_id
     }
-    
+
     fn interaction_description(&self) -> String {
         self.interaction_description.clone()
     }
-    
+
     fn state_description(&self) -> String {
         self.state_description()
     }
@@ -266,9 +314,7 @@ pub struct EntityDirection {
 
 impl EntityDirection {
     pub fn new(direction: Direction) -> EntityDirection {
-        EntityDirection {
-            direction,
-        }
+        EntityDirection { direction }
     }
 }
 
@@ -278,6 +324,44 @@ pub struct Duct {}
 #[allow(dead_code)]
 impl Duct {
     pub fn new() -> Duct {
-        Duct { }
+        Duct {}
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Prop {}
+
+impl Prop {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Item {}
+
+impl Item {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct InContainer {
+    pub owner: u32,
+}
+
+impl InContainer {
+    pub fn new(entity_id: u32) -> Self {
+        Self { owner: entity_id }
+    }
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Installed {}
+
+impl Installed {
+    pub fn new() -> Self {
+        Self {}
     }
 }

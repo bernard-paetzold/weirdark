@@ -1,15 +1,19 @@
 use std::u32::MAX;
 
-use crate::entities::intents::InteractIntent;
+use crate::entities::intents::{InteractIntent, PickUpIntent};
 use crate::entities::power_components::{
     BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
 use crate::graphics::char_to_glyph;
+use crate::systems::event_system::{
+    get_pickup_interaction, InteractionInformation, InteractionType,
+};
 use crate::systems::power_system::get_devices_on_subnetwork;
-use crate::{mouse_to_map, INTERACT_MENU_WIDTH};
+use crate::{mouse_to_map, InContainer, Installed, Item, INTERACT_MENU_WIDTH};
 use crate::{systems::event_system::get_entity_interactions, Renderable};
 use rltk::{to_char, Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
+use specs::storage::GenericReadStorage;
 
 use crate::{
     gamelog::GameLog, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, Map,
@@ -106,7 +110,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
 
     let player = get_player_entity(&entities, &players);
 
-    let mut interactables: Vec<(usize, String, u32, u32, f32)> = Vec::new();
+    let mut interactables: Vec<InteractionInformation> = Vec::new();
     let mut tile_entities: Vec<Entity> = Vec::new();
 
     let target_tile = map.tiles.get(&target);
@@ -222,7 +226,6 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
     );
 
     ctx.set_active_console(2);
-    //ctx.set_translation_mode(2, rltk::CharacterTranslationMode::Codepage437);
 
     let mut tooltip: Vec<String> = Vec::new();
 
@@ -320,6 +323,88 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk, target: Vector3i) {
     }
 }
 
+#[derive(PartialEq, Copy, Clone)]
+pub enum ItemMenuResult {
+    Cancel,
+    NoResponse,
+    Selected,
+}
+
+pub fn show_inventory(game_state: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
+    let player_entity = game_state.ecs.fetch::<Entity>();
+    let names = game_state.ecs.read_storage::<Name>();
+    let in_container = game_state.ecs.read_storage::<InContainer>();
+
+    let inventory = (&in_container, &names)
+        .join()
+        .filter(|item| item.0.owner == player_entity.id());
+    let count = inventory.count();
+
+    let mut y = (25 - (count / 2)) as i32;
+    ctx.draw_box(
+        15,
+        y - 2,
+        31,
+        (count + 3) as i32,
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
+    ctx.print_color(
+        18,
+        y - 2,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "Inventory",
+    );
+    ctx.print_color(
+        18,
+        y + count as i32 + 1,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "ESCAPE to cancel",
+    );
+
+    let mut j = 0;
+    for (_, name) in (&in_container, &names)
+        .join()
+        .filter(|item| item.0.owner == player_entity.id())
+    {
+        ctx.set(
+            17,
+            y,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437('('),
+        );
+        ctx.set(
+            18,
+            y,
+            RGB::named(rltk::YELLOW),
+            RGB::named(rltk::BLACK),
+            97 + j as rltk::FontCharType,
+        );
+        ctx.set(
+            19,
+            y,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437(')'),
+        );
+
+        ctx.print(21, y, &name.name.to_string());
+        y += 1;
+        j += 1;
+    }
+
+    match ctx.key {
+        None => ItemMenuResult::NoResponse,
+        Some(key) => match key {
+            VirtualKeyCode::Escape => ItemMenuResult::Cancel,
+            _ => ItemMenuResult::NoResponse,
+        },
+    }
+}
+
 pub fn interact_gui(
     game_state: &mut State,
     ctx: &mut Rltk,
@@ -327,6 +412,7 @@ pub fn interact_gui(
     source: Vector3i,
     mut target: Vector3i,
     prev_mouse_position: Vector3i,
+    mut selected_entity: Option<Entity>,
 ) -> RunState {
     crate::set_camera_z(target.z, &mut game_state.ecs);
     let viewport_position = get_viewport_position(&game_state.ecs);
@@ -372,10 +458,12 @@ pub fn interact_gui(
     let wires = game_state.ecs.read_storage::<Wire>();
     let nodes = game_state.ecs.read_storage::<PowerNode>();
     let breaker_boxes = game_state.ecs.read_storage::<BreakerBox>();
+    let installed = game_state.ecs.read_storage::<Installed>();
+    let items = game_state.ecs.read_storage::<Item>();
 
     let player = get_player_entity(&entities, &players);
 
-    let mut interactables: Vec<(usize, String, u32, u32, f32)> = Vec::new();
+    let mut interactables: Vec<InteractionInformation> = Vec::new();
     let mut tile_entities: Vec<Entity> = Vec::new();
 
     let target_tile = map.tiles.get(&target);
@@ -384,21 +472,24 @@ pub fn interact_gui(
         if let Some(player_viewshed) = viewsheds.get(player_entity) {
             for (entity, position) in (&entities, &positions)
                 .join()
-                .filter(|&x| player_viewshed.visible_tiles.contains(x.1))
+                .filter(|(_, x)| player_viewshed.visible_tiles.contains(x) && **x == target)
             {
-                //if position.x == target.x && position.y == target.y && (position.z == target.z || position.z == target.z - 1) {
-                if position.x == target.x && position.y == target.y && (position.z == target.z) {
-                    interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
-                    tile_entities.push(entity);
-
-                    //Handle breaker boxes or other entities that control interactions off tile
-                    if let Some(_) = breaker_boxes.get(entity) {
-                        interactables
-                            .append(&mut get_devices_on_subnetwork(&game_state.ecs, entity));
-                    }
-                }
+                tile_entities.push(entity);
             }
         }
+    }
+
+    match selected_entity {
+        Some(entity) => {
+            interactables.push(get_pickup_interaction(entity));
+            interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
+
+            //Handle breaker boxes or other entities that control interactions off tile
+            if let Some(_) = breaker_boxes.get(entity) {
+                interactables.append(&mut get_devices_on_subnetwork(&game_state.ecs, entity));
+            }
+        }
+        _ => {}
     }
 
     let mut entity_menu_y = 0;
@@ -490,6 +581,8 @@ pub fn interact_gui(
         let mut y = 3;
         let mut prev_id = MAX;
 
+        let mut count = 0;
+
         for entity in tile_entities.iter() {
             let renderable = renderables.get(*entity);
             let name = names.get(*entity);
@@ -514,15 +607,14 @@ pub fn interact_gui(
                             entity_menu_y + y,
                             color,
                             RGB::named(rltk::BLACK),
-                            format!("{}", entity_name),
+                            format!("<{}> {}", to_char(97 + count), format!("{}", entity_name)),
                         );
                         y += 2;
 
                         render_menu = true;
                     }
-
-                    prev_id = entity.id();
                 }
+
                 if let Some(renderable) = renderables.get(*entity) {
                     ctx.print(
                         MAP_SCREEN_WIDTH + 1,
@@ -635,6 +727,7 @@ pub fn interact_gui(
                     prev_id = entity.id();
                 }
             }
+            count += 1;
         }
 
         if render_menu {
@@ -681,15 +774,13 @@ pub fn interact_gui(
             let mut count = 0;
             let mut prev_id = MAX;
 
-            for (_interaction_id, interaction_name, listing_id, entity_id, _) in
-                interactables.iter()
-            {
-                let interactable_entity = entities.entity(*entity_id);
+            for interaction_information in interactables.iter() {
+                let interactable_entity = entities.entity(interaction_information.entity_id);
                 let renderable = renderables.get(interactable_entity);
                 let name = names.get(interactable_entity);
 
                 if y < 50 {
-                    if *listing_id != prev_id {
+                    if interaction_information.entity_id != prev_id {
                         let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
                         let mut entity_name = "{unknown}".to_string();
 
@@ -709,7 +800,7 @@ pub fn interact_gui(
                         );
 
                         y += 2;
-                        prev_id = *listing_id;
+                        prev_id = interaction_information.entity_id;
                     }
                     ctx.print(
                         MAP_SCREEN_WIDTH + 2,
@@ -717,7 +808,7 @@ pub fn interact_gui(
                         format!(
                             "<{}> {}",
                             to_char(97 + count),
-                            format!("{}", interaction_name)
+                            format!("{}", interaction_information.description)
                         ),
                     );
                     y += 1;
@@ -748,99 +839,243 @@ pub fn interact_gui(
                 source,
                 target,
                 prev_mouse_position,
+                selected_entity,
             }
         }
         Some(key) => match key {
-            VirtualKeyCode::Escape => return RunState::AwaitingInput,
+            VirtualKeyCode::Escape => {
+                if selected_entity == None {
+                    return RunState::AwaitingInput;
+                } else {
+                    selected_entity = None;
+                    return RunState::InteractGUI {
+                        range,
+                        source,
+                        target,
+                        prev_mouse_position,
+                        selected_entity,
+                    };
+                }
+            }
             VirtualKeyCode::I => return RunState::AwaitingInput,
             VirtualKeyCode::Period => {
-                return check_range(range, source, target, Vector3i::DOWN, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::DOWN,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Comma => {
-                return check_range(range, source, target, Vector3i::UP, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::UP,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => {
-                return check_range(range, source, target, Vector3i::N, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::N,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Numpad9 => {
-                return check_range(range, source, target, Vector3i::NE, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::NE,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => {
-                return check_range(range, source, target, Vector3i::E, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::E,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Numpad3 => {
-                return check_range(range, source, target, Vector3i::SE, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::SE,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => {
-                return check_range(range, source, target, Vector3i::S, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::S,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Numpad1 => {
-                return check_range(range, source, target, Vector3i::SW, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::SW,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => {
-                return check_range(range, source, target, Vector3i::W, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::W,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::Numpad7 => {
-                return check_range(range, source, target, Vector3i::NW, mouse_position);
+                return check_range(
+                    range,
+                    source,
+                    target,
+                    Vector3i::NW,
+                    mouse_position,
+                    selected_entity,
+                );
             }
             VirtualKeyCode::A => {
-                if interactables.len() > 0 {
+                if selected_entity == None {
+                    if tile_entities.len() > 0 {
+                        {
+                            selected_entity = Some(tile_entities[0].clone())
+                        };
+                    }
+                } else if interactables.len() > 0 {
                     let interactable = interactables[0].clone();
-                    let entity = entities.entity(interactable.3);
+                    let entity = entities.entity(interactable.entity_id);
                     if let Some(player) = player {
-                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                        let _ = interactions.insert(
-                            player,
-                            InteractIntent::new(
-                                player,
-                                entity,
-                                interactable.0,
-                                interactable.1.clone(),
-                                interactable.4,
-                            ),
-                        );
+                        match interactable.interaction_type {
+                            InteractionType::ComponentInteraction => {
+                                let mut interactions =
+                                    game_state.ecs.write_storage::<InteractIntent>();
+                                let _ = interactions.insert(
+                                    player,
+                                    InteractIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                    ),
+                                );
+                            }
+                            InteractionType::PickUpInteraction => {
+                                let mut pick_up_intents =
+                                    game_state.ecs.write_storage::<PickUpIntent>();
+                                let _ = pick_up_intents.insert(
+                                    player,
+                                    PickUpIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                    ),
+                                );
+                            }
+                        }
 
                         return RunState::Ticking;
                     }
                 }
+
                 return RunState::InteractGUI {
                     range,
                     source,
                     target,
                     prev_mouse_position: mouse_position,
+                    selected_entity,
                 };
             }
             VirtualKeyCode::B => {
-                if interactables.len() > 1 {
+                if selected_entity == None {
+                    if tile_entities.len() > 1 {
+                        {
+                            selected_entity = Some(tile_entities[1].clone())
+                        };
+                    }
+                } else if interactables.len() > 1 {
                     let interactable = interactables[1].clone();
-                    let entity = entities.entity(interactable.3);
+                    let entity = entities.entity(interactable.entity_id);
                     if let Some(player) = player {
-                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                        let _ = interactions.insert(
-                            player,
-                            InteractIntent::new(
-                                player,
-                                entity,
-                                interactable.0,
-                                interactable.1.clone(),
-                                interactable.4,
-                            ),
-                        );
+                        match interactable.interaction_type {
+                            InteractionType::ComponentInteraction => {
+                                let mut interactions =
+                                    game_state.ecs.write_storage::<InteractIntent>();
+                                let _ = interactions.insert(
+                                    player,
+                                    InteractIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                    ),
+                                );
+                            }
+                            InteractionType::PickUpInteraction => {
+                                let mut pick_up_intents =
+                                    game_state.ecs.write_storage::<PickUpIntent>();
+                                let _ = pick_up_intents.insert(
+                                    player,
+                                    PickUpIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                    ),
+                                );
+                            }
+                        }
 
                         return RunState::Ticking;
                     }
                 }
+
                 return RunState::InteractGUI {
                     range,
                     source,
                     target,
                     prev_mouse_position: mouse_position,
+                    selected_entity,
                 };
             }
             VirtualKeyCode::C => {
-                if interactables.len() > 2 {
+                if selected_entity == None {
+                    if tile_entities.len() > 2 {
+                        {
+                            selected_entity = Some(tile_entities[2].clone())
+                        };
+                    }
+                } else if interactables.len() > 2 {
                     let interactable = interactables[2].clone();
-                    let entity = entities.entity(interactable.3);
+                    let entity = entities.entity(interactable.entity_id);
                     if let Some(player) = player {
                         let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
                         let _ = interactions.insert(
@@ -848,9 +1083,9 @@ pub fn interact_gui(
                             InteractIntent::new(
                                 player,
                                 entity,
-                                interactable.0,
-                                interactable.1.clone(),
-                                interactable.4,
+                                interactable.id,
+                                interactable.description.clone(),
+                                interactable.cost,
                             ),
                         );
 
@@ -862,12 +1097,19 @@ pub fn interact_gui(
                     source,
                     target,
                     prev_mouse_position,
+                    selected_entity,
                 };
             }
             VirtualKeyCode::D => {
-                if interactables.len() > 3 {
+                if selected_entity == None {
+                    if tile_entities.len() > 3 {
+                        {
+                            selected_entity = Some(tile_entities[3].clone())
+                        };
+                    }
+                } else if interactables.len() > 3 {
                     let interactable = interactables[3].clone();
-                    let entity = entities.entity(interactable.3);
+                    let entity = entities.entity(interactable.entity_id);
                     if let Some(player) = player {
                         let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
                         let _ = interactions.insert(
@@ -875,9 +1117,9 @@ pub fn interact_gui(
                             InteractIntent::new(
                                 player,
                                 entity,
-                                interactable.0,
-                                interactable.1.clone(),
-                                interactable.4,
+                                interactable.id,
+                                interactable.description.clone(),
+                                interactable.cost,
                             ),
                         );
 
@@ -889,12 +1131,19 @@ pub fn interact_gui(
                     source,
                     target,
                     prev_mouse_position,
+                    selected_entity,
                 };
             }
             VirtualKeyCode::E => {
-                if interactables.len() > 4 {
+                if selected_entity == None {
+                    if tile_entities.len() > 4 {
+                        {
+                            selected_entity = Some(tile_entities[4].clone())
+                        };
+                    }
+                } else if interactables.len() > 4 {
                     let interactable = interactables[4].clone();
-                    let entity = entities.entity(interactable.3);
+                    let entity = entities.entity(interactable.entity_id);
                     if let Some(player) = player {
                         let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
                         let _ = interactions.insert(
@@ -902,9 +1151,9 @@ pub fn interact_gui(
                             InteractIntent::new(
                                 player,
                                 entity,
-                                interactable.0,
-                                interactable.1.clone(),
-                                interactable.4,
+                                interactable.id,
+                                interactable.description.clone(),
+                                interactable.cost,
                             ),
                         );
 
@@ -916,12 +1165,13 @@ pub fn interact_gui(
                     source,
                     target,
                     prev_mouse_position: mouse_position,
+                    selected_entity,
                 };
             }
             VirtualKeyCode::Return => {
                 if interactables.len() > 40 {
                     let interactable = interactables[0].clone();
-                    let entity = entities.entity(interactable.3);
+                    let entity = entities.entity(interactable.entity_id);
                     if let Some(player) = player {
                         let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
                         let _ = interactions.insert(
@@ -929,9 +1179,9 @@ pub fn interact_gui(
                             InteractIntent::new(
                                 player,
                                 entity,
-                                interactable.0,
-                                interactable.1.clone(),
-                                interactable.4,
+                                interactable.id,
+                                interactable.description.clone(),
+                                interactable.cost,
                             ),
                         );
 
@@ -943,6 +1193,7 @@ pub fn interact_gui(
                     source,
                     target,
                     prev_mouse_position: mouse_position,
+                    selected_entity,
                 };
             }
             _ => {
@@ -952,6 +1203,7 @@ pub fn interact_gui(
                         source,
                         target,
                         prev_mouse_position: mouse_position,
+                        selected_entity,
                     }),
                     key,
                 }
@@ -966,6 +1218,7 @@ fn check_range(
     target: Vector3i,
     delta: Vector3i,
     mouse_position: Vector3i,
+    selected_entity: Option<Entity>,
 ) -> RunState {
     let new_target = target + delta;
     if (source.x - new_target.x).abs() <= range as i32
@@ -977,6 +1230,7 @@ fn check_range(
             source,
             target: new_target,
             prev_mouse_position: mouse_position,
+            selected_entity,
         };
     } else {
         return RunState::InteractGUI {
@@ -984,6 +1238,7 @@ fn check_range(
             source,
             target,
             prev_mouse_position: mouse_position,
+            selected_entity,
         };
     }
 }

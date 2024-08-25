@@ -1,5 +1,4 @@
 use common::Area;
-use std::collections::HashMap;
 //use room_build_tester::RoomTestMapBuilder;
 use small_cargo_ship::SmallCargoShipMapBuilder;
 use specs::World;
@@ -18,7 +17,7 @@ pub trait MapBuilder {
     fn spawn_entities(&mut self, ecs: &mut World);
     fn get_map(&mut self) -> Map;
     fn get_start_position(&mut self) -> Vector3i;
-    fn get_areas(&mut self) -> &mut HashMap<Vector3i, Box<dyn Area>>;
+    fn get_areas(&mut self) -> &mut Vec<Box<dyn Area>>;
 }
 
 /*pub fn build_emply_plain_map(map_size: Vector3i) -> Map {

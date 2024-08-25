@@ -74,7 +74,7 @@ pub struct BreakerBox {}
 pub struct PowerSwitch {
     pub on: bool,
     pub interaction_description: String,
-    pub interaction_id: usize,
+    pub interaction_id: u32,
     pub cost: f32,
 }
 
@@ -90,7 +90,7 @@ impl PowerSwitch {
         PowerSwitch {
             on,
             interaction_description: description.to_string(),
-            interaction_id: crate::rng::random_int() as usize,
+            interaction_id: crate::rng::random_int() as u32,
             cost: 0.5,
         }
     }
@@ -122,7 +122,7 @@ impl Interactable for PowerSwitch {
         self.toggle();
     }
 
-    fn interaction_id(&self) -> usize {
+    fn interaction_id(&self) -> u32 {
         self.interaction_id
     }
 

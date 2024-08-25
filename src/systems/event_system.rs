@@ -8,14 +8,15 @@ use specs::{
 
 use crate::{
     entities::{
-        intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent},
+        intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent, PickUpIntent},
         power_components::BreakerBox,
     },
     gamelog::GameLog,
     states::RunState,
     update_camera_position,
     vectors::Vector3i,
-    Blocker, Camera, Door, Illuminant, Map, Name, Photometry, PowerNode, PowerSwitch, Viewshed,
+    Blocker, Camera, Door, Illuminant, InContainer, Installed, Item, Map, Name, Photometry,
+    PowerNode, PowerSwitch, Viewshed,
 };
 
 pub struct EventSystem {}
@@ -44,6 +45,8 @@ impl<'a> System<'a> for EventSystem {
         WriteStorage<'a, BreakerBox>,
         ReadStorage<'a, Blocker>,
         ReadStorage<'a, Camera>,
+        WriteStorage<'a, PickUpIntent>,
+        WriteStorage<'a, InContainer>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -68,6 +71,8 @@ impl<'a> System<'a> for EventSystem {
             breakers,
             blockers,
             cameras,
+            mut pick_up_intents,
+            mut in_container,
         ) = data;
 
         //Handle movement intents
@@ -95,7 +100,7 @@ impl<'a> System<'a> for EventSystem {
                             {
                                 $(
                                     if let Some(component) = $x.get_mut(interact_intent.target) {
-                                        if component.interaction_id == component.interaction_id {
+                                        if component.interaction_id == interact_intent.interaction_id {
                                             component.interact();
 
                                             if let Some(name) = names.get(interact_intent.target) {
@@ -212,19 +217,78 @@ impl<'a> System<'a> for EventSystem {
                     }
                 }
             }
-        }
 
-        //If all intents ae handled, return to input state
-        if queue_empty {
-            *run_state = RunState::AwaitingInput;
+            //Handle pick up events
+            {
+                if let Some(pick_up_event) = pick_up_intents.get_mut(entity) {
+                    pick_up_event.update_remaining_cost(-TIME_PER_TURN);
+
+                    if pick_up_event.get_remaining_cost() <= 0.0 {
+                        let target = pick_up_event.target.clone();
+                        //Add to container
+                        let _ = in_container.insert(
+                            pick_up_event.target,
+                            InContainer::new(pick_up_event.initiator.id()),
+                        );
+
+                        //Remove position
+                        positions.remove(target);
+
+                        //Remove intent
+                        pick_up_intents.remove(target);
+                    }
+                }
+            }
+
+            //If all intents are handled, return to input state
+            if queue_empty {
+                *run_state = RunState::AwaitingInput;
+            }
+        }
+    }
+}
+#[derive(Clone, Copy)]
+pub enum InteractionType {
+    ComponentInteraction,
+    PickUpInteraction,
+}
+
+#[derive(Clone)]
+pub struct InteractionInformation {
+    pub id: u32,
+    pub description: String,
+    pub entity_id: u32,
+    pub cost: f32,
+    pub interaction_type: InteractionType,
+}
+
+impl InteractionInformation {
+    pub fn new(
+        interaction_id: u32,
+        interaction_description: String,
+        entity_id: u32,
+        interaction_cost: f32,
+        interaction_type: InteractionType,
+    ) -> Self {
+        Self {
+            id: interaction_id,
+            description: interaction_description,
+            entity_id,
+            cost: interaction_cost,
+            interaction_type,
         }
     }
 }
 
-pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, String, u32, u32, f32)> {
+pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<InteractionInformation> {
     let names = ecs.read_storage::<Name>();
 
     let mut interactables = Vec::new();
+    let mut name = "{unknown}".to_string();
+
+    if let Some(entity_name) = names.get(entity) {
+        name = entity_name.name.clone()
+    }
 
     macro_rules! check_for_interactable {
         ($($typ:ty), *) => {
@@ -233,16 +297,12 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, Strin
                     let storage = ecs.read_storage::<$typ>();
 
                     if let Some(interactable) = storage.get(entity) {
-                        let mut name = "{unknown}".to_string();
-
-                        if let Some(entity_name) = names.get(entity) { name = entity_name.name.clone()}
-
-                        interactables.push((
+                        interactables.push(InteractionInformation::new(
                             interactable.interaction_id,
                             format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
                             entity.id(),
-                            entity.id(),
-                            interactable.get_cost()
+                            interactable.get_cost(),
+                            InteractionType::ComponentInteraction,
                         ));
                     }
                 )*
@@ -254,6 +314,18 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<(usize, Strin
     check_for_interactable!(PowerSwitch, Door);
 
     interactables
+}
+
+pub fn get_pickup_interaction(entity: Entity) -> InteractionInformation {
+    let interaction = InteractionInformation::new(
+        entity.id(),
+        format!("{}", "Pick up".to_string()),
+        entity.id(),
+        1.0,
+        InteractionType::PickUpInteraction,
+    );
+
+    interaction
 }
 
 //#[derive(Serialize, Deserialize, Clone)]

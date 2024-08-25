@@ -3,18 +3,28 @@ use std::path::Path;
 
 use bimap::BiMap;
 use rltk::{Rltk, RGB};
-use specs::saveload::{SerializeComponents, SimpleMarkerAllocator, DeserializeComponents};
 use specs::error::NoError;
+use specs::saveload::{DeserializeComponents, SerializeComponents, SimpleMarkerAllocator};
 
+use specs::{
+    saveload::{MarkedBuilder, SimpleMarker},
+    Builder, World, WorldExt,
+};
 use specs::{Entity, Join};
-use specs::{saveload::{MarkedBuilder, SimpleMarker}, Builder, World, WorldExt};
 
 use crate::entities::biology::Breather;
 use crate::entities::intents::Initiative;
-use crate::entities::power_components::{BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire};
-use crate::{Atmosphere, Camera, EntityDirection, TERMINAL_HEIGHT, TERMINAL_WIDTH};
-use crate::{vectors::Vector3i, Illuminant, Name, Photometry, Player, Renderable, SerializationHelper, SerializeThis, Tile, Viewshed};
-
+use crate::entities::power_components::{
+    BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
+};
+use crate::{
+    vectors::Vector3i, Illuminant, Name, Photometry, Player, Renderable, SerializationHelper,
+    SerializeThis, Tile, Viewshed,
+};
+use crate::{
+    Atmosphere, Camera, EntityDirection, InContainer, Installed, Item, Prop, TERMINAL_HEIGHT,
+    TERMINAL_WIDTH,
+};
 
 macro_rules! serialize_individually {
     ($ecs:expr, $ser:expr, $data:expr, $( $type:ty),*) => {
@@ -33,22 +43,29 @@ macro_rules! serialize_individually {
 pub fn save_game(ecs: &mut World) {
     let map_copy = ecs.get_mut::<super::map::Map>().unwrap().clone();
 
-    let save_helper = ecs.create_entity()
-    .with(SerializationHelper { map : map_copy})
-    .marked::<SimpleMarker<SerializeThis>>()
-    .build();
+    let save_helper = ecs
+        .create_entity()
+        .with(SerializationHelper { map: map_copy })
+        .marked::<SimpleMarker<SerializeThis>>()
+        .build();
 
     {
-        let data = ( ecs.entities(), ecs.read_storage::<SimpleMarker<SerializeThis>>() );
-        
+        let data = (
+            ecs.entities(),
+            ecs.read_storage::<SimpleMarker<SerializeThis>>(),
+        );
+
         let writer = File::create("./savegame.json").unwrap();
         let mut serializer = serde_json::Serializer::new(writer);
 
-        serialize_individually!(ecs, serializer, data, 
-            Vector3i, 
-            Renderable, 
-            Player, 
-            Viewshed, 
+        serialize_individually!(
+            ecs,
+            serializer,
+            data,
+            Vector3i,
+            Renderable,
+            Player,
+            Viewshed,
             Illuminant,
             Photometry,
             Name,
@@ -65,6 +82,10 @@ pub fn save_game(ecs: &mut World) {
             Breather,
             ElectronicHeater,
             Initiative,
+            Item,
+            Prop,
+            InContainer,
+            Installed,
             SerializationHelper
         );
     }
@@ -105,18 +126,33 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
 
     ctx.set_active_console(2);
     ctx.cls();
-    ctx.draw_bar_horizontal(TERMINAL_HEIGHT / 4, TERMINAL_HEIGHT / 2, progress_bar_width, 0, progress_bar_width, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
+    ctx.draw_bar_horizontal(
+        TERMINAL_HEIGHT / 4,
+        TERMINAL_HEIGHT / 2,
+        progress_bar_width,
+        0,
+        progress_bar_width,
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
 
     let data = fs::read_to_string("./savegame.json").unwrap();
     let mut de = serde_json::Deserializer::from_str(&data);
     {
-        let mut d = (&mut ecs.entities(), &mut ecs.write_storage::<SimpleMarker<SerializeThis>>(), &mut ecs.write_resource::<SimpleMarkerAllocator<SerializeThis>>());
+        let mut d = (
+            &mut ecs.entities(),
+            &mut ecs.write_storage::<SimpleMarker<SerializeThis>>(),
+            &mut ecs.write_resource::<SimpleMarkerAllocator<SerializeThis>>(),
+        );
 
-        deserialize_individually!(ecs, de, d, 
-            Vector3i, 
-            Renderable, 
-            Player, 
-            Viewshed, 
+        deserialize_individually!(
+            ecs,
+            de,
+            d,
+            Vector3i,
+            Renderable,
+            Player,
+            Viewshed,
             Illuminant,
             Photometry,
             Name,
@@ -133,6 +169,10 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             Breather,
             ElectronicHeater,
             Initiative,
+            Item,
+            Prop,
+            InContainer,
+            Installed,
             SerializationHelper
         );
     }
@@ -158,12 +198,13 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             let mut player_resource = ecs.write_resource::<Entity>();
             *player_resource = entity;
         }
-
-
     }
-    ecs.delete_entity(delete_me.unwrap()).expect("Unable to delete helper");
+    ecs.delete_entity(delete_me.unwrap())
+        .expect("Unable to delete helper");
 }
 
 pub fn delete_save() {
-    if Path::new("./savegame.json").exists() { std::fs::remove_file("./savegame.json").expect("Unable to delete file"); } 
+    if Path::new("./savegame.json").exists() {
+        std::fs::remove_file("./savegame.json").expect("Unable to delete file");
+    }
 }

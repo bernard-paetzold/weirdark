@@ -1,17 +1,19 @@
 use std::usize;
 
+use crate::entities::biology::Breather;
+use crate::entities::intents::{MoveIntent, PickUpIntent};
+use crate::graphics::get_viewport_position;
+use crate::systems::event_system::get_pickup_interaction;
+use crate::{
+    gamelog::GameLog, vectors::Vector3i, Illuminant, Photometry, RunState, State, Viewshed,
+};
+use crate::{mouse_to_map, set_camera_position, update_camera_position, Camera, TERMINAL_WIDTH};
 use rltk::{Rltk, VirtualKeyCode};
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
-use crate::entities::biology::Breather;
-use crate::entities::intents::MoveIntent;
-use crate::graphics::get_viewport_position;
-use crate::{mouse_to_map, set_camera_position, update_camera_position, Camera, TERMINAL_WIDTH};
-use crate::{gamelog::GameLog, vectors::Vector3i, Illuminant, Photometry, RunState, State, Viewshed};
 
-use serde::Serialize;
 use serde::Deserialize;
-
+use serde::Serialize;
 
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Player {
@@ -22,7 +24,7 @@ impl Player {
     pub fn new() -> Player {
         Player {
             power_overlay: false,
-         }
+        }
     }
 }
 
@@ -31,7 +33,9 @@ pub fn try_move_player(delta: Vector3i, ecs: &mut World) {
     let player = ecs.write_resource::<Entity>();
     let player_position = ecs.write_resource::<Vector3i>();
 
-    move_intents.insert(*player, MoveIntent::new(*player_position, delta)).expect("Player move intent error");
+    move_intents
+        .insert(*player, MoveIntent::new(*player_position, delta))
+        .expect("Player move intent error");
 }
 
 pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
@@ -42,12 +46,13 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     let viewport_position = get_viewport_position(&game_state.ecs);
 
     let player_pos = *game_state.ecs.fetch::<Vector3i>();
-    
+    let player_entity = *game_state.ecs.fetch::<Entity>();
+
     let mut reset_camera = false;
 
     match ctx.key {
         //If there is no input, set runstate to paused
-        None => { return RunState::AwaitingInput}
+        None => return RunState::AwaitingInput,
         Some(key) => match key {
             VirtualKeyCode::Period => delta = Vector3i::DOWN,
             VirtualKeyCode::Comma => delta = Vector3i::UP,
@@ -59,13 +64,12 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
             VirtualKeyCode::Numpad1 => delta = Vector3i::SW,
             VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => delta = Vector3i::W,
             VirtualKeyCode::Numpad7 => delta = Vector3i::NW,
-            
+
             //Pass turn
-            
             VirtualKeyCode::Space | VirtualKeyCode::Numpad5 => {
                 let game_log = game_state.ecs.fetch_mut::<GameLog>();
-                return skip_turn(game_log)
-            },
+                return skip_turn(game_log);
+            }
 
             VirtualKeyCode::B => {
                 let mut breathers = game_state.ecs.write_storage::<Breather>();
@@ -74,13 +78,18 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
                 for (_player, breather) in (&players, &mut breathers).join() {
                     breather.trigger_breath = true;
                 }
-            },
+            }
 
             //Look gui
-            VirtualKeyCode::K =>  return RunState::InteractGUI { range: TERMINAL_WIDTH as usize, target: player_pos, source: player_pos, prev_mouse_position: mouse_to_map(ctx.mouse_pos(), viewport_position) },
-
-            //Interaction gui
-            VirtualKeyCode::I =>  return RunState::InteractGUI { range: 1, target: player_pos, source: player_pos, prev_mouse_position: mouse_to_map(ctx.mouse_pos(), viewport_position)  },
+            VirtualKeyCode::K => {
+                return RunState::InteractGUI {
+                    range: TERMINAL_WIDTH as usize,
+                    target: player_pos,
+                    source: player_pos,
+                    prev_mouse_position: mouse_to_map(ctx.mouse_pos(), viewport_position),
+                    selected_entity: None,
+                }
+            }
 
             //Camera freelook
             VirtualKeyCode::Q => delta_camera = Vector3i::new(0, 0, 1),
@@ -96,7 +105,9 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
                 let mut viewsheds = game_state.ecs.write_storage::<Viewshed>();
                 let mut photometria = game_state.ecs.write_storage::<Photometry>();
 
-                for (_player, illuminant, viewshed, photometry) in (&players, &mut illuminants, &mut viewsheds, &mut photometria).join() {
+                for (_player, illuminant, viewshed, photometry) in
+                    (&players, &mut illuminants, &mut viewsheds, &mut photometria).join()
+                {
                     illuminant.on = !illuminant.on;
                     illuminant.dirty = true;
                     viewshed.dirty = true;
@@ -107,16 +118,19 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
                     match illuminant.on {
                         true => {
                             log.entries.push("Light: On".to_string());
-                        },
+                        }
                         false => {
                             log.entries.push("Light: Off".to_string());
                         }
                     }
                 }
-            },
+            }
             //If there is no valid input, set runstate to paused
             _ => {
-                return RunState::HandleOtherInput { next_runstate: std::sync::Arc::new(RunState::AwaitingInput), key }
+                return RunState::HandleOtherInput {
+                    next_runstate: std::sync::Arc::new(RunState::AwaitingInput),
+                    key,
+                }
             }
         },
     }
@@ -132,9 +146,7 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
         }
 
         set_camera_position(player_position, &mut game_state.ecs);
-
-    }
-    else if delta_camera.x != 0 || delta_camera.y != 0 || delta_camera.z != 0 {
+    } else if delta_camera.x != 0 || delta_camera.y != 0 || delta_camera.z != 0 {
         let cameras = game_state.ecs.read_storage::<Camera>();
         let mut positions = game_state.ecs.write_storage::<Vector3i>();
 
@@ -144,7 +156,10 @@ pub fn player_input(game_state: &mut State, ctx: &mut Rltk) -> RunState {
     RunState::Ticking
 }
 
-pub fn get_player_entity(entities: &Read<EntitiesRes>, players: &Storage<Player, Fetch<MaskedStorage<Player>>>) -> Option<Entity> {
+pub fn get_player_entity(
+    entities: &Read<EntitiesRes>,
+    players: &Storage<Player, Fetch<MaskedStorage<Player>>>,
+) -> Option<Entity> {
     (entities, players).join().next().map(|(entity, _)| entity)
 }
 
@@ -163,17 +178,21 @@ pub fn toggle_power_overlay(ecs: &mut World) {
     }
 }
 
-
-pub fn handle_other_input(ecs: &mut World, key: VirtualKeyCode, sending_state: RunState) -> RunState {
+pub fn handle_other_input(
+    ecs: &mut World,
+    key: VirtualKeyCode,
+    sending_state: RunState,
+) -> RunState {
     match key {
         //Main menu
-        VirtualKeyCode::Escape =>  return RunState::SaveGame,
+        VirtualKeyCode::Escape => return RunState::SaveGame,
+        VirtualKeyCode::I => return RunState::ShowInventory,
 
         //Enable power overlay
-        VirtualKeyCode::P =>  {
+        VirtualKeyCode::P => {
             toggle_power_overlay(ecs);
             sending_state
-        },
-        _ => { sending_state }  
+        }
+        _ => sending_state,
     }
 }

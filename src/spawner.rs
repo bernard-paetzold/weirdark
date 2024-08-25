@@ -15,9 +15,9 @@ use crate::{
     graphics::char_to_glyph,
     pathfinding::{find_walkable_path, wall_climb_path},
     vectors::Vector3i,
-    Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Map, Name, Photometry, Player,
-    PowerNode, PowerSource, PowerSwitch, PoweredState, Renderable, SerializeThis, Viewshed,
-    VisionBlocker, Wire,
+    Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Item, Map, Name, Photometry,
+    Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Prop, Renderable, SerializeThis,
+    Viewshed, VisionBlocker, Wire,
 };
 
 pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
@@ -75,6 +75,7 @@ pub fn standing_lamp(
         .with(PowerSwitch::new(on))
         .with(PowerNode::new())
         .with(Blocker::new_all_sides())
+        .with(Prop::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }
@@ -109,6 +110,7 @@ pub fn ceiling_lamp(
         .with(PoweredState::new(true, 10.0))
         .with(PowerSwitch::new(on))
         .with(PowerNode::new())
+        .with(Prop::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }
@@ -149,6 +151,7 @@ pub fn door(
             .with(Name::new("Door".to_string()))
             .with(Blocker::new_all_sides())
             .with(VisionBlocker::new_all_sides())
+            .with(Prop::new())
             .marked::<SimpleMarker<SerializeThis>>()
             .build()
     }
@@ -168,6 +171,7 @@ pub fn power_source(ecs: &mut World, position: Vector3i, on: bool, power: f32) {
         .with(PowerSource::new(on, power))
         .with(PowerSwitch::new(true))
         .with(PowerNode::new())
+        .with(Prop::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 }
@@ -221,6 +225,7 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         .with(Name::new(format!("Duct ({:?})", Direction::UP)))
         .with(Blocker::new_cardinal_sides())
         .with(VisionBlocker::new_cardinal_sides())
+        .with(Prop::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 
@@ -443,6 +448,7 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
             .with(VisionBlocker::new(sides))
             .with(Name::new(format!("Duct ({:?})", direction)))
             .with(PowerNode::new())
+            .with(Prop::new())
             .marked::<SimpleMarker<SerializeThis>>()
             .build();
 
@@ -467,6 +473,7 @@ pub fn breaker_box(ecs: &mut World, position: Vector3i) {
         .with(Name::new("Breaker box".to_string()))
         .with(PowerSwitch::new(true))
         .with(PowerNode::new())
+        .with(Prop::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 }
@@ -553,6 +560,7 @@ pub fn lay_wiring(
             .with(Wire::new(color, color_name.clone(), data))
             .with(EntityDirection::new(direction))
             .with(PowerNode::new())
+            .with(Prop::new())
             .marked::<SimpleMarker<SerializeThis>>()
             .build();
 
@@ -583,7 +591,24 @@ pub fn heater(ecs: &mut World, position: Vector3i, target_temperature: f32, on: 
         .with(PoweredState::new(true, 10.0))
         .with(PowerSwitch::new(on))
         .with(PowerNode::new())
+        .with(Prop::new())
         .with(ElectronicHeater::new(target_temperature, on))
+        .marked::<SimpleMarker<SerializeThis>>()
+        .build()
+}
+
+pub fn test_item(ecs: &mut World, position: Vector3i) -> Entity {
+    ecs.create_entity()
+        .with(position)
+        .with(Renderable::new(
+            char_to_glyph('¡'),
+            char_to_glyph('¡'),
+            RGB::named(rltk::RED).to_rgba(1.0),
+            RGB::named(rltk::BLACK).to_rgba(0.0),
+        ))
+        .with(Photometry::new())
+        .with(Name::new("Test tube".to_string()))
+        .with(Item::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }

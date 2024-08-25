@@ -1,6 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-use rand::Rng;
 use rltk::RGB;
 use specs::World;
 
@@ -21,7 +20,7 @@ use super::{
 pub struct SmallCargoShipMapBuilder {
     map: Map,
     start_position: Vector3i,
-    areas: HashMap<Vector3i, Box<dyn Area>>,
+    areas: Vec<Box<dyn Area>>,
 }
 
 impl SmallCargoShipMapBuilder {
@@ -29,7 +28,7 @@ impl SmallCargoShipMapBuilder {
         Self {
             map: Map::new(),
             start_position,
-            areas: HashMap::new(),
+            areas: Vec::new(),
         }
     }
 
@@ -278,6 +277,10 @@ impl SmallCargoShipMapBuilder {
             }
         }
 
+        if area.get_area_type() != AreaType::GeneratorRoom {
+            spawner::test_item(ecs, *area.get_area_position());
+        }
+
         //Add devices to list of places to wire
         area.update_power_connections().append(&mut connections);
     }
@@ -303,7 +306,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
             open_nodes.push(node.clone());
         }
 
-        self.areas.insert(self.start_position, Box::new(back_bone));
+        self.areas.push(Box::new(back_bone));
 
         let sterm_room_position = self.start_position + Vector3i::new(40 + 3, 0, 0);
         let mut stern_room = Room::new(
@@ -316,8 +319,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
 
         self.build_room(&mut stern_room);
 
-        self.areas
-            .insert(sterm_room_position, Box::new(stern_room.clone()));
+        self.areas.push(Box::new(stern_room.clone()));
 
         let aft_room_position = self.start_position + Vector3i::new(-3, 0, 0);
 
@@ -331,32 +333,39 @@ impl MapBuilder for SmallCargoShipMapBuilder {
 
         self.build_room(&mut aft_room);
 
-        self.areas
-            .insert(aft_room_position, Box::new(aft_room.clone()));
+        self.areas.push(Box::new(aft_room.clone()));
 
-        while let Some(node) = open_nodes.pop() {
-            let mut dimension = rng::range(5, 10);
+        open_nodes.sort();
+        let mut shuffled_nodes: BTreeMap<i32, Vector3i> = BTreeMap::new();
+
+        for node in open_nodes.into_iter() {
+            let random_index = rng::random_int();
+
+            shuffled_nodes.insert(random_index, node);
+        }
+
+        for (_, node) in shuffled_nodes.iter() {
+            let mut dimension = rng::range(MIN_AREA_SIZE, 10);
 
             while dimension >= MIN_AREA_SIZE {
                 let area_size = Vector3i::new(dimension, dimension, 4);
                 let mut room = Room::new(
-                    node,
+                    *node,
                     area_size,
                     "generic".to_string(),
                     AreaType::GenericRoom,
                     true,
                 );
                 let mut mirrored_room = Room::new(
-                    node * Vector3i::new(1, -1, 1),
+                    *node * Vector3i::new(1, -1, 1),
                     area_size,
                     "generic".to_string(),
                     AreaType::GenericRoom,
                     true,
                 );
                 if self.build_room(&mut room) && self.build_room(&mut mirrored_room) {
-                    self.areas.insert(node, Box::new(room));
-                    self.areas
-                        .insert(node * Vector3i::new(1, -1, 1), Box::new(mirrored_room));
+                    self.areas.push(Box::new(room));
+                    self.areas.push(Box::new(mirrored_room));
                     break;
                 } else {
                     dimension -= 1;
@@ -372,11 +381,11 @@ impl MapBuilder for SmallCargoShipMapBuilder {
         //Pick a random room to be the power room
         let mut generator_breaker = Vector3i::new_equi(0);
 
-        for (_, area) in self.get_areas().iter_mut() {
+        for area in self.get_areas().iter_mut() {
             SmallCargoShipMapBuilder::populate_area(ecs, area);
         }
 
-        for (_, area) in self.get_areas().iter_mut() {
+        for area in self.get_areas().iter_mut() {
             if let Some(breaker_position) = area.get_breaker_pos() {
                 breaker_positions.insert(breaker_position.clone());
 
@@ -391,13 +400,11 @@ impl MapBuilder for SmallCargoShipMapBuilder {
         }
 
         for position in breaker_positions.iter() {
-            let mut rng = rand::thread_rng();
-
             let color_hex = format!(
                 "#{:X}{:X}{:X}",
-                rng.gen_range(0..=255),
-                rng.gen_range(0..=255),
-                rng.gen_range(0..=255)
+                rng::range(0, 256),
+                rng::range(0, 256),
+                rng::range(0, 256),
             );
 
             let color = RGB::from_hex(color_hex.clone()).unwrap_or(RGB::named(rltk::RED));
@@ -440,7 +447,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
         self.start_position
     }
 
-    fn get_areas(&mut self) -> &mut HashMap<Vector3i, Box<dyn Area>> {
+    fn get_areas(&mut self) -> &mut Vec<Box<dyn Area>> {
         &mut self.areas
     }
 }

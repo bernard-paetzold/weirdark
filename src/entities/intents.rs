@@ -18,10 +18,13 @@ impl MoveIntent {
     pub fn new(current_position: Vector3i, delta: Vector3i) -> Self {
         let cost;
         //Calculate time taken
-        if delta == Vector3i::N || delta == Vector3i::E || delta == Vector3i::S || delta == Vector3i::W {
+        if delta == Vector3i::N
+            || delta == Vector3i::E
+            || delta == Vector3i::S
+            || delta == Vector3i::W
+        {
             cost = 1.0;
-        }
-        else {
+        } else {
             cost = std::f32::consts::SQRT_2;
         }
 
@@ -44,22 +47,18 @@ impl Intent for MoveIntent {
     fn update_remaining_cost(&mut self, delta: f32) {
         self.remaining_cost += delta;
     }
-    fn execute(&mut self) {
-        
-    }
+    fn execute(&mut self) {}
 }
 
 #[derive(Component, Debug, ConvertSaveload, Clone)]
 pub struct Initiative {
-    pub current : f32,
+    pub current: f32,
 }
 
 #[allow(dead_code)]
 impl Initiative {
     pub fn new(default: f32) -> Self {
-        Self {
-            current: default,
-        }
+        Self { current: default }
     }
     pub fn adjust(&mut self, delta: f32) {
         self.current += delta;
@@ -71,14 +70,20 @@ impl Initiative {
 pub struct InteractIntent {
     pub initiator: Entity,
     pub target: Entity,
-    pub interaction_id: usize,
+    pub interaction_id: u32,
     pub interaction_description: String,
     pub cost: f32,
     pub remaining_cost: f32,
 }
 
 impl InteractIntent {
-    pub fn new(initiator: Entity, target: Entity, interaction_id: usize, interaction_description: String, cost: f32) -> InteractIntent {
+    pub fn new(
+        initiator: Entity,
+        target: Entity,
+        interaction_id: u32,
+        interaction_description: String,
+        cost: f32,
+    ) -> InteractIntent {
         InteractIntent {
             initiator,
             target,
@@ -100,14 +105,12 @@ impl Intent for InteractIntent {
     fn update_remaining_cost(&mut self, delta: f32) {
         self.remaining_cost += delta;
     }
-    fn execute(&mut self) {
-        
-    }
+    fn execute(&mut self) {}
 }
 
 #[allow(dead_code)]
 pub trait Interactable {
-    fn interaction_id(&self) -> usize;
+    fn interaction_id(&self) -> u32;
     fn interaction_description(&self) -> String;
     fn state_description(&self) -> String;
     fn interact(&mut self);
@@ -123,4 +126,46 @@ pub trait Intent {
     //fn interaction_description(&self) -> String;
     //fn state_description(&self) -> String;
     fn execute(&mut self);
+}
+
+#[derive(Component, Clone)]
+pub struct PickUpIntent {
+    pub initiator: Entity,
+    pub target: Entity,
+    pub interaction_id: u32,
+    pub interaction_description: String,
+    pub cost: f32,
+    pub remaining_cost: f32,
+}
+
+impl PickUpIntent {
+    pub fn new(
+        initiator: Entity,
+        target: Entity,
+        interaction_id: u32,
+        interaction_description: String,
+        cost: f32,
+    ) -> PickUpIntent {
+        PickUpIntent {
+            initiator,
+            target,
+            interaction_id,
+            interaction_description,
+            cost,
+            remaining_cost: cost,
+        }
+    }
+}
+
+impl Intent for PickUpIntent {
+    fn get_cost(&self) -> f32 {
+        self.cost
+    }
+    fn get_remaining_cost(&self) -> f32 {
+        self.remaining_cost
+    }
+    fn update_remaining_cost(&mut self, delta: f32) {
+        self.remaining_cost += delta;
+    }
+    fn execute(&mut self) {}
 }

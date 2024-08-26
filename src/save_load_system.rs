@@ -22,8 +22,8 @@ use crate::{
     SerializeThis, Tile, Viewshed,
 };
 use crate::{
-    Atmosphere, Camera, EntityDirection, InContainer, Installed, Item, Prop, TERMINAL_HEIGHT,
-    TERMINAL_WIDTH,
+    Atmosphere, Camera, Container, EntityDirection, InContainer, Installed, Item, Prop,
+    TERMINAL_HEIGHT, TERMINAL_WIDTH,
 };
 
 macro_rules! serialize_individually {
@@ -86,6 +86,7 @@ pub fn save_game(ecs: &mut World) {
             Prop,
             InContainer,
             Installed,
+            Container,
             SerializationHelper
         );
     }
@@ -173,6 +174,7 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             Prop,
             InContainer,
             Installed,
+            Container,
             SerializationHelper
         );
     }

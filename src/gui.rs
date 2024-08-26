@@ -481,7 +481,10 @@ pub fn interact_gui(
 
     match selected_entity {
         Some(entity) => {
-            interactables.push(get_pickup_interaction(entity));
+            //TODO: Change this to allow uninstalling of items
+            if installed.get(entity).is_none() {
+                interactables.push(get_pickup_interaction(entity));
+            }
             interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
 
             //Handle breaker boxes or other entities that control interactions off tile
@@ -995,6 +998,7 @@ pub fn interact_gui(
                                         interactable.id,
                                         interactable.description.clone(),
                                         interactable.cost,
+                                        0.0,
                                     ),
                                 );
                             }
@@ -1049,6 +1053,7 @@ pub fn interact_gui(
                                         interactable.id,
                                         interactable.description.clone(),
                                         interactable.cost,
+                                        0.0,
                                     ),
                                 );
                             }

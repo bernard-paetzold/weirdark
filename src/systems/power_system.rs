@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time};
 
 use fnv::FnvHashSet;
 use rltk::RandomNumberGenerator;
@@ -214,8 +214,6 @@ impl<'a> System<'a> for PowerSystem {
                 }
             }
 
-            //let mut visited_power_wires = HashSet::new();
-            let now = std::time::Instant::now();
             //Calculate power loads
             let mut visited_load_wires = HashSet::new();
 
@@ -291,9 +289,6 @@ impl<'a> System<'a> for PowerSystem {
                     }
                 }
             }
-            println!("{:?}", now.elapsed());
-
-            //let mut visited_power_wires = HashSet::new();
 
             //Align powered state with power sources
             for (power_source, position, _) in (&mut power_sources, &positions, &nodes)
@@ -400,51 +395,6 @@ impl<'a> System<'a> for PowerSystem {
     }
 }
 
-/*pub fn get_devices_on_network(
-    ecs: &World,
-    network_entity: Entity,
-) -> Vec<(usize, String, u32, u32, f32)> {
-    let names = ecs.read_storage::<crate::Name>();
-    let nodes = ecs.read_storage::<crate::PowerNode>();
-    let entities = ecs.entities();
-
-    let mut interactables = Vec::new();
-
-    if let Some(network_node) = nodes.get(network_entity) {
-        for (entity, _) in (&entities, &nodes).join().filter(|(entity, node)| {
-            node.network_id == network_node.network_id && *entity != network_entity
-        }) {
-            macro_rules! check_for_interactable {
-                ($($typ:ty), *) => {
-                    {
-                        $(
-                            let storage = ecs.read_storage::<$typ>();
-
-                            if let Some(interactable) = storage.get(entity) {
-                                let mut name = "{unknown}".to_string();
-
-                                if let Some(entity_name) = names.get(entity) { name = entity_name.name.clone()}
-
-                                interactables.push((
-                                    interactable.interaction_id,
-                                    format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
-                                    network_entity.id(),
-                                    entity.id(),
-                                    interactable.get_cost()
-                                ));
-                            }
-                        )*
-                    }
-                };
-            }
-
-            //TODO: Add any other interactable components
-            check_for_interactable!(PowerSwitch);
-        }
-    }
-    interactables
-}*/
-
 pub fn get_devices_on_subnetwork(
     ecs: &World,
     network_entity: Entity,
@@ -508,6 +458,9 @@ pub fn get_devices_on_subnetwork(
             }
         }
     }
+    let mut network_wires: Vec<u32> = network_wires.into_iter().collect();
+    network_wires.sort();
+
     for entity_id in network_wires {
         let entity = entities.entity(entity_id);
         let mut current_position = Vector3i::new_equi(0);

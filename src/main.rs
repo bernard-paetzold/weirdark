@@ -266,6 +266,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Prop>();
     game_state.ecs.register::<Item>();
     game_state.ecs.register::<InContainer>();
+    game_state.ecs.register::<Container>();
 
     let player_start_position = Vector3i::new(0, 0, 10);
 

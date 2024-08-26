@@ -15,9 +15,9 @@ use crate::{
     graphics::char_to_glyph,
     pathfinding::{find_walkable_path, wall_climb_path},
     vectors::Vector3i,
-    Blocker, Direction, Door, Duct, EntityDirection, Illuminant, Item, Map, Name, Photometry,
-    Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Prop, Renderable, SerializeThis,
-    Viewshed, VisionBlocker, Wire,
+    Blocker, Container, Direction, Door, Duct, EntityDirection, Illuminant, Installed, Item, Map,
+    Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Prop, Renderable,
+    SerializeThis, Viewshed, VisionBlocker, Wire,
 };
 
 pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
@@ -46,6 +46,7 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
         .with(Name::new("Player".to_string()))
         .with(Breather::new_humanlike())
         .with(Initiative::new(0.0))
+        .with(Container::new(10.0))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }
@@ -76,6 +77,7 @@ pub fn standing_lamp(
         .with(PowerNode::new())
         .with(Blocker::new_all_sides())
         .with(Prop::new())
+        .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }
@@ -111,6 +113,7 @@ pub fn ceiling_lamp(
         .with(PowerSwitch::new(on))
         .with(PowerNode::new())
         .with(Prop::new())
+        .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }
@@ -135,6 +138,7 @@ pub fn door(
             ))
             .with(Photometry::new())
             .with(Name::new("Door".to_string()))
+            .with(Installed::new())
             .marked::<SimpleMarker<SerializeThis>>()
             .build()
     } else {
@@ -152,6 +156,7 @@ pub fn door(
             .with(Blocker::new_all_sides())
             .with(VisionBlocker::new_all_sides())
             .with(Prop::new())
+            .with(Installed::new())
             .marked::<SimpleMarker<SerializeThis>>()
             .build()
     }
@@ -172,6 +177,7 @@ pub fn power_source(ecs: &mut World, position: Vector3i, on: bool, power: f32) {
         .with(PowerSwitch::new(true))
         .with(PowerNode::new())
         .with(Prop::new())
+        .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 }
@@ -208,6 +214,7 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
             Direction::DOWN,
         ]))
         .with(Name::new(format!("Duct ({:?})", Direction::E)))
+        .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 
@@ -226,6 +233,7 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         .with(Blocker::new_cardinal_sides())
         .with(VisionBlocker::new_cardinal_sides())
         .with(Prop::new())
+        .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 
@@ -449,6 +457,7 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
             .with(Name::new(format!("Duct ({:?})", direction)))
             .with(PowerNode::new())
             .with(Prop::new())
+            .with(Installed::new())
             .marked::<SimpleMarker<SerializeThis>>()
             .build();
 
@@ -474,6 +483,7 @@ pub fn breaker_box(ecs: &mut World, position: Vector3i) {
         .with(PowerSwitch::new(true))
         .with(PowerNode::new())
         .with(Prop::new())
+        .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 }
@@ -561,6 +571,7 @@ pub fn lay_wiring(
             .with(EntityDirection::new(direction))
             .with(PowerNode::new())
             .with(Prop::new())
+            .with(Installed::new())
             .marked::<SimpleMarker<SerializeThis>>()
             .build();
 
@@ -593,6 +604,7 @@ pub fn heater(ecs: &mut World, position: Vector3i, target_temperature: f32, on: 
         .with(PowerNode::new())
         .with(Prop::new())
         .with(ElectronicHeater::new(target_temperature, on))
+        .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }

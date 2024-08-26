@@ -136,6 +136,7 @@ pub struct PickUpIntent {
     pub interaction_description: String,
     pub cost: f32,
     pub remaining_cost: f32,
+    pub item_volume: f32,
 }
 
 impl PickUpIntent {
@@ -145,6 +146,7 @@ impl PickUpIntent {
         interaction_id: u32,
         interaction_description: String,
         cost: f32,
+        item_volume: f32,
     ) -> PickUpIntent {
         PickUpIntent {
             initiator,
@@ -153,6 +155,7 @@ impl PickUpIntent {
             interaction_description,
             cost,
             remaining_cost: cost,
+            item_volume,
         }
     }
 }

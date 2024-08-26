@@ -3,7 +3,7 @@ use std::{cmp::Ordering, collections::BinaryHeap};
 use specs::{
     prelude::*,
     shred::{Fetch, FetchMut},
-    storage::MaskedStorage,
+    storage::{GenericReadStorage, MaskedStorage},
 };
 
 use crate::{
@@ -15,8 +15,8 @@ use crate::{
     states::RunState,
     update_camera_position,
     vectors::Vector3i,
-    Blocker, Camera, Door, Illuminant, InContainer, Installed, Item, Map, Name, Photometry,
-    PowerNode, PowerSwitch, Viewshed,
+    Blocker, Camera, Container, Door, Illuminant, InContainer, Installed, Item, Map, Name,
+    Photometry, PowerNode, PowerSwitch, Viewshed,
 };
 
 pub struct EventSystem {}
@@ -47,6 +47,7 @@ impl<'a> System<'a> for EventSystem {
         ReadStorage<'a, Camera>,
         WriteStorage<'a, PickUpIntent>,
         WriteStorage<'a, InContainer>,
+        WriteStorage<'a, Container>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -73,6 +74,7 @@ impl<'a> System<'a> for EventSystem {
             cameras,
             mut pick_up_intents,
             mut in_container,
+            mut containers,
         ) = data;
 
         //Handle movement intents
@@ -138,7 +140,7 @@ impl<'a> System<'a> for EventSystem {
                         handle_interaction_intent!(power_switches, doors);
                         interact_intents.remove(entity);
                     }
-                    
+
                     if is_player {
                         queue_empty = false;
                     }
@@ -214,8 +216,8 @@ impl<'a> System<'a> for EventSystem {
                             update_camera_position(delta, &cameras, &mut positions);
                         }
                         move_intents.remove(entity);
-                    } 
-                    
+                    }
+
                     if is_player {
                         queue_empty = false;
                     }
@@ -225,23 +227,47 @@ impl<'a> System<'a> for EventSystem {
             //Handle pick up events
             {
                 if let Some(pick_up_event) = pick_up_intents.get_mut(entity) {
+                    let mut pick_up_valid = true;
+                    //TODO: Check item weight etc
+                    match containers.get(entity) {
+                        Some(container) => {
+                            if container.remaining_volume - pick_up_event.item_volume > 0.0 {
+                            } else {
+                                //Item is too large
+                                pick_up_valid = false;
+                                game_log.entries.push("Item is too large".to_string());
+                            }
+                        }
+                        None => {
+                            //Entity has no place to put item
+                            //TODO: Change this when clothes etc have storage
+                            pick_up_valid = false;
+                            game_log.entries.push("No place to store item".to_string());
+                        }
+                    }
+
                     pick_up_event.update_remaining_cost(-TIME_PER_TURN);
 
-                    if pick_up_event.get_remaining_cost() <= 0.0 {
+                    if pick_up_event.get_remaining_cost() <= 0.0 && pick_up_valid {
                         let target = pick_up_event.target.clone();
                         //Add to container
-                        let _ = in_container.insert(
-                            pick_up_event.target,
-                            InContainer::new(pick_up_event.initiator.id()),
-                        );
 
-                        //Remove position
-                        positions.remove(target);
+                        if pick_up_valid {
+                            let _ = in_container.insert(
+                                pick_up_event.target,
+                                InContainer::new(pick_up_event.initiator.id()),
+                            );
 
-                        //Remove intent
+                            //Remove position
+                            positions.remove(target);
+
+                            //Remove intent
+                            pick_up_intents.remove(entity);
+                        }
+                    }
+
+                    if !pick_up_valid {
                         pick_up_intents.remove(entity);
-                        
-
                     }
 
                     if is_player {

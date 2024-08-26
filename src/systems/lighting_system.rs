@@ -81,7 +81,8 @@ impl<'a> System<'a> for LightingSystem {
                                         illumination,
                                     ),
                                 );
-                                tile.photometry.light_level += illumination.max(0.0);
+                                tile.photometry.light_level =
+                                    tile.photometry.light_level.max(illumination);
 
                                 discovered_tiles.insert(*tile_position);
                             }

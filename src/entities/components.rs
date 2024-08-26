@@ -365,3 +365,18 @@ impl Installed {
         Self {}
     }
 }
+
+#[derive(Component, Default, Serialize, Deserialize, Clone)]
+pub struct Container {
+    pub volume: f32,
+    pub remaining_volume: f32,
+}
+
+impl Container {
+    pub fn new(volume: f32) -> Self {
+        Self {
+            volume,
+            remaining_volume: volume,
+        }
+    }
+}

@@ -624,3 +624,21 @@ pub fn test_item(ecs: &mut World, position: Vector3i) -> Entity {
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }
+
+pub fn storage_cabinet(ecs: &mut World, position: Vector3i) -> Entity {
+    ecs.create_entity()
+        .with(position)
+        .with(Renderable::new(
+            char_to_glyph('H'),
+            char_to_glyph('H'),
+            RGB::named(rltk::WHITE).to_rgba(1.0),
+            RGB::named(rltk::GRAY5).to_rgba(1.0),
+        ))
+        .with(Photometry::new())
+        .with(Name::new("Storage cabinet".to_string()))
+        .with(Installed::new())
+        .with(Container::new(100.0))
+        .with(Blocker::new_all_sides())
+        .marked::<SimpleMarker<SerializeThis>>()
+        .build()
+}

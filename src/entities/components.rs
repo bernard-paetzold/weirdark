@@ -370,6 +370,10 @@ impl Installed {
 pub struct Container {
     pub volume: f32,
     pub remaining_volume: f32,
+    pub interaction_description: String,
+    pub interaction_id: u32,
+    pub open: bool,
+    pub cost: f32,
 }
 
 impl Container {
@@ -377,6 +381,33 @@ impl Container {
         Self {
             volume,
             remaining_volume: volume,
+            interaction_description: "Closed".to_string(),
+            interaction_id: crate::rng::random_int() as u32,
+            open: false,
+            cost: 1.0,
         }
+    }
+
+    pub fn open_close(&mut self) {
+        self.open = !self.open;
+
+        if self.open {
+            self.interaction_description = "Close".to_string()
+        } else {
+            self.interaction_description = "Open".to_string()
+        }
+    }
+
+    pub fn try_insert_item(&mut self, volume: f32) -> bool {
+        if self.remaining_volume - volume >= 0.0 {
+            self.remaining_volume -= volume;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn remove_item(&mut self, volume: f32) {
+        self.remaining_volume = (self.remaining_volume + volume).min(self.volume);
     }
 }

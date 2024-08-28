@@ -1,9 +1,8 @@
 use std::usize;
 
 use crate::entities::biology::Breather;
-use crate::entities::intents::{MoveIntent, PickUpIntent};
+use crate::entities::intents::MoveIntent;
 use crate::graphics::get_viewport_position;
-use crate::systems::event_system::get_pickup_interaction;
 use crate::{
     gamelog::GameLog, vectors::Vector3i, Illuminant, Photometry, RunState, State, Viewshed,
 };
@@ -183,10 +182,16 @@ pub fn handle_other_input(
     key: VirtualKeyCode,
     sending_state: RunState,
 ) -> RunState {
+    let player_id = ecs.fetch::<Entity>().id();
+
     match key {
         //Main menu
         VirtualKeyCode::Escape => return RunState::SaveGame,
-        VirtualKeyCode::I => return RunState::ShowInventory,
+        VirtualKeyCode::I => {
+            return RunState::ShowInventory {
+                entity_id: player_id,
+            }
+        }
 
         //Enable power overlay
         VirtualKeyCode::P => {

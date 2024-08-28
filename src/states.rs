@@ -27,5 +27,7 @@ pub enum RunState {
     Simulation {
         steps: usize,
     },
-    ShowInventory,
+    ShowInventory {
+        entity_id: u32,
+    },
 }

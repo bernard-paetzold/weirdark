@@ -144,8 +144,6 @@ impl SmallCargoShipMapBuilder {
             room.centre + Vector3i::new(half_size_x + 1, half_size_y + 1, 0) * direction;
 
         //Expand out in the direction of the open tile
-        let direction = (open_tile - room.centre).normalize_delta();
-
         let mut area_tiles = Vec::new();
 
         //Check if space is open
@@ -153,6 +151,7 @@ impl SmallCargoShipMapBuilder {
             for y in -half_size_y..=half_size_y {
                 for z in -half_size_z..=half_size_z {
                     let current_position = room_centre + Vector3i::new(x, y, z);
+
                     if let Some(_) = self.map.tiles.get(&current_position) {
                         return false;
                     }
@@ -208,8 +207,9 @@ impl SmallCargoShipMapBuilder {
     }
 
     pub fn populate_area(ecs: &mut World, area: &mut Box<dyn Area>) {
-        let nodes = area.get_nodes();
+        let nodes = area.get_nodes().clone();
         let mut connections = Vec::new();
+        let mut entity_positions = HashSet::new();
 
         if nodes.len() == 0 {
             return;
@@ -241,6 +241,7 @@ impl SmallCargoShipMapBuilder {
             let breaker_position = side + offset + (direction * 2);
             spawner::breaker_box(ecs, breaker_position);
             area.set_breaker_pos(breaker_position);
+            entity_positions.insert(breaker_position);
         }
         let ceiling_lamp_position = *area.get_area_position() + Vector3i::UP;
         spawner::ceiling_lamp(
@@ -255,6 +256,7 @@ impl SmallCargoShipMapBuilder {
             true,
         );
         connections.push(ceiling_lamp_position);
+        entity_positions.insert(ceiling_lamp_position);
 
         if area.get_area_type() == AreaType::GeneratorRoom {
             let generator_position = area.get_area_position();
@@ -275,10 +277,29 @@ impl SmallCargoShipMapBuilder {
                     char_to_glyph('+'),
                 );
             }
-        }
 
-        if area.get_area_type() != AreaType::GeneratorRoom {
-            spawner::test_item(ecs, *area.get_area_position());
+            // Add storage cabinets
+            let cabinets = range(1, 5);
+
+            for _ in 0..cabinets {
+                let mut placed = false;
+                let mut attempts = 0;
+
+                while !placed && attempts < 10 {
+                    if let Some(cabinet_position) = get_wall_adjacent_position(area.as_ref()) {
+                        if !entity_positions.contains(&cabinet_position)
+                            && nodes
+                                .iter()
+                                .all(|node| node.distance_to(cabinet_position) > 1.0)
+                        {
+                            placed = true;
+                            spawner::storage_cabinet(ecs, cabinet_position);
+                            entity_positions.insert(cabinet_position);
+                        }
+                    }
+                    attempts += 1;
+                }
+            }
         }
 
         //Add devices to list of places to wire
@@ -345,7 +366,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
         }
 
         for (_, node) in shuffled_nodes.iter() {
-            let mut dimension = rng::range(MIN_AREA_SIZE, 10);
+            let mut dimension = rng::range(MIN_AREA_SIZE, 10) | 1;
 
             while dimension >= MIN_AREA_SIZE {
                 let area_size = Vector3i::new(dimension, dimension, 4);
@@ -450,4 +471,42 @@ impl MapBuilder for SmallCargoShipMapBuilder {
     fn get_areas(&mut self) -> &mut Vec<Box<dyn Area>> {
         &mut self.areas
     }
+}
+
+fn get_wall_adjacent_position(area: &dyn Area) -> Option<Vector3i> {
+    let area_pos = area.get_area_position();
+    let size_x = area.get_size().x as i32;
+    let size_y = area.get_size().y as i32;
+
+    // Ensure the room is big enough for cabinet placement
+    if size_x < 3 || size_y < 3 {
+        return None;
+    }
+
+    let half_x = size_x / 2;
+    let half_y = size_y / 2;
+
+    let (x, y) = if rng::range(0, 2) == 0 {
+        // Place along X-axis walls
+        (
+            if rng::range(0, 2) == 0 {
+                -half_x + 1
+            } else {
+                half_x - 1
+            },
+            rng::range(-half_y + 2, half_y - 1),
+        )
+    } else {
+        // Place along Y-axis walls
+        (
+            rng::range(-half_x + 2, half_x - 1),
+            if rng::range(0, 2) == 0 {
+                -half_y + 1
+            } else {
+                half_y - 1
+            },
+        )
+    };
+
+    Some(*area_pos + Vector3i::new(x, y, 0))
 }

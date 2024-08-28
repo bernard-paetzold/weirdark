@@ -8,7 +8,9 @@ use specs::{
 
 use crate::{
     entities::{
-        intents::{Initiative, Intent, InteractIntent, Interactable, MoveIntent, PickUpIntent},
+        intents::{
+            Initiative, Intent, InteractIntent, Interactable, MoveIntent, OpenIntent, PickUpIntent,
+        },
         power_components::BreakerBox,
     },
     gamelog::GameLog,
@@ -48,6 +50,7 @@ impl<'a> System<'a> for EventSystem {
         WriteStorage<'a, PickUpIntent>,
         WriteStorage<'a, InContainer>,
         WriteStorage<'a, Container>,
+        WriteStorage<'a, OpenIntent>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -75,8 +78,10 @@ impl<'a> System<'a> for EventSystem {
             mut pick_up_intents,
             mut in_container,
             mut containers,
+            mut open_intents,
         ) = data;
 
+        let mut next_state: Option<RunState> = None;
         //Handle movement intents
         let mut entities_to_handle = BinaryHeap::new();
 
@@ -129,6 +134,11 @@ impl<'a> System<'a> for EventSystem {
                                         }
                                     }
 
+                                    //If the interaction is a container, open its inventory
+                                    if let Some(_) = containers.get(interact_intent.target) {
+
+                                    }
+
 
                                 )*
                             }
@@ -149,8 +159,6 @@ impl<'a> System<'a> for EventSystem {
 
             //Handle possible movement
             {
-                //let mut cleared_intents = Vec::new();
-
                 if let Some(move_intent) = move_intents.get_mut(entity) {
                     move_intent.update_remaining_cost(-TIME_PER_TURN);
 
@@ -276,8 +284,31 @@ impl<'a> System<'a> for EventSystem {
                 }
             }
 
+            //Handle open container events
+            {
+                if let Some(open_event) = open_intents.get_mut(entity) {
+                    open_event.update_remaining_cost(-TIME_PER_TURN);
+
+                    if open_event.get_remaining_cost() <= 0.0 {
+                        let target_id = open_event.target.clone().id();
+
+                        next_state = Some(RunState::ShowInventory {
+                            entity_id: target_id,
+                        });
+                        //Remove intent
+                        open_intents.remove(entity);
+                    }
+
+                    if is_player {
+                        queue_empty = false;
+                    }
+                }
+            }
+
             //If all intents are handled, return to input state
-            if queue_empty {
+            if let Some(state) = next_state.clone() {
+                *run_state = state;
+            } else if queue_empty {
                 *run_state = RunState::AwaitingInput;
             } else {
                 *run_state = RunState::Ticking;
@@ -289,6 +320,7 @@ impl<'a> System<'a> for EventSystem {
 pub enum InteractionType {
     ComponentInteraction,
     PickUpInteraction,
+    OpenInteraction,
 }
 
 #[derive(Clone)]
@@ -354,16 +386,39 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<InteractionIn
     interactables
 }
 
-pub fn get_pickup_interaction(entity: Entity) -> InteractionInformation {
-    let interaction = InteractionInformation::new(
-        entity.id(),
-        format!("{}", "Pick up".to_string()),
-        entity.id(),
-        1.0,
-        InteractionType::PickUpInteraction,
-    );
+pub fn get_default_interactions(ecs: &World, entity: Entity) -> Vec<InteractionInformation> {
+    let mut interactions = Vec::new();
+    let installed = ecs.read_storage::<Installed>();
+    let containers = ecs.read_storage::<Container>();
 
-    interaction
+    //Item pickup
+    {
+        //If the item is not installed, allow pickup
+        if installed.get(entity).is_none() {
+            interactions.push(InteractionInformation::new(
+                entity.id(),
+                format!("{}", "Pick up".to_string()),
+                entity.id(),
+                1.0,
+                InteractionType::PickUpInteraction,
+            ));
+        }
+    }
+
+    //Open container
+    {
+        if containers.get(entity).is_some() {
+            interactions.push(InteractionInformation::new(
+                entity.id(),
+                format!("{}", "Open".to_string()),
+                entity.id(),
+                1.0,
+                InteractionType::OpenInteraction,
+            ));
+        }
+    }
+
+    interactions
 }
 
 //#[derive(Serialize, Deserialize, Clone)]

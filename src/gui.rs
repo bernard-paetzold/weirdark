@@ -1,12 +1,12 @@
 use std::u32::MAX;
 
-use crate::entities::intents::{InteractIntent, PickUpIntent};
+use crate::entities::intents::{InteractIntent, OpenIntent, PickUpIntent};
 use crate::entities::power_components::{
     BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
 use crate::graphics::char_to_glyph;
 use crate::systems::event_system::{
-    get_pickup_interaction, InteractionInformation, InteractionType,
+    get_default_interactions, InteractionInformation, InteractionType,
 };
 use crate::systems::power_system::get_devices_on_subnetwork;
 use crate::{mouse_to_map, InContainer, Installed, Item, INTERACT_MENU_WIDTH};
@@ -330,14 +330,13 @@ pub enum ItemMenuResult {
     Selected,
 }
 
-pub fn show_inventory(game_state: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
-    let player_entity = game_state.ecs.fetch::<Entity>();
+pub fn show_inventory(game_state: &mut State, ctx: &mut Rltk, entity_id: u32) -> ItemMenuResult {
     let names = game_state.ecs.read_storage::<Name>();
     let in_container = game_state.ecs.read_storage::<InContainer>();
 
     let inventory = (&in_container, &names)
         .join()
-        .filter(|item| item.0.owner == player_entity.id());
+        .filter(|item| item.0.owner == entity_id);
     let count = inventory.count();
 
     let mut y = (25 - (count / 2)) as i32;
@@ -367,7 +366,7 @@ pub fn show_inventory(game_state: &mut State, ctx: &mut Rltk) -> ItemMenuResult 
     let mut j = 0;
     for (_, name) in (&in_container, &names)
         .join()
-        .filter(|item| item.0.owner == player_entity.id())
+        .filter(|item| item.0.owner == entity_id)
     {
         ctx.set(
             17,
@@ -482,9 +481,7 @@ pub fn interact_gui(
     match selected_entity {
         Some(entity) => {
             //TODO: Change this to allow uninstalling of items
-            if installed.get(entity).is_none() {
-                interactables.push(get_pickup_interaction(entity));
-            }
+            interactables.append(&mut get_default_interactions(&game_state.ecs, entity));
             interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
 
             //Handle breaker boxes or other entities that control interactions off tile
@@ -1002,6 +999,20 @@ pub fn interact_gui(
                                     ),
                                 );
                             }
+                            InteractionType::OpenInteraction => {
+                                let mut open_intents = game_state.ecs.write_storage::<OpenIntent>();
+
+                                let _ = open_intents.insert(
+                                    player,
+                                    OpenIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                    ),
+                                );
+                            }
                         }
 
                         return RunState::Ticking;
@@ -1054,6 +1065,20 @@ pub fn interact_gui(
                                         interactable.description.clone(),
                                         interactable.cost,
                                         0.0,
+                                    ),
+                                );
+                            }
+                            InteractionType::OpenInteraction => {
+                                let mut open_intents = game_state.ecs.write_storage::<OpenIntent>();
+
+                                let _ = open_intents.insert(
+                                    player,
+                                    OpenIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
                                     ),
                                 );
                             }

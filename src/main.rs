@@ -1,6 +1,6 @@
 use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
-use entities::intents::{Initiative, InteractIntent, MoveIntent, PickUpIntent};
+use entities::intents::{Initiative, InteractIntent, MoveIntent, OpenIntent, PickUpIntent};
 use entities::power_components::{
     BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
@@ -117,6 +117,9 @@ impl GameState for State {
 
                 match *self.ecs.fetch::<RunState>() {
                     RunState::AwaitingInput => new_runstate = RunState::AwaitingInput,
+                    RunState::ShowInventory { entity_id } => {
+                        new_runstate = RunState::ShowInventory { entity_id }
+                    }
                     _ => new_runstate = RunState::Ticking,
                 }
             }
@@ -183,8 +186,8 @@ impl GameState for State {
                     self.run_simulation();
                 }
             }
-            RunState::ShowInventory => {
-                if gui::show_inventory(self, ctx) == gui::ItemMenuResult::Cancel {
+            RunState::ShowInventory { entity_id } => {
+                if gui::show_inventory(self, ctx, entity_id) == gui::ItemMenuResult::Cancel {
                     new_runstate = RunState::AwaitingInput;
                 }
             }
@@ -258,6 +261,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<InteractIntent>();
     game_state.ecs.register::<MoveIntent>();
     game_state.ecs.register::<PickUpIntent>();
+    game_state.ecs.register::<OpenIntent>();
 
     //Item
     game_state.ecs.register::<Installed>();

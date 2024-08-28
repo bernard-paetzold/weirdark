@@ -172,3 +172,45 @@ impl Intent for PickUpIntent {
     }
     fn execute(&mut self) {}
 }
+
+#[derive(Component, Clone)]
+pub struct OpenIntent {
+    pub initiator: Entity,
+    pub target: Entity,
+    pub interaction_id: u32,
+    pub interaction_description: String,
+    pub cost: f32,
+    pub remaining_cost: f32,
+}
+
+impl OpenIntent {
+    pub fn new(
+        initiator: Entity,
+        target: Entity,
+        interaction_id: u32,
+        interaction_description: String,
+        cost: f32,
+    ) -> OpenIntent {
+        OpenIntent {
+            initiator,
+            target,
+            interaction_id,
+            interaction_description,
+            cost,
+            remaining_cost: cost,
+        }
+    }
+}
+
+impl Intent for OpenIntent {
+    fn get_cost(&self) -> f32 {
+        self.cost
+    }
+    fn get_remaining_cost(&self) -> f32 {
+        self.remaining_cost
+    }
+    fn update_remaining_cost(&mut self, delta: f32) {
+        self.remaining_cost += delta;
+    }
+    fn execute(&mut self) {}
+}

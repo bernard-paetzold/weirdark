@@ -18,6 +18,7 @@ pub trait Area {
     fn set_breaker_pos(&mut self, breaker_position: Vector3i);
     fn get_power_connections(&self) -> &Vec<Vector3i>;
     fn update_power_connections(&mut self) -> &mut Vec<Vector3i>;
+    fn get_size(&self) -> &Vector3i;
     fn get_area_type(&self) -> AreaType;
     fn set_area_type(&mut self, area_type: AreaType);
 }
@@ -99,6 +100,10 @@ impl Area for Room {
     fn set_area_type(&mut self, area_type: AreaType) {
         self.area_type = area_type;
     }
+
+    fn get_size(&self) -> &Vector3i {
+        &self.size
+    }
 }
 
 #[derive(Clone)]
@@ -113,6 +118,7 @@ pub struct Corridor {
     pub nodes: Vec<Vector3i>,
     pub breaker_position: Option<Vector3i>,
     pub power_connections: Vec<Vector3i>,
+    pub size: Vector3i,
 }
 
 impl Corridor {
@@ -139,6 +145,7 @@ impl Corridor {
                 None
             },
             power_connections: Vec::new(),
+            size: Vector3i::new_equi(width as i32),
         }
     }
 }
@@ -182,5 +189,9 @@ impl Area for Corridor {
 
     fn set_area_type(&mut self, area_type: AreaType) {
         self.area_type = area_type;
+    }
+
+    fn get_size(&self) -> &Vector3i {
+        &self.size
     }
 }

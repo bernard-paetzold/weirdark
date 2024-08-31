@@ -293,7 +293,8 @@ impl<'a> System<'a> for EventSystem {
                         let target_id = open_event.target.clone().id();
 
                         next_state = Some(RunState::ShowInventory {
-                            entity_id: target_id,
+                            id: open_event.interaction_id,
+                            selected_item: None,
                         });
                         //Remove intent
                         open_intents.remove(entity);
@@ -407,9 +408,9 @@ pub fn get_default_interactions(ecs: &World, entity: Entity) -> Vec<InteractionI
 
     //Open container
     {
-        if containers.get(entity).is_some() {
+        if let Some(container) = containers.get(entity) {
             interactions.push(InteractionInformation::new(
-                entity.id(),
+                container.id,
                 format!("{}", "Open".to_string()),
                 entity.id(),
                 1.0,

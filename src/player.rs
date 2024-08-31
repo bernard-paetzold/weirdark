@@ -1,13 +1,17 @@
 use std::usize;
 
 use crate::entities::biology::Breather;
-use crate::entities::intents::MoveIntent;
+use crate::entities::intents::{InteractIntent, MoveIntent};
 use crate::graphics::get_viewport_position;
+use crate::systems::event_system::InteractionInformation;
 use crate::{
     gamelog::GameLog, vectors::Vector3i, Illuminant, Photometry, RunState, State, Viewshed,
 };
-use crate::{mouse_to_map, set_camera_position, update_camera_position, Camera, TERMINAL_WIDTH};
+use crate::{
+    mouse_to_map, set_camera_position, update_camera_position, Camera, Container, TERMINAL_WIDTH,
+};
 use rltk::{Rltk, VirtualKeyCode};
+use specs::storage::GenericReadStorage;
 use specs::{prelude::*, shred::Fetch, storage::MaskedStorage, world::EntitiesRes};
 use specs_derive::Component;
 
@@ -182,22 +186,30 @@ pub fn handle_other_input(
     key: VirtualKeyCode,
     sending_state: RunState,
 ) -> RunState {
-    let player_id = ecs.fetch::<Entity>().id();
+    let container_id = {
+        let player = ecs.fetch::<Entity>();
+        let containers = ecs.read_storage::<Container>();
+        containers.get(*player).map(|c| c.id)
+    };
 
-    match key {
-        //Main menu
-        VirtualKeyCode::Escape => return RunState::SaveGame,
-        VirtualKeyCode::I => {
-            return RunState::ShowInventory {
-                entity_id: player_id,
+    if let Some(id) = container_id {
+        match key {
+            //Main menu
+            VirtualKeyCode::Escape => return RunState::SaveGame,
+            VirtualKeyCode::I => {
+                return RunState::ShowInventory {
+                    id,
+                    selected_item: None,
+                }
             }
-        }
 
-        //Enable power overlay
-        VirtualKeyCode::P => {
-            toggle_power_overlay(ecs);
-            sending_state
+            //Enable power overlay
+            VirtualKeyCode::P => {
+                toggle_power_overlay(ecs);
+                return sending_state;
+            }
+            _ => return sending_state,
         }
-        _ => sending_state,
     }
+    sending_state
 }

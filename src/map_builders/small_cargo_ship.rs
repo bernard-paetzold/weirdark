@@ -293,7 +293,10 @@ impl SmallCargoShipMapBuilder {
                                 .all(|node| node.distance_to(cabinet_position) > 1.0)
                         {
                             placed = true;
-                            spawner::storage_cabinet(ecs, cabinet_position);
+                            let cabinet = spawner::storage_cabinet(ecs, cabinet_position);
+                            let item = spawner::test_item(ecs, Vector3i::new_equi(0));
+
+                            spawner::put_item_in_container(ecs, item, cabinet);
                             entity_positions.insert(cabinet_position);
                         }
                     }

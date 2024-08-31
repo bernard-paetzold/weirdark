@@ -4,14 +4,17 @@ use entities::intents::{Initiative, InteractIntent, MoveIntent, OpenIntent, Pick
 use entities::power_components::{
     BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
+use entities::props::Cabinet;
 use graphics::render_map;
-use rltk::{GameState, Rltk};
+use menu::ItemMenuResult;
+use rltk::{to_char, GameState, Point, Rltk, RGB};
 use specs::prelude::*;
 
 extern crate serde;
 
 use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 
+use specs::world::EntitiesRes;
 use states::RunState;
 use vectors::Vector3i;
 
@@ -24,6 +27,8 @@ use crate::player::*;
 
 const FONT_WIDTH: i32 = 14;
 const FONT_HEIGHT: i32 = 14;
+
+const SEED: u64 = 1;
 
 //const FONT: &str = "MxPlus_HP_100LX_16x12.png";
 const FONT: &str = "cp437_14x14.png";
@@ -117,8 +122,14 @@ impl GameState for State {
 
                 match *self.ecs.fetch::<RunState>() {
                     RunState::AwaitingInput => new_runstate = RunState::AwaitingInput,
-                    RunState::ShowInventory { entity_id } => {
-                        new_runstate = RunState::ShowInventory { entity_id }
+                    RunState::ShowInventory {
+                        id: container_id,
+                        selected_item,
+                    } => {
+                        new_runstate = RunState::ShowInventory {
+                            id: container_id,
+                            selected_item,
+                        }
                     }
                     _ => new_runstate = RunState::Ticking,
                 }
@@ -186,9 +197,22 @@ impl GameState for State {
                     self.run_simulation();
                 }
             }
-            RunState::ShowInventory { entity_id } => {
-                if gui::show_inventory(self, ctx, entity_id) == gui::ItemMenuResult::Cancel {
-                    new_runstate = RunState::AwaitingInput;
+            RunState::ShowInventory {
+                id: container_id,
+                selected_item,
+            } => {
+                let result = menu::show_inventory(self, ctx, container_id, selected_item);
+
+                match result {
+                    ItemMenuResult::NoResponse => {
+                        //new_runstate = RunState::AwaitingInput;
+                    }
+                    ItemMenuResult::Cancel => {
+                        new_runstate = RunState::AwaitingInput;
+                    }
+                    ItemMenuResult::Selected => {
+                        //new_runstate = RunState::AwaitingInput;
+                    }
                 }
             }
         }
@@ -265,6 +289,7 @@ fn main() -> rltk::BError {
 
     //Item
     game_state.ecs.register::<Installed>();
+    game_state.ecs.register::<Cabinet>();
 
     //Classification
     game_state.ecs.register::<Prop>();
@@ -275,7 +300,8 @@ fn main() -> rltk::BError {
     let player_start_position = Vector3i::new(0, 0, 10);
 
     tile_blueprints::initalise();
-    rng::reseed(1);
+
+    rng::reseed(SEED);
 
     game_state
         .ecs

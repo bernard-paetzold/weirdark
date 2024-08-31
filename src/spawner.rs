@@ -4,6 +4,7 @@ use rltk::{RGB, RGBA};
 use specs::{
     prelude::*,
     saveload::{MarkedBuilder, SimpleMarker},
+    storage::GenericReadStorage,
 };
 
 use crate::{
@@ -11,13 +12,14 @@ use crate::{
         biology::Breather,
         intents::Initiative,
         power_components::{BreakerBox, ElectronicHeater},
+        props::Cabinet,
     },
     graphics::char_to_glyph,
     pathfinding::{find_walkable_path, wall_climb_path},
     vectors::Vector3i,
-    Blocker, Container, Direction, Door, Duct, EntityDirection, Illuminant, Installed, Item, Map,
-    Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Prop, Renderable,
-    SerializeThis, Viewshed, VisionBlocker, Wire,
+    Blocker, Container, Direction, Door, Duct, EntityDirection, Illuminant, InContainer, Installed,
+    Item, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Prop,
+    Renderable, SerializeThis, Viewshed, VisionBlocker, Wire,
 };
 
 pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
@@ -627,6 +629,7 @@ pub fn test_item(ecs: &mut World, position: Vector3i) -> Entity {
 
 pub fn storage_cabinet(ecs: &mut World, position: Vector3i) -> Entity {
     ecs.create_entity()
+        .with(Cabinet::new())
         .with(position)
         .with(Renderable::new(
             char_to_glyph('H'),
@@ -641,4 +644,16 @@ pub fn storage_cabinet(ecs: &mut World, position: Vector3i) -> Entity {
         .with(Blocker::new_all_sides())
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
+}
+
+pub fn put_item_in_container(ecs: &mut World, item: Entity, container: Entity) {
+    let mut positions = ecs.write_storage::<Vector3i>();
+    let mut in_container = ecs.write_storage::<InContainer>();
+    let containers = ecs.write_storage::<Container>();
+
+    positions.remove(item);
+
+    if let Some(container_component) = containers.get(container) {
+        let _ = in_container.insert(item, InContainer::new(container_component.id));
+    }
 }

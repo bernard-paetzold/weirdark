@@ -371,7 +371,7 @@ pub struct Container {
     pub volume: f32,
     pub remaining_volume: f32,
     pub interaction_description: String,
-    pub interaction_id: u32,
+    pub id: u32,
     pub open: bool,
     pub cost: f32,
 }
@@ -382,7 +382,7 @@ impl Container {
             volume,
             remaining_volume: volume,
             interaction_description: "Closed".to_string(),
-            interaction_id: crate::rng::random_int() as u32,
+            id: crate::rng::random_int() as u32,
             open: false,
             cost: 1.0,
         }

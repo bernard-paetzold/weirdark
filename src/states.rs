@@ -28,6 +28,7 @@ pub enum RunState {
         steps: usize,
     },
     ShowInventory {
-        entity_id: u32,
+        id: u32,
+        selected_item: Option<Entity>,
     },
 }

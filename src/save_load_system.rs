@@ -17,6 +17,7 @@ use crate::entities::intents::Initiative;
 use crate::entities::power_components::{
     BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
+use crate::entities::props::Cabinet;
 use crate::{
     vectors::Vector3i, Illuminant, Name, Photometry, Player, Renderable, SerializationHelper,
     SerializeThis, Tile, Viewshed,
@@ -87,6 +88,7 @@ pub fn save_game(ecs: &mut World) {
             InContainer,
             Installed,
             Container,
+            Cabinet,
             SerializationHelper
         );
     }
@@ -175,6 +177,7 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             InContainer,
             Installed,
             Container,
+            Cabinet,
             SerializationHelper
         );
     }

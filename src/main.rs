@@ -5,6 +5,7 @@ use entities::power_components::{
     BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
 use entities::props::Cabinet;
+use gamelog::GameLog;
 use graphics::render_map;
 use menu::ItemMenuResult;
 use rltk::{to_char, GameState, Point, Rltk, RGB};
@@ -179,6 +180,7 @@ impl GameState for State {
                     target,
                     prev_mouse_position,
                     selected_entity,
+                    false,
                 );
 
                 //If the gui exits snap the camera position to the player
@@ -203,15 +205,23 @@ impl GameState for State {
             } => {
                 let result = menu::show_inventory(self, ctx, container_id, selected_item);
 
-                match result {
+                match result.0 {
                     ItemMenuResult::NoResponse => {
                         //new_runstate = RunState::AwaitingInput;
                     }
                     ItemMenuResult::Cancel => {
-                        new_runstate = RunState::AwaitingInput;
+                        new_runstate = RunState::Ticking;
                     }
                     ItemMenuResult::Selected => {
-                        //new_runstate = RunState::AwaitingInput;
+                        let item_entity = result.1.unwrap();
+
+                        new_runstate = RunState::ShowInventory {
+                            id: container_id,
+                            selected_item: Some(item_entity),
+                        };
+                    }
+                    ItemMenuResult::Action => {
+                        new_runstate = RunState::Ticking;
                     }
                 }
             }

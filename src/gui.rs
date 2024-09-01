@@ -12,7 +12,7 @@ use crate::systems::event_system::{
 use crate::systems::power_system::get_devices_on_subnetwork;
 use crate::{mouse_to_map, InContainer, Installed, Item, INTERACT_MENU_WIDTH};
 use crate::{systems::event_system::get_entity_interactions, Renderable};
-use rltk::{to_char, Point, Rltk, VirtualKeyCode, RGB};
+use rltk::{letter_to_option, to_char, Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 use crate::{
@@ -331,6 +331,7 @@ pub fn interact_gui(
     mut target: Vector3i,
     prev_mouse_position: Vector3i,
     mut selected_entity: Option<Entity>,
+    mut secondary_menu: bool,
 ) -> RunState {
     crate::set_camera_z(target.z, &mut game_state.ecs);
     let viewport_position = get_viewport_position(&game_state.ecs);
@@ -674,6 +675,7 @@ pub fn interact_gui(
         ctx,
         interactables.clone(),
         Point::new(0, interactable_menu_y),
+        secondary_menu,
     );
 
     if (mouse_position.x != prev_mouse_position.x || mouse_position.x != prev_mouse_position.x)
@@ -700,8 +702,8 @@ pub fn interact_gui(
                 selected_entity,
             }
         }
-        Some(key) => match key {
-            VirtualKeyCode::Escape => {
+        Some(key) => {
+            if key == VirtualKeyCode::Escape {
                 if selected_entity == None {
                     return RunState::AwaitingInput;
                 } else {
@@ -714,9 +716,9 @@ pub fn interact_gui(
                         selected_entity,
                     };
                 }
-            }
-            VirtualKeyCode::I => return RunState::AwaitingInput,
-            VirtualKeyCode::Period => {
+            } else if key == VirtualKeyCode::I {
+                return RunState::AwaitingInput;
+            } else if key == VirtualKeyCode::Period {
                 return check_range(
                     range,
                     source,
@@ -725,8 +727,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Comma => {
+            } else if key == VirtualKeyCode::Comma {
                 return check_range(
                     range,
                     source,
@@ -735,8 +736,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Up | VirtualKeyCode::Numpad8 => {
+            } else if key == VirtualKeyCode::Up || key == VirtualKeyCode::Numpad8 {
                 return check_range(
                     range,
                     source,
@@ -745,8 +745,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Numpad9 => {
+            } else if key == VirtualKeyCode::Numpad9 {
                 return check_range(
                     range,
                     source,
@@ -755,8 +754,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Right | VirtualKeyCode::Numpad6 => {
+            } else if key == VirtualKeyCode::Right || key == VirtualKeyCode::Numpad6 {
                 return check_range(
                     range,
                     source,
@@ -765,8 +763,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Numpad3 => {
+            } else if key == VirtualKeyCode::Numpad3 {
                 return check_range(
                     range,
                     source,
@@ -775,8 +772,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Down | VirtualKeyCode::Numpad2 => {
+            } else if key == VirtualKeyCode::Down || key == VirtualKeyCode::Numpad2 {
                 return check_range(
                     range,
                     source,
@@ -785,8 +781,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Numpad1 => {
+            } else if key == VirtualKeyCode::Numpad1 {
                 return check_range(
                     range,
                     source,
@@ -795,8 +790,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Left | VirtualKeyCode::Numpad4 => {
+            } else if key == VirtualKeyCode::Left || key == VirtualKeyCode::Numpad4 {
                 return check_range(
                     range,
                     source,
@@ -805,8 +799,7 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::Numpad7 => {
+            } else if key == VirtualKeyCode::Numpad7 {
                 return check_range(
                     range,
                     source,
@@ -815,237 +808,70 @@ pub fn interact_gui(
                     mouse_position,
                     selected_entity,
                 );
-            }
-            VirtualKeyCode::A => {
+            } else if key >= VirtualKeyCode::A
+                && key <= VirtualKeyCode::Z
+                && (!secondary_menu || ctx.shift)
+            {
+                let selection = letter_to_option(key);
+
                 if selected_entity == None {
                     if tile_entities.len() > 0 {
                         {
                             selected_entity = Some(tile_entities[0].clone())
                         };
                     }
-                } else if interactables.len() > 0 {
-                    let interactable = interactables[0].clone();
-                    let entity = entities.entity(interactable.entity_id);
-                    if let Some(player) = player {
-                        match interactable.interaction_type {
-                            InteractionType::ComponentInteraction => {
-                                let mut interactions =
-                                    game_state.ecs.write_storage::<InteractIntent>();
-                                let _ = interactions.insert(
-                                    player,
-                                    InteractIntent::new(
+                } else {
+                    if let Some(interactable) = interactables.get(selection as usize) {
+                        let entity = entities.entity(interactable.entity_id);
+                        if let Some(player) = player {
+                            match interactable.interaction_type {
+                                InteractionType::ComponentInteraction => {
+                                    let mut interactions =
+                                        game_state.ecs.write_storage::<InteractIntent>();
+                                    let _ = interactions.insert(
                                         player,
-                                        entity,
-                                        interactable.id,
-                                        interactable.description.clone(),
-                                        interactable.cost,
-                                    ),
-                                );
-                            }
-                            InteractionType::PickUpInteraction => {
-                                let mut pick_up_intents =
-                                    game_state.ecs.write_storage::<PickUpIntent>();
-                                let _ = pick_up_intents.insert(
-                                    player,
-                                    PickUpIntent::new(
+                                        InteractIntent::new(
+                                            player,
+                                            entity,
+                                            interactable.id,
+                                            interactable.description.clone(),
+                                            interactable.cost,
+                                        ),
+                                    );
+                                }
+                                InteractionType::PickUpInteraction => {
+                                    let mut pick_up_intents =
+                                        game_state.ecs.write_storage::<PickUpIntent>();
+                                    let _ = pick_up_intents.insert(
                                         player,
-                                        entity,
-                                        interactable.id,
-                                        interactable.description.clone(),
-                                        interactable.cost,
-                                        0.0,
-                                    ),
-                                );
+                                        PickUpIntent::new(
+                                            player,
+                                            entity,
+                                            interactable.id,
+                                            interactable.description.clone(),
+                                            interactable.cost,
+                                            0.0,
+                                        ),
+                                    );
+                                }
+                                InteractionType::OpenInteraction => {
+                                    let mut open_intents =
+                                        game_state.ecs.write_storage::<OpenIntent>();
+                                    let _ = open_intents.insert(
+                                        player,
+                                        OpenIntent::new(
+                                            player,
+                                            entity,
+                                            interactable.id,
+                                            interactable.description.clone(),
+                                            interactable.cost,
+                                        ),
+                                    );
+                                }
                             }
-                            InteractionType::OpenInteraction => {
-                                let mut open_intents = game_state.ecs.write_storage::<OpenIntent>();
 
-                                let _ = open_intents.insert(
-                                    player,
-                                    OpenIntent::new(
-                                        player,
-                                        entity,
-                                        interactable.id,
-                                        interactable.description.clone(),
-                                        interactable.cost,
-                                    ),
-                                );
-                            }
+                            return RunState::Ticking;
                         }
-
-                        return RunState::Ticking;
-                    }
-                }
-
-                return RunState::InteractGUI {
-                    range,
-                    source,
-                    target,
-                    prev_mouse_position: mouse_position,
-                    selected_entity,
-                };
-            }
-            VirtualKeyCode::B => {
-                if selected_entity == None {
-                    if tile_entities.len() > 1 {
-                        {
-                            selected_entity = Some(tile_entities[1].clone())
-                        };
-                    }
-                } else if interactables.len() > 1 {
-                    let interactable = interactables[1].clone();
-                    let entity = entities.entity(interactable.entity_id);
-                    if let Some(player) = player {
-                        match interactable.interaction_type {
-                            InteractionType::ComponentInteraction => {
-                                let mut interactions =
-                                    game_state.ecs.write_storage::<InteractIntent>();
-                                let _ = interactions.insert(
-                                    player,
-                                    InteractIntent::new(
-                                        player,
-                                        entity,
-                                        interactable.id,
-                                        interactable.description.clone(),
-                                        interactable.cost,
-                                    ),
-                                );
-                            }
-                            InteractionType::PickUpInteraction => {
-                                let mut pick_up_intents =
-                                    game_state.ecs.write_storage::<PickUpIntent>();
-                                let _ = pick_up_intents.insert(
-                                    player,
-                                    PickUpIntent::new(
-                                        player,
-                                        entity,
-                                        interactable.id,
-                                        interactable.description.clone(),
-                                        interactable.cost,
-                                        0.0,
-                                    ),
-                                );
-                            }
-                            InteractionType::OpenInteraction => {
-                                let mut open_intents = game_state.ecs.write_storage::<OpenIntent>();
-
-                                let _ = open_intents.insert(
-                                    player,
-                                    OpenIntent::new(
-                                        player,
-                                        entity,
-                                        interactable.id,
-                                        interactable.description.clone(),
-                                        interactable.cost,
-                                    ),
-                                );
-                            }
-                        }
-
-                        return RunState::Ticking;
-                    }
-                }
-
-                return RunState::InteractGUI {
-                    range,
-                    source,
-                    target,
-                    prev_mouse_position: mouse_position,
-                    selected_entity,
-                };
-            }
-            VirtualKeyCode::C => {
-                if selected_entity == None {
-                    if tile_entities.len() > 2 {
-                        {
-                            selected_entity = Some(tile_entities[2].clone())
-                        };
-                    }
-                } else if interactables.len() > 2 {
-                    let interactable = interactables[2].clone();
-                    let entity = entities.entity(interactable.entity_id);
-                    if let Some(player) = player {
-                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                        let _ = interactions.insert(
-                            player,
-                            InteractIntent::new(
-                                player,
-                                entity,
-                                interactable.id,
-                                interactable.description.clone(),
-                                interactable.cost,
-                            ),
-                        );
-
-                        return RunState::Ticking;
-                    }
-                }
-                return RunState::InteractGUI {
-                    range,
-                    source,
-                    target,
-                    prev_mouse_position,
-                    selected_entity,
-                };
-            }
-            VirtualKeyCode::D => {
-                if selected_entity == None {
-                    if tile_entities.len() > 3 {
-                        {
-                            selected_entity = Some(tile_entities[3].clone())
-                        };
-                    }
-                } else if interactables.len() > 3 {
-                    let interactable = interactables[3].clone();
-                    let entity = entities.entity(interactable.entity_id);
-                    if let Some(player) = player {
-                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                        let _ = interactions.insert(
-                            player,
-                            InteractIntent::new(
-                                player,
-                                entity,
-                                interactable.id,
-                                interactable.description.clone(),
-                                interactable.cost,
-                            ),
-                        );
-
-                        return RunState::Ticking;
-                    }
-                }
-                return RunState::InteractGUI {
-                    range,
-                    source,
-                    target,
-                    prev_mouse_position,
-                    selected_entity,
-                };
-            }
-            VirtualKeyCode::E => {
-                if selected_entity == None {
-                    if tile_entities.len() > 4 {
-                        {
-                            selected_entity = Some(tile_entities[4].clone())
-                        };
-                    }
-                } else if interactables.len() > 4 {
-                    let interactable = interactables[4].clone();
-                    let entity = entities.entity(interactable.entity_id);
-                    if let Some(player) = player {
-                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                        let _ = interactions.insert(
-                            player,
-                            InteractIntent::new(
-                                player,
-                                entity,
-                                interactable.id,
-                                interactable.description.clone(),
-                                interactable.cost,
-                            ),
-                        );
-
-                        return RunState::Ticking;
                     }
                 }
                 return RunState::InteractGUI {
@@ -1055,36 +881,7 @@ pub fn interact_gui(
                     prev_mouse_position: mouse_position,
                     selected_entity,
                 };
-            }
-            VirtualKeyCode::Return => {
-                if interactables.len() > 40 {
-                    let interactable = interactables[0].clone();
-                    let entity = entities.entity(interactable.entity_id);
-                    if let Some(player) = player {
-                        let mut interactions = game_state.ecs.write_storage::<InteractIntent>();
-                        let _ = interactions.insert(
-                            player,
-                            InteractIntent::new(
-                                player,
-                                entity,
-                                interactable.id,
-                                interactable.description.clone(),
-                                interactable.cost,
-                            ),
-                        );
-
-                        return RunState::Ticking;
-                    }
-                }
-                return RunState::InteractGUI {
-                    range,
-                    source,
-                    target,
-                    prev_mouse_position: mouse_position,
-                    selected_entity,
-                };
-            }
-            _ => {
+            } else {
                 return RunState::HandleOtherInput {
                     next_runstate: std::sync::Arc::new(RunState::InteractGUI {
                         range,
@@ -1094,9 +891,9 @@ pub fn interact_gui(
                         selected_entity,
                     }),
                     key,
-                }
+                };
             }
-        },
+        }
     }
 }
 

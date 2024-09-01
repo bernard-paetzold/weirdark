@@ -257,20 +257,21 @@ impl<'a> System<'a> for EventSystem {
                     pick_up_event.update_remaining_cost(-TIME_PER_TURN);
 
                     if pick_up_event.get_remaining_cost() <= 0.0 && pick_up_valid {
-                        let target = pick_up_event.target.clone();
+                        let item = pick_up_event.target.clone();
+                        let container = containers.get(pick_up_event.initiator);
                         //Add to container
 
-                        if pick_up_valid {
-                            let _ = in_container.insert(
-                                pick_up_event.target,
-                                InContainer::new(pick_up_event.initiator.id()),
-                            );
+                        if let Some(container) = container {
+                            if pick_up_valid {
+                                let _ = in_container
+                                    .insert(pick_up_event.target, InContainer::new(container.id));
 
-                            //Remove position
-                            positions.remove(target);
+                                //Remove position
+                                positions.remove(item);
 
-                            //Remove intent
-                            pick_up_intents.remove(entity);
+                                //Remove intent
+                                pick_up_intents.remove(entity);
+                            }
                         }
                     }
 

@@ -1,10 +1,14 @@
 use rltk::prelude::*;
-use specs::prelude::*;
+use specs::{prelude::*, storage::GenericReadStorage};
 
 use crate::{
+    entities::intents::{InteractIntent, OpenIntent, PickUpIntent},
     gui::{interact_gui, MainMenuResult, MainMenuSelection},
     save_load_system,
-    systems::event_system::InteractionInformation,
+    systems::event_system::{
+        get_default_interactions, get_entity_interactions, InteractionInformation, InteractionType,
+    },
+    vectors::Vector3i,
     InContainer, Name, Renderable, RunState, State, INTERACT_MENU_WIDTH, MAP_SCREEN_WIDTH,
     TERMINAL_HEIGHT,
 };
@@ -147,6 +151,7 @@ pub fn interaction_menu(
     ctx: &mut Rltk,
     interactables: Vec<InteractionInformation>,
     position: Point,
+    secondary_menu: bool,
 ) {
     let entities = ecs.entities();
     let renderables = ecs.read_storage::<Renderable>();
@@ -183,6 +188,11 @@ pub fn interaction_menu(
                 let renderable = renderables.get(interactable_entity);
                 let name = names.get(interactable_entity);
 
+                let mut char_offset = 97;
+                if secondary_menu {
+                    char_offset = 65;
+                }
+
                 if y < 50 {
                     if interaction_information.entity_id != prev_id {
                         let mut color = RGB::named(rltk::WHITE).to_rgba(1.0);
@@ -211,7 +221,7 @@ pub fn interaction_menu(
                         interactable_menu_y + y,
                         format!(
                             "<{}> {}",
-                            to_char(97 + count),
+                            to_char(char_offset + count),
                             format!("{}", interaction_information.description)
                         ),
                     );
@@ -228,6 +238,7 @@ pub enum ItemMenuResult {
     Cancel,
     NoResponse,
     Selected,
+    Action,
 }
 
 pub fn show_inventory(
@@ -235,9 +246,13 @@ pub fn show_inventory(
     ctx: &mut Rltk,
     container_id: u32,
     selected_item: Option<Entity>,
-) -> ItemMenuResult {
+) -> (ItemMenuResult, Option<Entity>) {
     let names = game_state.ecs.read_storage::<Name>();
     let in_container = game_state.ecs.read_storage::<InContainer>();
+    let positions = game_state.ecs.read_storage::<Vector3i>();
+    let entities = game_state.ecs.entities();
+
+    let mut items = Vec::new();
 
     let inventory = (&in_container, &names)
         .join()
@@ -269,7 +284,7 @@ pub fn show_inventory(
     );
 
     let mut j = 0;
-    for (_, name) in (&in_container, &names)
+    for (_, name, entity) in (&in_container, &names, &entities)
         .join()
         .filter(|item| item.0.owner == container_id)
     {
@@ -298,17 +313,110 @@ pub fn show_inventory(
         ctx.print(21, y, &name.name.to_string());
         y += 1;
         j += 1;
+
+        items.push(entity);
+    }
+    if let Some(item) = selected_item {
+        let mut interactables = get_default_interactions(&game_state.ecs, item);
+        interactables.append(&mut get_entity_interactions(&game_state.ecs, item));
+
+        interaction_menu(
+            &game_state.ecs,
+            ctx,
+            interactables.clone(),
+            Point::new(MAP_SCREEN_WIDTH, 10),
+            true,
+        );
+
+        let player = *game_state.ecs.fetch::<Entity>();
+
+        return match ctx.key {
+            None => (ItemMenuResult::NoResponse, None),
+            Some(key) => {
+                if key >= VirtualKeyCode::A && key <= VirtualKeyCode::Z && ctx.shift {
+                    let selection = letter_to_option(key);
+                    if let Some(interactable) = interactables.get(selection as usize) {
+                        let entity = entities.entity(interactable.entity_id);
+                        match interactable.interaction_type {
+                            InteractionType::ComponentInteraction => {
+                                let mut interactions =
+                                    game_state.ecs.write_storage::<InteractIntent>();
+                                let _ = interactions.insert(
+                                    player,
+                                    InteractIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                    ),
+                                );
+                            }
+                            InteractionType::PickUpInteraction => {
+                                let mut pick_up_intents =
+                                    game_state.ecs.write_storage::<PickUpIntent>();
+                                let _ = pick_up_intents.insert(
+                                    player,
+                                    PickUpIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                        0.0,
+                                    ),
+                                );
+                            }
+                            InteractionType::OpenInteraction => {
+                                let mut open_intents = game_state.ecs.write_storage::<OpenIntent>();
+                                let _ = open_intents.insert(
+                                    player,
+                                    OpenIntent::new(
+                                        player,
+                                        entity,
+                                        interactable.id,
+                                        interactable.description.clone(),
+                                        interactable.cost,
+                                    ),
+                                );
+                            }
+                        }
+                        return (ItemMenuResult::Action, None);
+                    }
+                    (ItemMenuResult::NoResponse, None)
+                } else if key == VirtualKeyCode::Escape {
+                    (ItemMenuResult::Cancel, None)
+                } else {
+                    let selection = rltk::letter_to_option(key);
+                    if selection > -1 && selection < count as i32 {
+                        if let Some(item) = items.get(selection as usize) {
+                            (ItemMenuResult::Selected, Some(*item))
+                        } else {
+                            (ItemMenuResult::NoResponse, None)
+                        }
+                    } else {
+                        (ItemMenuResult::NoResponse, None)
+                    }
+                }
+            }
+        };
     }
 
-    /*if let Some(item) = selected_item {
-
-    }*/
-
     match ctx.key {
-        None => ItemMenuResult::NoResponse,
+        None => (ItemMenuResult::NoResponse, None),
         Some(key) => match key {
-            VirtualKeyCode::Escape => ItemMenuResult::Cancel,
-            _ => ItemMenuResult::NoResponse,
+            VirtualKeyCode::Escape => (ItemMenuResult::Cancel, None),
+            _ => {
+                let selection = rltk::letter_to_option(key);
+                let item = items.get(selection as usize);
+
+                if let Some(item) = item {
+                    if selection > -1 && selection < count as i32 {
+                        return (ItemMenuResult::Selected, Some(*item));
+                    }
+                }
+                (ItemMenuResult::NoResponse, None)
+            }
         },
     }
 }

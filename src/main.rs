@@ -2,20 +2,18 @@ use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
 use entities::intents::{Initiative, InteractIntent, MoveIntent, OpenIntent, PickUpIntent};
 use entities::power_components::{
-    BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
+    ControlPanel, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
 use entities::props::Cabinet;
-use gamelog::GameLog;
 use graphics::render_map;
 use menu::ItemMenuResult;
-use rltk::{to_char, GameState, Point, Rltk, RGB};
+use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
 extern crate serde;
 
 use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 
-use specs::world::EntitiesRes;
 use states::RunState;
 use vectors::Vector3i;
 
@@ -281,7 +279,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<PoweredState>();
     game_state.ecs.register::<PowerSwitch>();
     game_state.ecs.register::<PowerNode>();
-    game_state.ecs.register::<BreakerBox>();
+    game_state.ecs.register::<ControlPanel>();
 
     //Atmospherics
     game_state.ecs.register::<Atmosphere>();

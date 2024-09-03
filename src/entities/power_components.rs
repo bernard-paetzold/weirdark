@@ -68,7 +68,7 @@ impl PoweredState {
 }
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
-pub struct BreakerBox {}
+pub struct ControlPanel {}
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
 pub struct PowerSwitch {

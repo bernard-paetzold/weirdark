@@ -15,7 +15,7 @@ use specs::{Entity, Join};
 use crate::entities::biology::Breather;
 use crate::entities::intents::Initiative;
 use crate::entities::power_components::{
-    BreakerBox, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
+    ControlPanel, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
 use crate::entities::props::Cabinet;
 use crate::{
@@ -77,7 +77,7 @@ pub fn save_game(ecs: &mut World) {
             PoweredState,
             PowerSwitch,
             Wire,
-            BreakerBox,
+            ControlPanel,
             EntityDirection,
             Atmosphere,
             Breather,
@@ -166,7 +166,7 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             PoweredState,
             PowerSwitch,
             Wire,
-            BreakerBox,
+            ControlPanel,
             EntityDirection,
             Atmosphere,
             Breather,

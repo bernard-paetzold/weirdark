@@ -2,7 +2,7 @@ use std::u32::MAX;
 
 use crate::entities::intents::{InteractIntent, OpenIntent, PickUpIntent};
 use crate::entities::power_components::{
-    BreakerBox, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
+    ControlPanel, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
 use crate::graphics::char_to_glyph;
 use crate::menu::interaction_menu;
@@ -14,6 +14,7 @@ use crate::{mouse_to_map, InContainer, Installed, Item, INTERACT_MENU_WIDTH};
 use crate::{systems::event_system::get_entity_interactions, Renderable};
 use rltk::{letter_to_option, to_char, Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
+use specs::storage::GenericReadStorage;
 
 use crate::{
     gamelog::GameLog, get_player_entity, graphics::get_viewport_position, vectors::Vector3i, Map,
@@ -105,7 +106,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
     let players = ecs.read_storage::<Player>();
     let viewsheds = ecs.read_storage::<Viewshed>();
     let positions = ecs.read_storage::<Vector3i>();
-    let breaker_boxes = ecs.read_storage::<BreakerBox>();
+    let control_paneles = ecs.read_storage::<ControlPanel>();
     let entities = ecs.entities();
 
     let player = get_player_entity(&entities, &players);
@@ -127,7 +128,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, draw_pointer: bool) {
                     tile_entities.push(entity);
 
                     //Handle breaker boxes or other entities that control interactions off tile
-                    if let Some(_) = breaker_boxes.get(entity) {
+                    if let Some(_) = control_paneles.get(entity) {
                         interactables.append(&mut get_devices_on_subnetwork(&ecs, entity));
                     }
                 }
@@ -376,7 +377,7 @@ pub fn interact_gui(
     let power_sources = game_state.ecs.read_storage::<PowerSource>();
     let wires = game_state.ecs.read_storage::<Wire>();
     let nodes = game_state.ecs.read_storage::<PowerNode>();
-    let breaker_boxes = game_state.ecs.read_storage::<BreakerBox>();
+    let control_paneles = game_state.ecs.read_storage::<ControlPanel>();
     let installed = game_state.ecs.read_storage::<Installed>();
     let items = game_state.ecs.read_storage::<Item>();
 
@@ -405,7 +406,7 @@ pub fn interact_gui(
             interactables.append(&mut get_entity_interactions(&game_state.ecs, entity));
 
             //Handle breaker boxes or other entities that control interactions off tile
-            if let Some(_) = breaker_boxes.get(entity) {
+            if let Some(_) = control_paneles.get(entity) {
                 interactables.append(&mut get_devices_on_subnetwork(&game_state.ecs, entity));
             }
         }
@@ -842,6 +843,12 @@ pub fn interact_gui(
                                 InteractionType::PickUpInteraction => {
                                     let mut pick_up_intents =
                                         game_state.ecs.write_storage::<PickUpIntent>();
+                                    let volume = if let Some(item) = items.get(entity) {
+                                        item.volume
+                                    } else {
+                                        0.0
+                                    };
+
                                     let _ = pick_up_intents.insert(
                                         player,
                                         PickUpIntent::new(
@@ -850,7 +857,7 @@ pub fn interact_gui(
                                             interactable.id,
                                             interactable.description.clone(),
                                             interactable.cost,
-                                            0.0,
+                                            volume,
                                         ),
                                     );
                                 }

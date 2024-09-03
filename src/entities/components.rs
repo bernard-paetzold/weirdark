@@ -338,11 +338,14 @@ impl Prop {
 }
 
 #[derive(Component, Default, Serialize, Deserialize, Clone)]
-pub struct Item {}
+pub struct Item {
+    pub volume: f32,
+    pub weight: f32,
+}
 
 impl Item {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(volume: f32, weight: f32) -> Self {
+        Self { volume, weight }
     }
 }
 

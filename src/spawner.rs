@@ -11,7 +11,7 @@ use crate::{
     entities::{
         biology::Breather,
         intents::Initiative,
-        power_components::{BreakerBox, ElectronicHeater},
+        power_components::{ControlPanel, ElectronicHeater},
         props::Cabinet,
     },
     graphics::char_to_glyph,
@@ -48,7 +48,7 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
         .with(Name::new("Player".to_string()))
         .with(Breather::new_humanlike())
         .with(Initiative::new(0.0))
-        .with(Container::new(10.0))
+        .with(Container::new(2.0))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }
@@ -480,8 +480,8 @@ pub fn breaker_box(ecs: &mut World, position: Vector3i) {
             RGB::named(rltk::GRAY).to_rgba(1.0),
         ))
         .with(Photometry::new())
-        .with(BreakerBox {})
-        .with(Name::new("Breaker box".to_string()))
+        .with(ControlPanel {})
+        .with(Name::new("Control panel".to_string()))
         .with(PowerSwitch::new(true))
         .with(PowerNode::new())
         .with(Prop::new())
@@ -622,7 +622,7 @@ pub fn test_item(ecs: &mut World, position: Vector3i) -> Entity {
         ))
         .with(Photometry::new())
         .with(Name::new("Test tube".to_string()))
-        .with(Item::new())
+        .with(Item::new(1.0, 0.1))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }

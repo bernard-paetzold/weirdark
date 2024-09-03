@@ -5,7 +5,7 @@ use rltk::RandomNumberGenerator;
 use specs::prelude::*;
 
 use crate::{
-    entities::power_components::{BreakerBox, ElectronicHeater},
+    entities::power_components::{ControlPanel, ElectronicHeater},
     vectors::{utils::get_cardinal_neighbours_with_z, Vector3i},
     Illuminant, Photometry, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
@@ -26,7 +26,7 @@ impl<'a> System<'a> for PowerSystem {
         ReadStorage<'a, Vector3i>,
         WriteStorage<'a, Wire>,
         WriteStorage<'a, PowerNode>,
-        WriteStorage<'a, BreakerBox>,
+        WriteStorage<'a, ControlPanel>,
         WriteStorage<'a, ElectronicHeater>,
         Entities<'a>,
     );
@@ -41,7 +41,7 @@ impl<'a> System<'a> for PowerSystem {
             positions,
             mut wires,
             mut nodes,
-            breaker_boxes,
+            control_panels,
             mut electronic_heaters,
             entities,
         ) = data;
@@ -170,7 +170,7 @@ impl<'a> System<'a> for PowerSystem {
                         .filter(|(_, x, _, _)| **x == neighbour)
                     {
                         if !network_wires.contains(&entity.id()) {
-                            if let Some((_, _, _)) = (&breaker_boxes, &power_switches, &positions)
+                            if let Some((_, _, _)) = (&control_panels, &power_switches, &positions)
                                 .join()
                                 .filter(|(_, _, x)| *x == position)
                                 .next()
@@ -264,7 +264,7 @@ impl<'a> System<'a> for PowerSystem {
                             {
                                 if !wire_entities.contains(&entity.id()) {
                                     if let Some((_, switch, _)) =
-                                        (&breaker_boxes, &power_switches, &positions)
+                                        (&control_panels, &power_switches, &positions)
                                             .join()
                                             .filter(|(_, _, x)| *x == position)
                                             .next()
@@ -330,7 +330,7 @@ impl<'a> System<'a> for PowerSystem {
                                 {
                                     if !wire_entities.contains(&entity) {
                                         if let Some((_, switch, _)) =
-                                            (&breaker_boxes, &power_switches, &positions)
+                                            (&control_panels, &power_switches, &positions)
                                                 .join()
                                                 .filter(|(_, _, x)| *x == position)
                                                 .next()

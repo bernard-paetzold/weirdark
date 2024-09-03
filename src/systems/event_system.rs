@@ -11,7 +11,7 @@ use crate::{
         intents::{
             Initiative, Intent, InteractIntent, Interactable, MoveIntent, OpenIntent, PickUpIntent,
         },
-        power_components::BreakerBox,
+        power_components::ControlPanel,
     },
     gamelog::GameLog,
     states::RunState,
@@ -44,13 +44,14 @@ impl<'a> System<'a> for EventSystem {
         WriteStorage<'a, Viewshed>,
         WriteStorage<'a, Photometry>,
         WriteStorage<'a, Illuminant>,
-        WriteStorage<'a, BreakerBox>,
+        WriteStorage<'a, ControlPanel>,
         ReadStorage<'a, Blocker>,
         ReadStorage<'a, Camera>,
         WriteStorage<'a, PickUpIntent>,
         WriteStorage<'a, InContainer>,
         WriteStorage<'a, Container>,
         WriteStorage<'a, OpenIntent>,
+        ReadStorage<'a, Item>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
@@ -79,6 +80,7 @@ impl<'a> System<'a> for EventSystem {
             mut in_container,
             mut containers,
             mut open_intents,
+            items,
         ) = data;
 
         let mut next_state: Option<RunState> = None;
@@ -236,11 +238,12 @@ impl<'a> System<'a> for EventSystem {
             {
                 if let Some(pick_up_event) = pick_up_intents.get_mut(entity) {
                     let mut pick_up_valid = true;
+                    let item = items.get(pick_up_event.target).unwrap();
+
                     //TODO: Check item weight etc
                     match containers.get(entity) {
                         Some(container) => {
-                            if container.remaining_volume - pick_up_event.item_volume > 0.0 {
-                            } else {
+                            if container.remaining_volume - item.volume < 0.0 {
                                 //Item is too large
                                 pick_up_valid = false;
                                 game_log.entries.push("Item is too large".to_string());
@@ -257,8 +260,8 @@ impl<'a> System<'a> for EventSystem {
                     pick_up_event.update_remaining_cost(-TIME_PER_TURN);
 
                     if pick_up_event.get_remaining_cost() <= 0.0 && pick_up_valid {
-                        let item = pick_up_event.target.clone();
-                        let container = containers.get(pick_up_event.initiator);
+                        let item_entity = pick_up_event.target.clone();
+                        let container = containers.get_mut(pick_up_event.initiator);
                         //Add to container
 
                         if let Some(container) = container {
@@ -267,10 +270,13 @@ impl<'a> System<'a> for EventSystem {
                                     .insert(pick_up_event.target, InContainer::new(container.id));
 
                                 //Remove position
-                                positions.remove(item);
+                                positions.remove(item_entity);
 
                                 //Remove intent
                                 pick_up_intents.remove(entity);
+
+                                //Update container
+                                container.try_insert_item(item.volume);
                             }
                         }
                     }

@@ -132,11 +132,8 @@ pub trait Intent {
 pub struct PickUpIntent {
     pub initiator: Entity,
     pub target: Entity,
-    pub interaction_id: u32,
-    pub interaction_description: String,
     pub cost: f32,
     pub remaining_cost: f32,
-    pub item_volume: f32,
 }
 
 impl PickUpIntent {
@@ -151,11 +148,8 @@ impl PickUpIntent {
         PickUpIntent {
             initiator,
             target,
-            interaction_id,
-            interaction_description,
             cost,
             remaining_cost: cost,
-            item_volume,
         }
     }
 }

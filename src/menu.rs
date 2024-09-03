@@ -2,7 +2,7 @@ use rltk::prelude::*;
 use specs::{prelude::*, storage::GenericReadStorage};
 
 use crate::{
-    entities::intents::{InteractIntent, OpenIntent, PickUpIntent},
+    entities::intents::{DropIntent, InteractIntent, OpenIntent, PickUpIntent},
     gui::{interact_gui, MainMenuResult, MainMenuSelection},
     save_load_system,
     systems::event_system::{
@@ -338,7 +338,7 @@ pub fn show_inventory(
                     if let Some(interactable) = interactables.get(selection as usize) {
                         let entity = entities.entity(interactable.entity_id);
                         match interactable.interaction_type {
-                            InteractionType::ComponentInteraction => {
+                            InteractionType::Component => {
                                 let mut interactions =
                                     game_state.ecs.write_storage::<InteractIntent>();
                                 let _ = interactions.insert(
@@ -352,22 +352,15 @@ pub fn show_inventory(
                                     ),
                                 );
                             }
-                            InteractionType::PickUpInteraction => {
+                            InteractionType::PickUp => {
                                 let mut pick_up_intents =
                                     game_state.ecs.write_storage::<PickUpIntent>();
                                 let _ = pick_up_intents.insert(
                                     player,
-                                    PickUpIntent::new(
-                                        player,
-                                        entity,
-                                        interactable.id,
-                                        interactable.description.clone(),
-                                        interactable.cost,
-                                        0.0,
-                                    ),
+                                    PickUpIntent::new(player, entity, interactable.cost),
                                 );
                             }
-                            InteractionType::OpenInteraction => {
+                            InteractionType::Open => {
                                 let mut open_intents = game_state.ecs.write_storage::<OpenIntent>();
                                 let _ = open_intents.insert(
                                     player,
@@ -378,6 +371,13 @@ pub fn show_inventory(
                                         interactable.description.clone(),
                                         interactable.cost,
                                     ),
+                                );
+                            }
+                            InteractionType::Drop => {
+                                let mut open_intents = game_state.ecs.write_storage::<DropIntent>();
+                                let _ = open_intents.insert(
+                                    player,
+                                    DropIntent::new(player, entity, interactable.cost),
                                 );
                             }
                         }

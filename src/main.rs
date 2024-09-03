@@ -1,6 +1,8 @@
 use entities::atmospherics::Atmosphere;
 use entities::biology::Breather;
-use entities::intents::{Initiative, InteractIntent, MoveIntent, OpenIntent, PickUpIntent};
+use entities::intents::{
+    DropIntent, Initiative, InteractIntent, MoveIntent, OpenIntent, PickUpIntent,
+};
 use entities::power_components::{
     ControlPanel, ElectronicHeater, PowerNode, PowerSource, PowerSwitch, PoweredState, Wire,
 };
@@ -294,6 +296,7 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<MoveIntent>();
     game_state.ecs.register::<PickUpIntent>();
     game_state.ecs.register::<OpenIntent>();
+    game_state.ecs.register::<DropIntent>();
 
     //Item
     game_state.ecs.register::<Installed>();

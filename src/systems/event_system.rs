@@ -9,7 +9,8 @@ use specs::{
 use crate::{
     entities::{
         intents::{
-            Initiative, Intent, InteractIntent, Interactable, MoveIntent, OpenIntent, PickUpIntent,
+            DropIntent, Initiative, Intent, InteractIntent, Interactable, MoveIntent, OpenIntent,
+            PickUpIntent,
         },
         power_components::ControlPanel,
     },
@@ -51,6 +52,7 @@ impl<'a> System<'a> for EventSystem {
         WriteStorage<'a, InContainer>,
         WriteStorage<'a, Container>,
         WriteStorage<'a, OpenIntent>,
+        WriteStorage<'a, DropIntent>,
         ReadStorage<'a, Item>,
     );
 
@@ -80,6 +82,7 @@ impl<'a> System<'a> for EventSystem {
             mut in_container,
             mut containers,
             mut open_intents,
+            mut drop_intents,
             items,
         ) = data;
 
@@ -291,14 +294,47 @@ impl<'a> System<'a> for EventSystem {
                 }
             }
 
+            //Handle drop intents
+            {
+                if let Some(drop_event) = drop_intents.get_mut(entity) {
+                    let item = items.get(drop_event.target).unwrap();
+
+                    drop_event.update_remaining_cost(-TIME_PER_TURN);
+
+                    if drop_event.get_remaining_cost() <= 0.0 {
+                        let item_entity = drop_event.target.clone();
+                        let container = containers.get_mut(drop_event.initiator);
+                        //Add to container
+
+                        if let Some(container) = container {
+                            //Add position
+                            if let Some(position) = positions.get(drop_event.initiator) {
+                                let _ = positions.insert(item_entity, position.clone());
+                            }
+
+                            //Remove in container
+                            in_container.remove(item_entity);
+
+                            //Remove intent
+                            drop_intents.remove(entity);
+
+                            //Update container
+                            container.remove_item(item.volume);
+                        }
+                    }
+
+                    if is_player {
+                        queue_empty = false;
+                    }
+                }
+            }
+
             //Handle open container events
             {
                 if let Some(open_event) = open_intents.get_mut(entity) {
                     open_event.update_remaining_cost(-TIME_PER_TURN);
 
                     if open_event.get_remaining_cost() <= 0.0 {
-                        let target_id = open_event.target.clone().id();
-
                         next_state = Some(RunState::ShowInventory {
                             id: open_event.interaction_id,
                             selected_item: None,
@@ -326,9 +362,10 @@ impl<'a> System<'a> for EventSystem {
 }
 #[derive(Clone, Copy)]
 pub enum InteractionType {
-    ComponentInteraction,
-    PickUpInteraction,
-    OpenInteraction,
+    Component,
+    PickUp,
+    Open,
+    Drop,
 }
 
 #[derive(Clone)]
@@ -380,7 +417,7 @@ pub fn get_entity_interactions(ecs: &World, entity: Entity) -> Vec<InteractionIn
                             format!("{} ({}): {}", name, interactable.state_description(), interactable.interaction_description),
                             entity.id(),
                             interactable.get_cost(),
-                            InteractionType::ComponentInteraction,
+                            InteractionType::Component,
                         ));
                     }
                 )*
@@ -398,6 +435,7 @@ pub fn get_default_interactions(ecs: &World, entity: Entity) -> Vec<InteractionI
     let mut interactions = Vec::new();
     let installed = ecs.read_storage::<Installed>();
     let containers = ecs.read_storage::<Container>();
+    let in_containers = ecs.read_storage::<InContainer>();
 
     //Item pickup
     {
@@ -408,7 +446,20 @@ pub fn get_default_interactions(ecs: &World, entity: Entity) -> Vec<InteractionI
                 format!("{}", "Pick up".to_string()),
                 entity.id(),
                 1.0,
-                InteractionType::PickUpInteraction,
+                InteractionType::PickUp,
+            ));
+        }
+    }
+
+    //If item is in a container, give an option to drop it
+    {
+        if in_containers.get(entity).is_some() {
+            interactions.push(InteractionInformation::new(
+                entity.id(),
+                format!("{}", "Drop".to_string()),
+                entity.id(),
+                1.0,
+                InteractionType::Drop,
             ));
         }
     }
@@ -421,7 +472,7 @@ pub fn get_default_interactions(ecs: &World, entity: Entity) -> Vec<InteractionI
                 format!("{}", "Open".to_string()),
                 entity.id(),
                 1.0,
-                InteractionType::OpenInteraction,
+                InteractionType::Open,
             ));
         }
     }

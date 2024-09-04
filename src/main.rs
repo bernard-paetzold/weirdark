@@ -333,6 +333,7 @@ fn main() -> rltk::BError {
 
     game_state.ecs.insert(map);
     builder.spawn_entities(&mut game_state.ecs);
+    game_state.ecs.insert(builder.get_map());
 
     game_state.ecs.insert(gamelog::GameLog {
         entries: vec!["Game log".to_string()],

@@ -7,6 +7,7 @@ pub enum AreaType {
     Corridor,
     GenericRoom,
     GeneratorRoom,
+    Cockpit,
 }
 
 pub trait Area {

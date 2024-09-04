@@ -186,61 +186,63 @@ pub fn power_source(ecs: &mut World, position: Vector3i, on: bool, power: f32) {
 
 #[allow(dead_code)]
 pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_position: Vector3i) {
-    let mut path: Vec<Vector3i> = Vec::new();
+    let path: Vec<Vector3i>;
     if start_position.z == end_position.z {
         path = find_walkable_path(map, start_position, end_position);
-    }
+    } else {
+        path = wall_climb_path(map, start_position, end_position, &HashSet::new(), true)
+    };
 
     ecs.create_entity()
-        .with(start_position + Vector3i::new(-1, 0, 0))
+        .with(start_position + Vector3i::DOWN)
         .with(Renderable::new(
-            char_to_glyph('═'),
-            char_to_glyph('═'),
+            char_to_glyph('■'),
+            char_to_glyph('■'),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             RGB::named(rltk::GRAY).to_rgba(1.0),
         ))
         .with(Photometry::new())
         .with(Name::new("Duct".to_string()))
         .with(Duct::new())
-        .with(EntityDirection::new(Direction::E))
+        .with(EntityDirection::new(Direction::UP))
         .with(Blocker::new(vec![
             Direction::N,
             Direction::S,
             Direction::W,
-            Direction::DOWN,
+            Direction::E,
         ]))
         .with(VisionBlocker::new(vec![
             Direction::N,
             Direction::S,
             Direction::W,
-            Direction::DOWN,
+            Direction::E,
         ]))
-        .with(Name::new(format!("Duct ({:?})", Direction::E)))
+        .with(Name::new(format!("Duct ({:?})", Direction::UP)))
         .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 
-    ecs.create_entity()
-        .with(start_position + Vector3i::new(-1, 0, 1))
-        .with(Renderable::new(
-            char_to_glyph('■'),
-            char_to_glyph('■'),
-            RGB::named(rltk::BLACK).to_rgba(1.0),
-            RGB::named(rltk::GRAY).to_rgba(1.0),
-        ))
-        .with(Photometry::new())
-        .with(Name::new("Duct".to_string()))
-        .with(Duct::new())
-        .with(Name::new(format!("Duct ({:?})", Direction::UP)))
-        .with(Blocker::new_cardinal_sides())
-        .with(VisionBlocker::new_cardinal_sides())
-        .with(Prop::new())
-        .with(Installed::new())
-        .marked::<SimpleMarker<SerializeThis>>()
-        .build();
+    /*ecs.create_entity()
+    .with(start_position + Vector3i::new(-1, 0, 1))
+    .with(Renderable::new(
+        char_to_glyph('■'),
+        char_to_glyph('■'),
+        RGB::named(rltk::BLACK).to_rgba(1.0),
+        RGB::named(rltk::GRAY).to_rgba(1.0),
+    ))
+    .with(Photometry::new())
+    .with(Name::new("Duct".to_string()))
+    .with(Duct::new())
+    .with(Name::new(format!("Duct ({:?})", Direction::DOWN)))
+    .with(Blocker::new_cardinal_sides())
+    .with(VisionBlocker::new_cardinal_sides())
+    .with(Prop::new())
+    .with(Installed::new())
+    .marked::<SimpleMarker<SerializeThis>>()
+    .build();*/
 
     let mut prev_position = start_position;
-    let mut prev_direction = Direction::DOWN;
+    let mut prev_direction = Direction::UP;
 
     let mut count = 0;
 
@@ -253,6 +255,22 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         let mut char = '║';
 
         let next_position = path.get(count + 1);
+
+        let mut duct_prevent = false;
+
+        //If the wire meets an existing wire, do not add a second wire
+        {
+            let positions = ecs.read_storage::<Vector3i>();
+            let ducts = ecs.read_storage::<Duct>();
+
+            for (_, _) in (&ducts, &positions).join().filter(|(_, x)| *x == position) {
+                duct_prevent = true;
+            }
+        }
+
+        if duct_prevent {
+            continue;
+        }
 
         if let Some(next_postion) = next_position {
             next_vec_direction = *next_postion - *position;

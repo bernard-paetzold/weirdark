@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    i32::MAX,
+};
 
 use rltk::RGB;
 use specs::World;
@@ -69,6 +72,13 @@ impl SmallCargoShipMapBuilder {
                             *position + Vector3i::UP * 2 + Vector3i::new(x, y, 0),
                             hull.clone(),
                         );
+
+                        //Add empty tile for ducts in the roof.
+                        self.map.tiles.insert(
+                            *position + Vector3i::UP * 3 + Vector3i::new(x, y, 0),
+                            Tile::new_vacuume(),
+                        );
+
                         corridor_tiles.insert(*position + Vector3i::new(x, y, 0));
                     } else if let Some(tile) =
                         self.map.tiles.get(&(*position + Vector3i::new(x, y, 0)))
@@ -104,8 +114,12 @@ impl SmallCargoShipMapBuilder {
     pub fn build_room(&mut self, room: &mut Room) -> bool {
         let hull =
             crate::tile_blueprints::get_tile("hull").unwrap_or_else(|| Tile::new_empty_stp());
+
         let breathable_atmosphere = crate::tile_blueprints::get_tile("breathable_atmosphere")
             .unwrap_or_else(|| Tile::new_empty_stp());
+
+        let vacuume =
+            crate::tile_blueprints::get_tile("vacuume").unwrap_or_else(|| Tile::new_vacuume());
 
         //Pick side to expand into
         let neighbours = get_cardinal_neighbours(room.centre);
@@ -174,6 +188,11 @@ impl SmallCargoShipMapBuilder {
             self.map
                 .tiles
                 .insert(*tile_position + Vector3i::UP * 2, hull.clone());
+
+            //Add empty tile for ducts in the roof.
+            self.map
+                .tiles
+                .insert(*tile_position + Vector3i::UP * 3, vacuume.clone());
 
             //If the tile is at the edge of the room, make it a wall
             let mut neighbours = 0;
@@ -337,7 +356,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
             sterm_room_position,
             Vector3i::new(7, 9, 4),
             "cockpit".to_string(),
-            AreaType::GenericRoom,
+            AreaType::Cockpit,
             true,
         );
 
@@ -400,10 +419,12 @@ impl MapBuilder for SmallCargoShipMapBuilder {
 
     fn spawn_entities(&mut self, ecs: &mut specs::World) {
         let mut breaker_positions = HashSet::new();
+        let mut area_positions = Vec::new();
         let mut device_positions = Vec::new();
 
         //Pick a random room to be the power room
         let mut generator_breaker = Vector3i::new_equi(0);
+        let mut generator_room_position = Vector3i::new_equi(0);
 
         for area in self.get_areas().iter_mut() {
             SmallCargoShipMapBuilder::populate_area(ecs, area);
@@ -413,14 +434,49 @@ impl MapBuilder for SmallCargoShipMapBuilder {
             if let Some(breaker_position) = area.get_breaker_pos() {
                 breaker_positions.insert(breaker_position.clone());
 
+                if area.get_area_type() == AreaType::GenericRoom {
+                    area_positions.push((
+                        area.get_area_position().clone() + Vector3i::UP * 3,
+                        (area.get_area_position().clone() + Vector3i::UP * 3)
+                            * Vector3i::new(1, 0, 1),
+                    ));
+                } else if area.get_area_type() == AreaType::Cockpit {
+                    area_positions.push((
+                        area.get_area_position().clone() + Vector3i::UP * 3,
+                        Vector3i::new_equi(MAX),
+                    ));
+                }
+
                 if area.get_area_type() == AreaType::GeneratorRoom {
                     generator_breaker = breaker_position.clone();
+                    generator_room_position = *area.get_area_position();
                 }
 
                 for device in area.get_power_connections().iter() {
                     device_positions.push((breaker_position.clone(), device.clone()));
                 }
             }
+        }
+
+        for area_position in area_positions.iter_mut() {
+            if area_position.1.x == MAX {
+                area_position.1 = generator_room_position.clone() + Vector3i::UP * 3;
+            }
+            //Duct
+            spawner::lay_ducting(
+                ecs,
+                self.get_map(),
+                area_position.0,
+                area_position.1 + (Vector3i::S * area_position.0.normalize_delta()),
+            );
+
+            self.map
+                .tiles
+                .insert(area_position.0 + Vector3i::UP * 2, Tile::new_empty_stp());
+            self.map.tiles.insert(
+                generator_room_position + Vector3i::UP * 2,
+                Tile::new_empty_stp(),
+            );
         }
 
         for position in breaker_positions.iter() {

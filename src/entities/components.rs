@@ -12,7 +12,7 @@ use specs_derive::*;
 
 use super::intents::Interactable;
 
-#[derive(Default, Debug, Serialize, PartialEq, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, PartialEq, Hash, Eq, Deserialize, Clone)]
 pub enum Direction {
     #[default]
     N,
@@ -108,6 +108,23 @@ impl Blocker {
             ],
         }
     }
+
+    pub fn remove_side(&mut self, side_to_remove: Direction) {
+        let mut index = -1;
+        let mut count = 0;
+
+        for side in self.sides.iter() {
+            if *side == side_to_remove {
+                index = count;
+                break;
+            }
+            count += 1;
+        }
+
+        if index >= 0 {
+            self.sides.remove(index as usize);
+        }
+    }
 }
 
 #[derive(Component, Clone)]
@@ -165,6 +182,23 @@ impl VisionBlocker {
                 Direction::UP,
                 Direction::DOWN,
             ],
+        }
+    }
+
+    pub fn remove_side(&mut self, side_to_remove: Direction) {
+        let mut index = -1;
+        let mut count = 0;
+
+        for side in self.sides.iter() {
+            if *side == side_to_remove {
+                index = count;
+                break;
+            }
+            count += 1;
+        }
+
+        if index >= 0 {
+            self.sides.remove(index as usize);
         }
     }
 }

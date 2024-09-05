@@ -16,7 +16,10 @@ use crate::{
     },
     graphics::char_to_glyph,
     pathfinding::{find_walkable_path, wall_climb_path},
-    vectors::Vector3i,
+    vectors::{
+        utils::{get_cardinal_neighbours, get_cardinal_neighbours_with_z},
+        Vector3i,
+    },
     Blocker, Container, Direction, Door, Duct, EntityDirection, Illuminant, InContainer, Installed,
     Item, Map, Name, Photometry, Player, PowerNode, PowerSource, PowerSwitch, PoweredState, Prop,
     Renderable, SerializeThis, Viewshed, VisionBlocker, Wire,
@@ -222,25 +225,6 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         .marked::<SimpleMarker<SerializeThis>>()
         .build();
 
-    /*ecs.create_entity()
-    .with(start_position + Vector3i::new(-1, 0, 1))
-    .with(Renderable::new(
-        char_to_glyph('■'),
-        char_to_glyph('■'),
-        RGB::named(rltk::BLACK).to_rgba(1.0),
-        RGB::named(rltk::GRAY).to_rgba(1.0),
-    ))
-    .with(Photometry::new())
-    .with(Name::new("Duct".to_string()))
-    .with(Duct::new())
-    .with(Name::new(format!("Duct ({:?})", Direction::DOWN)))
-    .with(Blocker::new_cardinal_sides())
-    .with(VisionBlocker::new_cardinal_sides())
-    .with(Prop::new())
-    .with(Installed::new())
-    .marked::<SimpleMarker<SerializeThis>>()
-    .build();*/
-
     let mut prev_position = start_position;
     let mut prev_direction = Direction::UP;
 
@@ -252,13 +236,11 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         let mut vec_direction = *position - prev_position;
         let mut direction = Direction::NW;
 
-        let mut char = '║';
-
         let next_position = path.get(count + 1);
 
         let mut duct_prevent = false;
 
-        //If the wire meets an existing wire, do not add a second wire
+        //If the duct meets an existing one, do not add a second
         {
             let positions = ecs.read_storage::<Vector3i>();
             let ducts = ecs.read_storage::<Duct>();
@@ -280,185 +262,228 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
             }
         }
 
-        let mut sides: Vec<Direction> = Vec::new();
+        let mut sides: HashSet<Direction> = HashSet::new();
 
         if vec_direction == Vector3i::N {
             direction = Direction::N;
-            char = '║';
 
             if next_vec_direction != Vector3i::N {
-                sides.push(Direction::N);
+                sides.insert(Direction::N);
             }
 
             if next_vec_direction == Vector3i::E {
-                char = '╔';
             } else {
-                sides.push(Direction::E);
+                sides.insert(Direction::E);
             }
 
             if next_vec_direction == Vector3i::W {
-                char = '╗';
             } else {
-                sides.push(Direction::W);
+                sides.insert(Direction::W);
             }
 
             if next_vec_direction != Vector3i::UP
                 && (prev_direction != Direction::DOWN || prev_direction != Direction::UP)
             {
-                sides.push(Direction::UP);
+                sides.insert(Direction::UP);
             }
 
             if next_vec_direction != Vector3i::DOWN {
-                sides.push(Direction::DOWN);
+                sides.insert(Direction::DOWN);
             }
         } else if vec_direction == Vector3i::W {
             direction = Direction::W;
-            char = '═';
 
             if next_vec_direction != Vector3i::W {
-                sides.push(Direction::W);
+                sides.insert(Direction::W);
             }
 
             if next_vec_direction == Vector3i::N {
-                char = '╝';
             } else {
-                sides.push(Direction::N);
+                sides.insert(Direction::N);
             }
 
             if next_vec_direction == Vector3i::S {
-                char = '╗';
             } else {
-                sides.push(Direction::S);
+                sides.insert(Direction::S);
             }
 
             if next_vec_direction != Vector3i::UP
                 && !(prev_direction == Direction::DOWN || prev_direction == Direction::UP)
             {
-                sides.push(Direction::UP);
+                sides.insert(Direction::UP);
             }
 
             if next_vec_direction == Vector3i::DOWN {
-                sides.push(Direction::DOWN);
+                sides.insert(Direction::DOWN);
             }
         } else if vec_direction == Vector3i::S {
             direction = Direction::S;
-            char = '║';
 
             if next_vec_direction != Vector3i::S {
-                sides.push(Direction::S);
+                sides.insert(Direction::S);
             }
 
             if next_vec_direction == Vector3i::E {
-                char = '╔';
             } else {
-                sides.push(Direction::E);
+                sides.insert(Direction::E);
             }
 
             if next_vec_direction == Vector3i::W {
-                char = '╗';
             } else {
-                sides.push(Direction::W);
+                sides.insert(Direction::W);
             }
 
             if next_vec_direction != Vector3i::UP
                 && !(prev_direction == Direction::DOWN || prev_direction == Direction::UP)
             {
-                sides.push(Direction::UP);
+                sides.insert(Direction::UP);
             }
 
             if next_vec_direction != Vector3i::DOWN {
-                sides.push(Direction::DOWN);
+                sides.insert(Direction::DOWN);
             }
         } else if vec_direction == Vector3i::E {
             direction = Direction::E;
-            char = '═';
 
             if next_vec_direction != Vector3i::E {
-                sides.push(Direction::E);
+                sides.insert(Direction::E);
             }
 
             if next_vec_direction == Vector3i::N {
-                char = '╝';
             } else {
-                sides.push(Direction::N);
+                sides.insert(Direction::N);
             }
 
             if next_vec_direction == Vector3i::S {
-                char = '╗';
             } else {
-                sides.push(Direction::S);
+                sides.insert(Direction::S);
             }
 
             if next_vec_direction != Vector3i::UP
                 && !(prev_direction == Direction::DOWN || prev_direction == Direction::UP)
             {
-                sides.push(Direction::UP);
+                sides.insert(Direction::UP);
             }
 
             if next_vec_direction != Vector3i::DOWN {
-                sides.push(Direction::DOWN);
+                sides.insert(Direction::DOWN);
             }
         } else if vec_direction == Vector3i::UP {
             direction = Direction::UP;
 
             if next_vec_direction != Vector3i::UP {
-                sides.push(Direction::UP);
+                sides.insert(Direction::UP);
             }
 
             if next_vec_direction == Vector3i::N {
-                char = '□';
             } else {
-                sides.push(Direction::N);
+                sides.insert(Direction::N);
             }
 
             if next_vec_direction == Vector3i::S {
-                char = '□';
             } else {
-                sides.push(Direction::S);
+                sides.insert(Direction::S);
             }
 
             if next_vec_direction == Vector3i::E {
-                char = '□';
             } else {
-                sides.push(Direction::E);
+                sides.insert(Direction::E);
             }
 
             if next_vec_direction == Vector3i::W {
-                char = '□';
             } else {
-                sides.push(Direction::W);
+                sides.insert(Direction::W);
             }
         } else if vec_direction == Vector3i::DOWN {
             direction = Direction::DOWN;
+        }
 
-            if next_vec_direction != Vector3i::UP {
-                sides.push(Direction::UP);
-            }
+        {
+            //If there is a node that runs into this one, connect them
+            let neighbours = get_cardinal_neighbours_with_z(*position);
 
-            if next_vec_direction == Vector3i::N {
-                char = '□';
-            } else {
-                sides.push(Direction::N);
-            }
+            let positions = ecs.read_storage::<Vector3i>();
+            let ducts = ecs.read_storage::<Duct>();
+            let directions = ecs.read_storage::<EntityDirection>();
+            let mut blockers = ecs.write_storage::<Blocker>();
+            let mut vision_blockers = ecs.write_storage::<VisionBlocker>();
+            let mut renderables = ecs.write_storage::<Renderable>();
 
-            if next_vec_direction == Vector3i::S {
-                char = '□';
-            } else {
-                sides.push(Direction::S);
-            }
+            for neighbour in neighbours.iter() {
+                for (_, other_position, other_direction, blockers, vision_blockers, renderable) in (
+                    &ducts,
+                    &positions,
+                    &directions,
+                    &mut blockers,
+                    &mut vision_blockers,
+                    &mut renderables,
+                )
+                    .join()
+                    .filter(|(_, x, _, _, _, _)| **x == *neighbour)
+                {
+                    if (direction == Direction::N || direction == Direction::S)
+                        && (other_direction.direction == Direction::E
+                            || other_direction.direction == Direction::W)
+                    {
+                        let mut relative_direction =
+                            (*other_position - *position).normalize_delta();
 
-            if next_vec_direction == Vector3i::E {
-                char = '□';
-            } else {
-                sides.push(Direction::E);
-            }
+                        relative_direction.z = 0;
 
-            if next_vec_direction == Vector3i::W {
-                char = '□';
-            } else {
-                sides.push(Direction::W);
+                        if relative_direction == Vector3i::N {
+                            sides.remove(&Direction::N);
+                            blockers.remove_side(Direction::S);
+                            vision_blockers.remove_side(Direction::S);
+                        } else {
+                            sides.remove(&Direction::S);
+                            blockers.remove_side(Direction::N);
+                            vision_blockers.remove_side(Direction::N);
+                        }
+                    } else if (direction == Direction::E || direction == Direction::W)
+                        && (other_direction.direction == Direction::N
+                            || other_direction.direction == Direction::S)
+                    {
+                        let mut relative_direction =
+                            (*other_position - *position).normalize_delta();
+
+                        relative_direction.z = 0;
+
+                        if relative_direction == Vector3i::E {
+                            sides.remove(&Direction::E);
+                            blockers.remove_side(Direction::W);
+                            vision_blockers.remove_side(Direction::W);
+                        } else {
+                            sides.remove(&Direction::W);
+                            blockers.remove_side(Direction::E);
+                            vision_blockers.remove_side(Direction::E);
+                        }
+                    }
+
+                    let mut relative_direction = (*other_position - *position).normalize_delta();
+
+                    relative_direction.x = 0;
+                    relative_direction.y = 0;
+
+                    if other_direction.direction == Direction::UP {
+                        sides.remove(&Direction::DOWN);
+                        blockers.remove_side(Direction::UP);
+                        vision_blockers.remove_side(Direction::UP);
+                    } else if other_direction.direction == Direction::DOWN {
+                        sides.remove(&Direction::UP);
+                        blockers.remove_side(Direction::DOWN);
+                        vision_blockers.remove_side(Direction::DOWN);
+                    }
+
+                    let new_char = char_to_glyph(update_duct_char_from_sides(&blockers.sides));
+                    renderable.side_glyph = new_char;
+                    renderable.top_glyph = new_char;
+                }
             }
         }
+
+        let char = update_duct_char(&sides);
+
+        let sides: Vec<Direction> = sides.into_iter().collect();
 
         ecs.create_entity()
             .with(*position)
@@ -673,5 +698,57 @@ pub fn put_item_in_container(ecs: &mut World, item: Entity, container: Entity) {
 
     if let Some(container_component) = containers.get(container) {
         let _ = in_container.insert(item, InContainer::new(container_component.id));
+    }
+}
+
+fn update_duct_char(sides: &HashSet<Direction>) -> char {
+    match (
+        sides.contains(&Direction::N),
+        sides.contains(&Direction::S),
+        sides.contains(&Direction::E),
+        sides.contains(&Direction::W),
+    ) {
+        (false, false, false, false) => '╬', // All sides open
+        (true, true, true, true) => '■',     // All sides closed
+        (true, true, true, false) => '╣',    // West open
+        (true, true, false, true) => '╠',    // East open
+        (true, false, true, true) => '╩',    // South open
+        (false, true, true, true) => '╦',    // North open
+        (true, true, false, false) => '═',   // East and West open
+        (false, false, true, true) => '║',   // North and South open
+        (false, true, false, true) => '╗',   // North and East open
+        (false, true, true, false) => '╔',   // North and West open
+        (true, false, false, true) => '╝',   // South and East open
+        (true, false, true, false) => '╚',   // South and West open
+        (false, true, false, false) => '╨',  // North, East, and West open
+        (true, false, false, false) => '╥',  // South, East, and West open
+        (false, false, false, true) => '╡',  // North, South, and East open
+        (false, false, true, false) => '╞',  // North, South, and West open
+    }
+}
+
+pub fn update_duct_char_from_sides(sides: &Vec<Direction>) -> char {
+    match (
+        sides.contains(&Direction::N),
+        sides.contains(&Direction::S),
+        sides.contains(&Direction::E),
+        sides.contains(&Direction::W),
+    ) {
+        (false, false, false, false) => '╬', // All sides open
+        (true, true, true, true) => '■',     // All sides closed
+        (true, true, true, false) => '╣',    // West open
+        (true, true, false, true) => '╠',    // East open
+        (true, false, true, true) => '╩',    // South open
+        (false, true, true, true) => '╦',    // North open
+        (true, true, false, false) => '═',   // East and West open
+        (false, false, true, true) => '║',   // North and South open
+        (false, true, false, true) => '╗',   // North and East open
+        (false, true, true, false) => '╔',   // North and West open
+        (true, false, false, true) => '╝',   // South and East open
+        (true, false, true, false) => '╚',   // South and West open
+        (false, true, false, false) => '╨',  // North, East, and West open
+        (true, false, false, false) => '╥',  // South, East, and West open
+        (false, false, false, true) => '╡',  // North, South, and East open
+        (false, false, true, false) => '╞',  // North, South, and West open
     }
 }

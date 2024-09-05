@@ -458,6 +458,11 @@ impl MapBuilder for SmallCargoShipMapBuilder {
             }
         }
 
+        //Add opening to roof of generator room
+        self.map
+            .tiles
+            .remove(&(generator_room_position + Vector3i::UP * 2));
+
         for area_position in area_positions.iter_mut() {
             if area_position.1.x == MAX {
                 area_position.1 = generator_room_position.clone() + Vector3i::UP * 3;
@@ -472,11 +477,7 @@ impl MapBuilder for SmallCargoShipMapBuilder {
 
             self.map
                 .tiles
-                .insert(area_position.0 + Vector3i::UP * 2, Tile::new_empty_stp());
-            self.map.tiles.insert(
-                generator_room_position + Vector3i::UP * 2,
-                Tile::new_empty_stp(),
-            );
+                .insert(area_position.0 + Vector3i::DOWN, Tile::new_empty_stp());
         }
 
         for position in breaker_positions.iter() {

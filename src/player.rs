@@ -21,12 +21,14 @@ use serde::Serialize;
 #[derive(Component, Serialize, Deserialize, Debug, Clone)]
 pub struct Player {
     pub power_overlay: bool,
+    pub gas_overlay: bool,
 }
 
 impl Player {
     pub fn new() -> Player {
         Player {
             power_overlay: false,
+            gas_overlay: false,
         }
     }
 }
@@ -181,6 +183,15 @@ pub fn toggle_power_overlay(ecs: &mut World) {
     }
 }
 
+pub fn toggle_gas_overlay(ecs: &mut World) {
+    let mut players = ecs.write_storage::<Player>();
+    let player_positions = ecs.read_storage::<Vector3i>();
+
+    for (_, player) in (&player_positions, &mut players).join() {
+        player.gas_overlay = !player.gas_overlay;
+    }
+}
+
 pub fn handle_other_input(
     ecs: &mut World,
     key: VirtualKeyCode,
@@ -206,6 +217,10 @@ pub fn handle_other_input(
             //Enable power overlay
             VirtualKeyCode::P => {
                 toggle_power_overlay(ecs);
+                return sending_state;
+            }
+            VirtualKeyCode::G => {
+                toggle_gas_overlay(ecs);
                 return sending_state;
             }
             _ => return sending_state,

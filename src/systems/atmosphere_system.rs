@@ -1,11 +1,18 @@
+use rayon::prelude::*;
 use specs::prelude::*;
+
 use std::collections::{HashMap, HashSet};
 
 use crate::{
     entities::atmospherics::{Gas, R},
-    vectors::{utils::get_neighbours, Vector3i},
-    Map,
+    vectors::{
+        utils::{get_neighbours, get_neighbours_with_z},
+        Vector3i,
+    },
+    Blocker, Map,
 };
+
+use super::event_system::check_entity_blocking;
 
 const PRESSURE_THRESHOLD: f32 = 0.00001;
 const DISSIPATION_THRESHOLD: f32 = 0.00001;
@@ -15,17 +22,21 @@ const PRESSURE_SMOOTHING: f32 = 0.6;
 pub struct AtmosphereSystem {}
 
 impl<'a> System<'a> for AtmosphereSystem {
-    type SystemData = (WriteExpect<'a, Map>,);
+    type SystemData = (
+        WriteExpect<'a, Map>,
+        ReadStorage<'a, Blocker>,
+        WriteStorage<'a, Vector3i>,
+    );
 
     fn run(&mut self, data: Self::SystemData) {
         //let now = std::time::Instant::now();
-        let (mut map,) = data;
+        let (mut map, blockers, mut positions) = data;
 
-        let mut dirty_atmospheres = HashSet::new();
+        /*let mut dirty_atmospheres = HashSet::new();
 
         for (position, tile) in map
             .tiles
-            .iter_mut()
+            .par_iter_mut()
             .filter(|(_, tile)| tile.atmosphere.dirty)
         {
             dirty_atmospheres.insert(position.clone());
@@ -33,10 +44,22 @@ impl<'a> System<'a> for AtmosphereSystem {
             tile.atmosphere.recalculate_temperature();
             tile.atmosphere.recalculate_pressure();
             tile.atmosphere.dirty = false;
-        }
+        }*/
+
+        let dirty_atmospheres: HashSet<_> = map
+            .tiles
+            .par_iter_mut()
+            .filter(|(_, tile)| tile.atmosphere.dirty)
+            .map(|(position, tile)| {
+                tile.atmosphere.recalculate_temperature();
+                tile.atmosphere.recalculate_pressure();
+                tile.atmosphere.dirty = false;
+                position.clone()
+            })
+            .collect();
 
         for position in dirty_atmospheres.iter() {
-            let neighbours = get_accessible_neighbours(&map, position).clone();
+            let neighbours = get_accessible_neighbours(&map, position, true).clone();
 
             let mut temperature = 0.0;
             let mut pressure = 0.0;
@@ -61,6 +84,18 @@ impl<'a> System<'a> for AtmosphereSystem {
                 //Get the mols of all the neighbours
                 for neighbour in neighbours.iter() {
                     if let Some(neighbour_tile) = map.tiles.get(neighbour) {
+                        //Check collisions
+                        if neighbour_tile.airtight {
+                            continue;
+                        } else if check_entity_blocking(
+                            &blockers,
+                            &mut positions,
+                            *position,
+                            *neighbour,
+                        ) {
+                            continue;
+                        }
+
                         let neighbour_pressure = neighbour_tile.atmosphere.pressure;
 
                         if neighbour_pressure <= pressure {
@@ -90,8 +125,6 @@ impl<'a> System<'a> for AtmosphereSystem {
                                             .insert(*neighbour, *mols);
 
                                         *neighbour_count.entry(*gas).or_insert(0) += 1;
-
-                                        //*total_mols_by_gas.entry(*gas).or_insert(0.0) += *mols;
                                     }
                                 }
                             } else if (pressure - neighbour_pressure) > PRESSURE_THRESHOLD {
@@ -151,7 +184,18 @@ impl<'a> System<'a> for AtmosphereSystem {
 
                 for neighbour in neighbours.iter() {
                     if let Some(neighbour_tile) = map.tiles.get(neighbour) {
-                        //if pressure - neighbour_tile.atmosphere.pressure <= PRESSURE_THRESHOLD {
+                        //Check collisions
+                        if neighbour_tile.airtight {
+                            continue;
+                        } else if check_entity_blocking(
+                            &blockers,
+                            &mut positions,
+                            *position,
+                            *neighbour,
+                        ) {
+                            continue;
+                        }
+
                         for (gas, mols) in current_tile.atmosphere.gasses.iter() {
                             if let Some(neighbour_mols) = neighbour_tile.atmosphere.gasses.get(gas)
                             {
@@ -175,11 +219,8 @@ impl<'a> System<'a> for AtmosphereSystem {
                                     .insert(*neighbour, *mols);
 
                                 *neighbour_count.entry(*gas).or_insert(0) += 1;
-
-                                //*total_mols_by_gas.entry(*gas).or_insert(0.0) += *mols;
                             }
                         }
-                        //}
                     }
                 }
             }
@@ -299,8 +340,13 @@ impl<'a> System<'a> for AtmosphereSystem {
     }
 }
 
-pub fn get_accessible_neighbours(map: &Map, position: &Vector3i) -> Vec<Vector3i> {
-    let mut neighbours = get_neighbours(*position);
+pub fn get_accessible_neighbours(map: &Map, position: &Vector3i, with_z: bool) -> Vec<Vector3i> {
+    let mut neighbours = if with_z {
+        get_neighbours_with_z(*position)
+    } else {
+        get_neighbours(*position)
+    };
+
     let mut accessible_neighbours = Vec::new();
 
     while let Some(neighbour) = neighbours.pop() {

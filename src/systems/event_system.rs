@@ -514,7 +514,7 @@ impl PartialOrd for IntentState {
     }
 }
 
-fn check_entity_blocking(
+pub fn check_entity_blocking(
     blockers: &Storage<Blocker, Fetch<MaskedStorage<Blocker>>>,
     positions: &Storage<Vector3i, FetchMut<MaskedStorage<Vector3i>>>,
     player_position: Vector3i,

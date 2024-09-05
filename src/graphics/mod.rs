@@ -1,8 +1,9 @@
-use rltk::{to_cp437, ColorPair, DrawBatch, Point, Rltk, RGBA};
+use rltk::{to_char, to_cp437, ColorPair, DrawBatch, Point, Rltk, RGB, RGBA};
 use specs::prelude::*;
 
 use crate::{
     colors::{dim_color, mix_surface_light_colors},
+    entities::atmospherics::Gas,
     vectors::Vector3i,
     Camera, Map, Photometry, Player, Renderable, Viewshed, MAP_SCREEN_HEIGHT, MAP_SCREEN_WIDTH,
 };
@@ -41,7 +42,7 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
 
     let map = ecs.fetch::<Map>();
 
-    for (_player, viewshed, position) in (&mut players, &viewsheds, &positions).join() {
+    for (player, viewshed, position) in (&mut players, &viewsheds, &positions).join() {
         for tile_position in viewshed
             .discovered_tiles
             .iter()
@@ -55,111 +56,141 @@ pub fn draw_tiles(ecs: &mut World, viewport_position: Vector3i) {
             let tile = map.tiles.get(&tile_position);
 
             match tile {
-                Some(tile)
-                    if tile.renderable.foreground.a > 0.0 || tile.renderable.background.a > 0.0 =>
-                {
-                    if viewshed.visible_tiles.contains(&tile_position)
-                        && tile.photometry.light_level > 0.0
-                    {
-                        let foreground_color = calculate_lit_color(
-                            tile.renderable.foreground,
-                            tile.photometry.light_color,
-                            tile.photometry.light_level,
-                        );
-
-                        let background_color = calculate_lit_color(
-                            tile.renderable.background,
-                            tile.photometry.light_color,
-                            tile.photometry.light_level,
-                        );
-
-                        if tile_position.z == viewport_position.z {
-                            //Tile is on the same level as the player
-                            draw_batch.set_with_z(
-                                Point::new(
-                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                                ),
-                                ColorPair::new(foreground_color, background_color),
-                                tile.renderable.side_glyph,
-                                1,
+                Some(tile) => {
+                    if tile.renderable.visible {
+                        if viewshed.visible_tiles.contains(&tile_position)
+                            && tile.photometry.light_level > 0.0
+                        {
+                            let foreground_color = calculate_lit_color(
+                                tile.renderable.foreground,
+                                tile.photometry.light_color,
+                                tile.photometry.light_level,
                             );
-                        } else if viewport_position.z - tile_position.z == 1 {
-                            draw_batch.set_with_z(
-                                Point::new(
-                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                                ),
-                                ColorPair::new(foreground_color, background_color),
-                                tile.renderable.top_glyph,
-                                0,
+
+                            let background_color = calculate_lit_color(
+                                tile.renderable.background,
+                                tile.photometry.light_color,
+                                tile.photometry.light_level,
                             );
-                        } else {
-                            draw_batch.set_with_z(
-                                Point::new(
-                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                                ),
-                                ColorPair::new(
-                                    dim_color(
-                                        foreground_color,
-                                        tile_position.z as f32
-                                            / (viewport_position.z + tile_position.z) as f32,
+
+                            if tile_position.z == viewport_position.z {
+                                //Tile is on the same level as the player
+                                draw_batch.set_with_z(
+                                    Point::new(
+                                        tile_position.x - viewport_position.x
+                                            + (MAP_SCREEN_WIDTH / 2),
+                                        tile_position.y - viewport_position.y
+                                            + (MAP_SCREEN_HEIGHT / 2),
                                     ),
-                                    background_color,
-                                ),
-                                tile.renderable.side_glyph,
-                                0,
-                            );
+                                    ColorPair::new(foreground_color, background_color),
+                                    tile.renderable.side_glyph,
+                                    1,
+                                );
+                            } else if viewport_position.z - tile_position.z == 1 {
+                                draw_batch.set_with_z(
+                                    Point::new(
+                                        tile_position.x - viewport_position.x
+                                            + (MAP_SCREEN_WIDTH / 2),
+                                        tile_position.y - viewport_position.y
+                                            + (MAP_SCREEN_HEIGHT / 2),
+                                    ),
+                                    ColorPair::new(foreground_color, background_color),
+                                    tile.renderable.top_glyph,
+                                    0,
+                                );
+                            } else {
+                                draw_batch.set_with_z(
+                                    Point::new(
+                                        tile_position.x - viewport_position.x
+                                            + (MAP_SCREEN_WIDTH / 2),
+                                        tile_position.y - viewport_position.y
+                                            + (MAP_SCREEN_HEIGHT / 2),
+                                    ),
+                                    ColorPair::new(
+                                        dim_color(
+                                            foreground_color,
+                                            tile_position.z as f32
+                                                / (viewport_position.z + tile_position.z) as f32,
+                                        ),
+                                        background_color,
+                                    ),
+                                    tile.renderable.side_glyph,
+                                    0,
+                                );
+                            }
+                        } else {
+                            let foreground = dim_discovered_tile_color(
+                                tile.renderable.foreground,
+                                discovered_tile_dimming,
+                            )
+                            .to_greyscale();
+                            let background = dim_discovered_tile_color(
+                                tile.renderable.background,
+                                discovered_tile_dimming,
+                            )
+                            .to_greyscale();
+
+                            if tile_position.z == viewport_position.z {
+                                draw_batch.set_with_z(
+                                    Point::new(
+                                        tile_position.x - viewport_position.x
+                                            + (MAP_SCREEN_WIDTH / 2),
+                                        tile_position.y - viewport_position.y
+                                            + (MAP_SCREEN_HEIGHT / 2),
+                                    ),
+                                    ColorPair::new(foreground, background),
+                                    tile.renderable.side_glyph,
+                                    1,
+                                );
+                            } else if viewport_position.z - tile_position.z == 1 {
+                                draw_batch.set_with_z(
+                                    Point::new(
+                                        tile_position.x - viewport_position.x
+                                            + (MAP_SCREEN_WIDTH / 2),
+                                        tile_position.y - viewport_position.y
+                                            + (MAP_SCREEN_HEIGHT / 2),
+                                    ),
+                                    ColorPair::new(foreground, background),
+                                    tile.renderable.top_glyph,
+                                    0,
+                                );
+                            } else {
+                                draw_batch.set_with_z(
+                                    Point::new(
+                                        tile_position.x - viewport_position.x
+                                            + (MAP_SCREEN_WIDTH / 2),
+                                        tile_position.y - viewport_position.y
+                                            + (MAP_SCREEN_HEIGHT / 2),
+                                    ),
+                                    ColorPair::new(
+                                        dim_color(
+                                            foreground,
+                                            tile_position.z as f32
+                                                / (viewport_position.z + tile_position.z) as f32,
+                                        ),
+                                        background,
+                                    ),
+                                    tile.renderable.top_glyph,
+                                    0,
+                                );
+                            }
                         }
-                    } else {
-                        let foreground = dim_discovered_tile_color(
-                            tile.renderable.foreground,
-                            discovered_tile_dimming,
-                        )
-                        .to_greyscale();
-                        let background = dim_discovered_tile_color(
-                            tile.renderable.background,
-                            discovered_tile_dimming,
-                        )
-                        .to_greyscale();
+                    } else if player.gas_overlay {
+                        //Display gasses
+                        let carbon_dioxide_color = RGB::named(rltk::RED).to_rgba(0.5);
 
-                        if tile_position.z == viewport_position.z {
-                            draw_batch.set_with_z(
-                                Point::new(
-                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                                ),
-                                ColorPair::new(foreground, background),
-                                tile.renderable.side_glyph,
-                                1,
-                            );
-                        } else if viewport_position.z - tile_position.z == 1 {
-                            draw_batch.set_with_z(
-                                Point::new(
-                                    tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
-                                    tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
-                                ),
-                                ColorPair::new(foreground, background),
-                                tile.renderable.top_glyph,
-                                0,
-                            );
-                        } else {
+                        if tile.atmosphere.gasses.contains_key(&Gas::CarbonDioxide) {
                             draw_batch.set_with_z(
                                 Point::new(
                                     tile_position.x - viewport_position.x + (MAP_SCREEN_WIDTH / 2),
                                     tile_position.y - viewport_position.y + (MAP_SCREEN_HEIGHT / 2),
                                 ),
                                 ColorPair::new(
-                                    dim_color(
-                                        foreground,
-                                        tile_position.z as f32
-                                            / (viewport_position.z + tile_position.z) as f32,
-                                    ),
-                                    background,
+                                    carbon_dioxide_color,
+                                    carbon_dioxide_color.to_rgb().to_rgba(0.0),
                                 ),
-                                tile.renderable.top_glyph,
-                                0,
+                                char_to_glyph('░'),
+                                2,
                             );
                         }
                     }

@@ -54,19 +54,21 @@ impl Viewshed {
 #[derive(Component, Clone, Debug)]
 pub struct Blocker {
     pub sides: Vec<Direction>,
+    pub airtight: bool,
 }
 
 #[allow(dead_code)]
 impl Blocker {
-    pub fn new(sides: Vec<Direction>) -> Blocker {
-        Blocker { sides }
+    pub fn new(sides: Vec<Direction>, airtight: bool) -> Blocker {
+        Blocker { sides, airtight }
     }
-    pub fn new_cardinal_sides() -> Blocker {
+    pub fn new_cardinal_sides(airtight: bool) -> Blocker {
         Blocker {
             sides: vec![Direction::N, Direction::E, Direction::S, Direction::W],
+            airtight,
         }
     }
-    pub fn new_n_s() -> Blocker {
+    pub fn new_n_s(airtight: bool) -> Blocker {
         Blocker {
             sides: vec![
                 Direction::N,
@@ -79,9 +81,10 @@ impl Blocker {
                 Direction::UP,
                 Direction::DOWN,
             ],
+            airtight,
         }
     }
-    pub fn new_e_w() -> Blocker {
+    pub fn new_e_w(airtight: bool) -> Blocker {
         Blocker {
             sides: vec![
                 Direction::N,
@@ -94,9 +97,10 @@ impl Blocker {
                 Direction::UP,
                 Direction::DOWN,
             ],
+            airtight,
         }
     }
-    pub fn new_all_sides() -> Blocker {
+    pub fn new_all_sides(airtight: bool) -> Blocker {
         Blocker {
             sides: vec![
                 Direction::N,
@@ -106,6 +110,7 @@ impl Blocker {
                 Direction::UP,
                 Direction::DOWN,
             ],
+            airtight,
         }
     }
 

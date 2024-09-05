@@ -37,6 +37,7 @@ pub fn player(ecs: &mut World, player_position: Vector3i) -> Entity {
             char_to_glyph('@'),
             RGB::named(rltk::YELLOW).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(1.0),
+            true,
         ))
         .with(Player::new())
         .with(Viewshed::new(60, 3, 0.9))
@@ -72,6 +73,7 @@ pub fn standing_lamp(
             char_to_glyph('î'),
             RGB::named(rltk::ANTIQUEWHITE4).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
+            true,
         ))
         .with(Viewshed::new(10, 3, 1.0))
         .with(Photometry::new())
@@ -80,7 +82,7 @@ pub fn standing_lamp(
         .with(PoweredState::new(true, 10.0))
         .with(PowerSwitch::new(on))
         .with(PowerNode::new())
-        .with(Blocker::new_all_sides())
+        .with(Blocker::new_all_sides(true))
         .with(Prop::new())
         .with(Installed::new())
         .marked::<SimpleMarker<SerializeThis>>()
@@ -103,6 +105,7 @@ pub fn ceiling_lamp(
             char_to_glyph('☼'),
             RGB::named(rltk::ANTIQUEWHITE4).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
+            true,
         ))
         .with(Viewshed::new(CEILING_LAMP_RANGE, 3, 1.0))
         .with(Photometry::new())
@@ -140,6 +143,7 @@ pub fn door(
                 open_glyph,
                 color,
                 RGB::named(rltk::BLACK).to_rgba(0.0),
+                true,
             ))
             .with(Photometry::new())
             .with(Name::new("Door".to_string()))
@@ -155,10 +159,11 @@ pub fn door(
                 closed_glyph,
                 color,
                 RGB::named(rltk::BLACK).to_rgba(0.0),
+                true,
             ))
             .with(Photometry::new())
             .with(Name::new("Door".to_string()))
-            .with(Blocker::new_all_sides())
+            .with(Blocker::new_all_sides(true))
             .with(VisionBlocker::new_all_sides())
             .with(Prop::new())
             .with(Installed::new())
@@ -175,6 +180,7 @@ pub fn power_source(ecs: &mut World, position: Vector3i, on: bool, power: f32) {
             char_to_glyph('◘'),
             RGB::named(rltk::WHITE).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
+            true,
         ))
         .with(Photometry::new())
         .with(Name::new("Power source".to_string()))
@@ -203,17 +209,16 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
             char_to_glyph('■'),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             RGB::named(rltk::GRAY).to_rgba(1.0),
+            true,
         ))
         .with(Photometry::new())
         .with(Name::new("Duct".to_string()))
         .with(Duct::new())
         .with(EntityDirection::new(Direction::UP))
-        .with(Blocker::new(vec![
-            Direction::N,
-            Direction::S,
-            Direction::W,
-            Direction::E,
-        ]))
+        .with(Blocker::new(
+            vec![Direction::N, Direction::S, Direction::W, Direction::E],
+            true,
+        ))
         .with(VisionBlocker::new(vec![
             Direction::N,
             Direction::S,
@@ -492,12 +497,13 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
                 char_to_glyph(char),
                 RGB::named(rltk::BLACK).to_rgba(1.0),
                 RGB::named(rltk::GRAY).to_rgba(1.0),
+                true,
             ))
             .with(Photometry::new())
             .with(Name::new("Duct".to_string()))
             .with(Duct::new())
             .with(EntityDirection::new(direction.clone()))
-            .with(Blocker::new(sides.clone()))
+            .with(Blocker::new(sides.clone(), true))
             .with(VisionBlocker::new(sides))
             .with(Name::new(format!("Duct ({:?})", direction)))
             .with(PowerNode::new())
@@ -521,6 +527,7 @@ pub fn breaker_box(ecs: &mut World, position: Vector3i) {
             char_to_glyph('b'),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             RGB::named(rltk::GRAY).to_rgba(1.0),
+            true,
         ))
         .with(Photometry::new())
         .with(ControlPanel {})
@@ -609,6 +616,7 @@ pub fn lay_wiring(
                 char_to_glyph(char),
                 color,
                 RGB::named(rltk::BLACK).to_rgba(0.0),
+                true,
             ))
             .with(Photometry::new())
             .with(Name::new(format!("Wire ({})", color_name.clone())))
@@ -633,6 +641,7 @@ pub fn heater(ecs: &mut World, position: Vector3i, target_temperature: f32, on: 
             char_to_glyph('H'),
             RGB::named(rltk::BLACK).to_rgba(1.0),
             RGB::named(rltk::GRAY).to_rgba(1.0),
+            true,
         ))
         .with(Viewshed::new(2, 1, 1.0))
         .with(Photometry::new())
@@ -662,6 +671,7 @@ pub fn test_item(ecs: &mut World, position: Vector3i) -> Entity {
             char_to_glyph('¡'),
             RGB::named(rltk::RED).to_rgba(1.0),
             RGB::named(rltk::BLACK).to_rgba(0.0),
+            true,
         ))
         .with(Photometry::new())
         .with(Name::new("Test tube".to_string()))
@@ -679,12 +689,13 @@ pub fn storage_cabinet(ecs: &mut World, position: Vector3i) -> Entity {
             char_to_glyph('H'),
             RGB::named(rltk::WHITE).to_rgba(1.0),
             RGB::named(rltk::GRAY5).to_rgba(1.0),
+            true,
         ))
         .with(Photometry::new())
         .with(Name::new("Storage cabinet".to_string()))
         .with(Installed::new())
         .with(Container::new(100.0))
-        .with(Blocker::new_all_sides())
+        .with(Blocker::new_all_sides(true))
         .marked::<SimpleMarker<SerializeThis>>()
         .build()
 }

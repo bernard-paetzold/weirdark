@@ -1,8 +1,6 @@
 use specs::prelude::*;
 
-use crate::{
-    vectors::Vector3i, Blocker, Door, Map, Renderable, Viewshed, VisionBlocker
-};
+use crate::{vectors::Vector3i, Blocker, Door, Map, Renderable, Viewshed, VisionBlocker};
 
 pub struct StateAlignSystem {}
 
@@ -27,7 +25,7 @@ impl<'a> System<'a> for StateAlignSystem {
             mut vision_blockers,
             positions,
             mut viewsheds,
-            entities
+            entities,
         ) = data;
 
         let mut affected_tiles = Vec::new();
@@ -49,18 +47,21 @@ impl<'a> System<'a> for StateAlignSystem {
                 if let Some(_vision_blocker) = vision_blockers.get(entity) {
                     vision_blockers.remove(entity);
                 }
-            }
-            else {
+            } else {
                 if let Some(renderable) = renderables.get_mut(entity) {
                     renderable.side_glyph = door.closed_glyph;
                     renderable.top_glyph = door.closed_glyph;
 
                     //If the door is opaque, block vision
                     if renderable.foreground.a >= 1.0 {
-                        vision_blockers.insert(entity, VisionBlocker::new_all_sides()).expect("Error inserting component");
+                        vision_blockers
+                            .insert(entity, VisionBlocker::new_all_sides())
+                            .expect("Error inserting component");
                     }
                 }
-                let result = blockers.insert(entity, Blocker::new_all_sides()).expect("Error inserting component");
+                let result = blockers
+                    .insert(entity, Blocker::new_all_sides(true))
+                    .expect("Error inserting component");
 
                 match result {
                     None => {
@@ -68,13 +69,20 @@ impl<'a> System<'a> for StateAlignSystem {
                         affected_tiles.push(position);
                     }
                     _ => {}
-                }   
+                }
             }
         }
 
         //Rebuild viewsheds
         for (viewshed, position) in (&mut viewsheds, &positions).join() {
-            if affected_tiles.iter().filter(|affected_tile| affected_tile.distance_to_int(*position) < viewshed.view_distance as i32).next().is_some() {
+            if affected_tiles
+                .iter()
+                .filter(|affected_tile| {
+                    affected_tile.distance_to_int(*position) < viewshed.view_distance as i32
+                })
+                .next()
+                .is_some()
+            {
                 viewshed.dirty = true;
             }
         }

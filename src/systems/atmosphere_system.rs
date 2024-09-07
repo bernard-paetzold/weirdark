@@ -29,24 +29,11 @@ impl<'a> System<'a> for AtmosphereSystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        //let now = std::time::Instant::now();
         let (mut map, blockers, mut positions) = data;
 
-        /*let mut dirty_atmospheres = HashSet::new();
+        // let now = std::time::Instant::now();
 
-        for (position, tile) in map
-            .tiles
-            .par_iter_mut()
-            .filter(|(_, tile)| tile.atmosphere.dirty)
-        {
-            dirty_atmospheres.insert(position.clone());
-            //Reset dirty
-            tile.atmosphere.recalculate_temperature();
-            tile.atmosphere.recalculate_pressure();
-            tile.atmosphere.dirty = false;
-        }*/
-
-        let dirty_atmospheres: HashSet<_> = map
+        let dirty_atmospheres: Vec<Vector3i> = map
             .tiles
             .par_iter_mut()
             .filter(|(_, tile)| tile.atmosphere.dirty)
@@ -58,6 +45,8 @@ impl<'a> System<'a> for AtmosphereSystem {
             })
             .collect();
 
+        //println!("{:?}", now.elapsed());
+
         for position in dirty_atmospheres.iter() {
             let neighbours = get_accessible_neighbours(&map, position, true).clone();
 
@@ -65,7 +54,6 @@ impl<'a> System<'a> for AtmosphereSystem {
             let mut pressure = 0.0;
 
             let mut neighbour_mol_deltas: HashMap<Gas, HashMap<Vector3i, f32>> = HashMap::new();
-            //let mut total_deltas_by_gas: HashMap<Gas, f32> = HashMap::new();
             let mut neighbour_count: HashMap<Gas, usize> = HashMap::new();
             let mut total_mols_by_gas: HashMap<Gas, f32> = HashMap::new();
 

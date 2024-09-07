@@ -272,6 +272,15 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         if vec_direction == Vector3i::N {
             direction = Direction::N;
 
+            if !(prev_direction == Direction::S || prev_direction == Direction::N) {
+                sides.insert(Direction::S);
+            }
+
+            if !(prev_direction == Direction::E || prev_direction == Direction::W) {
+                sides.insert(Direction::E);
+                sides.insert(Direction::W);
+            }
+
             if next_vec_direction != Vector3i::N {
                 sides.insert(Direction::N);
             }
@@ -298,6 +307,15 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         } else if vec_direction == Vector3i::W {
             direction = Direction::W;
 
+            if !(prev_direction == Direction::S || prev_direction == Direction::N) {
+                sides.insert(Direction::N);
+                sides.insert(Direction::S);
+            }
+
+            if !(prev_direction == Direction::E || prev_direction == Direction::W) {
+                sides.insert(Direction::E);
+            }
+
             if next_vec_direction != Vector3i::W {
                 sides.insert(Direction::W);
             }
@@ -313,16 +331,25 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
             }
 
             if next_vec_direction != Vector3i::UP
-                && !(prev_direction == Direction::DOWN || prev_direction == Direction::UP)
+                && (prev_direction != Direction::DOWN || prev_direction != Direction::UP)
             {
                 sides.insert(Direction::UP);
             }
 
-            if next_vec_direction == Vector3i::DOWN {
+            if next_vec_direction != Vector3i::DOWN {
                 sides.insert(Direction::DOWN);
             }
         } else if vec_direction == Vector3i::S {
             direction = Direction::S;
+
+            if !(prev_direction == Direction::S || prev_direction == Direction::N) {
+                sides.insert(Direction::N);
+            }
+
+            if !(prev_direction == Direction::E || prev_direction == Direction::W) {
+                sides.insert(Direction::E);
+                sides.insert(Direction::W);
+            }
 
             if next_vec_direction != Vector3i::S {
                 sides.insert(Direction::S);
@@ -350,6 +377,15 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         } else if vec_direction == Vector3i::E {
             direction = Direction::E;
 
+            if !(prev_direction == Direction::S || prev_direction == Direction::N) {
+                sides.insert(Direction::N);
+                sides.insert(Direction::S);
+            }
+
+            if !(prev_direction == Direction::E || prev_direction == Direction::W) {
+                sides.insert(Direction::W);
+            }
+
             if next_vec_direction != Vector3i::E {
                 sides.insert(Direction::E);
             }
@@ -376,6 +412,16 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
         } else if vec_direction == Vector3i::UP {
             direction = Direction::UP;
 
+            if !(prev_direction == Direction::S || prev_direction == Direction::N) {
+                sides.insert(Direction::N);
+                sides.insert(Direction::S);
+            }
+
+            if !(prev_direction == Direction::E || prev_direction == Direction::W) {
+                sides.insert(Direction::E);
+                sides.insert(Direction::W);
+            }
+
             if next_vec_direction != Vector3i::UP {
                 sides.insert(Direction::UP);
             }
@@ -401,6 +447,16 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
             }
         } else if vec_direction == Vector3i::DOWN {
             direction = Direction::DOWN;
+
+            if !(prev_direction == Direction::S || prev_direction == Direction::N) {
+                sides.insert(Direction::N);
+                sides.insert(Direction::S);
+            }
+
+            if !(prev_direction == Direction::E || prev_direction == Direction::W) {
+                sides.insert(Direction::E);
+                sides.insert(Direction::W);
+            }
         }
 
         {
@@ -469,11 +525,15 @@ pub fn lay_ducting(ecs: &mut World, map: Map, start_position: Vector3i, end_posi
                     relative_direction.x = 0;
                     relative_direction.y = 0;
 
-                    if other_direction.direction == Direction::UP {
+                    if other_direction.direction == Direction::UP
+                        && relative_direction == Vector3i::DOWN
+                    {
                         sides.remove(&Direction::DOWN);
                         blockers.remove_side(Direction::UP);
                         vision_blockers.remove_side(Direction::UP);
-                    } else if other_direction.direction == Direction::DOWN {
+                    } else if other_direction.direction == Direction::DOWN
+                        && relative_direction == Vector3i::UP
+                    {
                         sides.remove(&Direction::UP);
                         blockers.remove_side(Direction::DOWN);
                         vision_blockers.remove_side(Direction::DOWN);
@@ -718,23 +778,27 @@ fn update_duct_char(sides: &HashSet<Direction>) -> char {
         sides.contains(&Direction::S),
         sides.contains(&Direction::E),
         sides.contains(&Direction::W),
+        sides.contains(&Direction::DOWN),
+        sides.contains(&Direction::UP),
     ) {
-        (false, false, false, false) => '╬', // All sides open
-        (true, true, true, true) => '■',     // All sides closed
-        (true, true, true, false) => '╣',    // West open
-        (true, true, false, true) => '╠',    // East open
-        (true, false, true, true) => '╩',    // South open
-        (false, true, true, true) => '╦',    // North open
-        (true, true, false, false) => '═',   // East and West open
-        (false, false, true, true) => '║',   // North and South open
-        (false, true, false, true) => '╗',   // North and East open
-        (false, true, true, false) => '╔',   // North and West open
-        (true, false, false, true) => '╝',   // South and East open
-        (true, false, true, false) => '╚',   // South and West open
-        (false, true, false, false) => '╨',  // North, East, and West open
-        (true, false, false, false) => '╥',  // South, East, and West open
-        (false, false, false, true) => '╡',  // North, South, and East open
-        (false, false, true, false) => '╞',  // North, South, and West open
+        (_, _, _, _, false, _) => '■',
+        (_, _, _, _, _, false) => '■',
+        (false, false, false, false, _, _) => '╬', // All sides open
+        (true, true, true, true, _, _) => '■',     // All sides closed
+        (true, true, true, false, _, _) => '╡',    // West open
+        (true, true, false, true, _, _) => '╞',    // East open
+        (true, false, true, true, _, _) => '╥',    // South open
+        (false, true, true, true, _, _) => '╨',    // North open
+        (true, true, false, false, _, _) => '═',   // East and West open
+        (false, false, true, true, _, _) => '║',   // North and South open
+        (false, true, false, true, _, _) => '╚',   // North and East open
+        (false, true, true, false, _, _) => '╝',   // North and West open
+        (true, false, false, true, _, _) => '╔',   // South and East open
+        (true, false, true, false, _, _) => '╗',   // South and West open
+        (false, true, false, false, _, _) => '╩',  // North, East, and West open
+        (true, false, false, false, _, _) => '╦',  // South, East, and West open
+        (false, false, false, true, _, _) => '╠',  // North, South, and East open
+        (false, false, true, false, _, _) => '╣',  // North, South, and West open
     }
 }
 
@@ -744,22 +808,26 @@ pub fn update_duct_char_from_sides(sides: &Vec<Direction>) -> char {
         sides.contains(&Direction::S),
         sides.contains(&Direction::E),
         sides.contains(&Direction::W),
+        sides.contains(&Direction::DOWN),
+        sides.contains(&Direction::UP),
     ) {
-        (false, false, false, false) => '╬', // All sides open
-        (true, true, true, true) => '■',     // All sides closed
-        (true, true, true, false) => '╣',    // West open
-        (true, true, false, true) => '╠',    // East open
-        (true, false, true, true) => '╩',    // South open
-        (false, true, true, true) => '╦',    // North open
-        (true, true, false, false) => '═',   // East and West open
-        (false, false, true, true) => '║',   // North and South open
-        (false, true, false, true) => '╗',   // North and East open
-        (false, true, true, false) => '╔',   // North and West open
-        (true, false, false, true) => '╝',   // South and East open
-        (true, false, true, false) => '╚',   // South and West open
-        (false, true, false, false) => '╨',  // North, East, and West open
-        (true, false, false, false) => '╥',  // South, East, and West open
-        (false, false, false, true) => '╡',  // North, South, and East open
-        (false, false, true, false) => '╞',  // North, South, and West open
+        (_, _, _, _, false, _) => '■',
+        (_, _, _, _, _, false) => '■',
+        (false, false, false, false, _, _) => '╬', // All sides open
+        (true, true, true, true, _, _) => '■',     // All sides closed
+        (true, true, true, false, _, _) => '╡',    // West open
+        (true, true, false, true, _, _) => '╞',    // East open
+        (true, false, true, true, _, _) => '╥',    // South open
+        (false, true, true, true, _, _) => '╨',    // North open
+        (true, true, false, false, _, _) => '═',   // East and West open
+        (false, false, true, true, _, _) => '║',   // North and South open
+        (false, true, false, true, _, _) => '╚',   // North and East open
+        (false, true, true, false, _, _) => '╝',   // North and West open
+        (true, false, false, true, _, _) => '╔',   // South and East open
+        (true, false, true, false, _, _) => '╗',   // South and West open
+        (false, true, false, false, _, _) => '╩',  // North, East, and West open
+        (true, false, false, false, _, _) => '╦',  // South, East, and West open
+        (false, false, false, true, _, _) => '╠',  // North, South, and East open
+        (false, false, true, false, _, _) => '╣',  // North, South, and West open
     }
 }

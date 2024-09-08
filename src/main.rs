@@ -318,17 +318,13 @@ fn main() -> rltk::BError {
         .ecs
         .insert(SimpleMarkerAllocator::<SerializeThis>::new());
 
-    /*let mut builder = map_builders::build_system_test_map(
-        Vector3i::new(MAP_SIZE, MAP_SIZE, 5),
-        player_start_position + Vector3i::new(0, 0, -1),
-    );*/
     let mut builder = map_builders::build_small_cargo_ship_map(
         Vector3i::new(MAP_SIZE, MAP_SIZE, 5),
         player_start_position,
     );
 
     builder.build_map();
-    //builder.spawn_entities(&mut game_state.ecs);
+
     let map = builder.get_map();
 
     game_state.ecs.insert(map);

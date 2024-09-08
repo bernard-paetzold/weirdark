@@ -23,8 +23,8 @@ use crate::{
     SerializeThis, Tile, Viewshed,
 };
 use crate::{
-    Atmosphere, Camera, Container, EntityDirection, InContainer, Installed, Item, Prop,
-    TERMINAL_HEIGHT, TERMINAL_WIDTH,
+    Atmosphere, Blocker, Camera, Container, Door, Duct, EntityDirection, InContainer, Installed,
+    Item, Prop, VisionBlocker, TERMINAL_HEIGHT, TERMINAL_WIDTH,
 };
 
 macro_rules! serialize_individually {
@@ -89,6 +89,10 @@ pub fn save_game(ecs: &mut World) {
             Installed,
             Container,
             Cabinet,
+            VisionBlocker,
+            Blocker,
+            Door,
+            Duct,
             SerializationHelper
         );
     }
@@ -102,14 +106,19 @@ pub fn does_save_exist() -> bool {
 macro_rules! deserialize_individually {
     ($ecs:expr, $de:expr, $data:expr, $( $type:ty),*) => {
         $(
-        DeserializeComponents::<NoError, _>::deserialize(
-            &mut ( &mut $ecs.write_storage::<$type>(), ),
-            &mut $data.0, // entities
-            &mut $data.1, // marker
-            &mut $data.2, // allocater
-            &mut $de,
-        )
-        .unwrap();
+            println!("Deserializing {:?}", stringify!($type));
+            match DeserializeComponents::<NoError, _>::deserialize(
+                &mut ( &mut $ecs.write_storage::<$type>(), ),
+                &mut $data.0, // entities
+                &mut $data.1, // marker
+                &mut $data.2, // allocater
+                &mut $de,
+            ) {
+                Ok(_) => println!("Successfully deserialized {:?}", stringify!($type)),
+                Err(e) => {
+                    println!("Error deserializing {:?}: {:?}", stringify!($type), e);
+                }
+            }
         )*
     };
 }
@@ -178,6 +187,10 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             Installed,
             Container,
             Cabinet,
+            VisionBlocker,
+            Blocker,
+            Door,
+            Duct,
             SerializationHelper
         );
     }
@@ -204,8 +217,10 @@ pub fn load_game(ecs: &mut World, ctx: &mut Rltk) {
             *player_resource = entity;
         }
     }
-    ecs.delete_entity(delete_me.unwrap())
-        .expect("Unable to delete helper");
+
+    if let Some(entity) = delete_me {
+        let _ = ecs.delete_entity(entity);
+    }
 }
 
 pub fn delete_save() {

@@ -51,7 +51,7 @@ impl Viewshed {
 }
 
 #[allow(dead_code)]
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, ConvertSaveload, Debug)]
 pub struct Blocker {
     pub sides: Vec<Direction>,
     pub airtight: bool,
@@ -132,7 +132,7 @@ impl Blocker {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, ConvertSaveload, Clone)]
 pub struct VisionBlocker {
     pub sides: Vec<Direction>,
 }
@@ -277,7 +277,7 @@ pub struct SerializationHelper {
     pub map: map::Map,
 }
 
-#[derive(Component, Default, Serialize, Deserialize, Clone)]
+#[derive(Component, Default, ConvertSaveload, Clone)]
 pub struct Door {
     pub open: bool,
     pub interaction_description: String,
